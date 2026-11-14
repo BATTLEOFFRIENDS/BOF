@@ -4784,6 +4784,45 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
         doneOpp();
         return;
       }
+
+      // 🌐 กรณีโหมด PvP: ส่งหน้าต่างตัวเลือกไปยังเครื่องของเพื่อน ให้เพื่อนเลือกทิ้งการ์ดบนมือของตนเอง
+      if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && other !== gameState.player) {
+        setLog('🔥 [ออโต้คาเงโร่] กำลังรอฝ่ายตรงข้ามเลือกทิ้งการ์ดบนมือของตน...');
+        const pvpOptions = other.hand.map(c => ({
+          label: `🗑️ ทิ้ง "${c.name}"`,
+          color: '#dc2626'
+        }));
+        pvpOptions.push({
+          label: '💔 ไม่ทิ้งการ์ด (ยอมเสียเลือดลีดเดอร์ 1 HP)',
+          color: '#7f1d1d'
+        });
+        sendPvpPacket({
+          type: 'REQUEST_PVP_CHOICE',
+          choiceId: 'kagero_discard_' + Date.now(),
+          title: '🔥 ผลจากลีดเดอร์คาเงโร่: แต่ละฝั่งต้องทิ้งการ์ดบนมือ 1 ใบ',
+          description: 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก หรือเลือกยอมเสียเลือดลีดเดอร์ 1 HP:',
+          options: pvpOptions
+        });
+        pvpState.pendingChoiceResolver = (optIdx) => {
+          if (optIdx < other.hand.length) {
+            const discarded = other.hand.splice(optIdx, 1)[0];
+            resetCardStateForZoneChange(discarded);
+            other.graveyard.push(discarded);
+            setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${discarded.name}" 1 ใบจากมือลงนรก`);
+            checkDiscardTriggers(other, discarded);
+          } else {
+            other.leader.hp = Math.max(0, other.leader.hp - 1);
+            setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกไม่ทิ้งการ์ด -> ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${other.leader.hp}/6)!`);
+            if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(other);
+          }
+          renderGame();
+          checkGameOver();
+          if (typeof syncBoardToOpponent === 'function') syncBoardToOpponent();
+          doneOpp();
+        };
+        return;
+      }
+
       if (other !== gameState.player) {
         let pickIdx = 0, minP = 999;
         other.hand.forEach((c, i) => {
@@ -4793,6 +4832,9 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
         const d = other.hand.splice(pickIdx, 1)[0];
         resetCardStateForZoneChange(d);
         other.graveyard.push(d);
+        if (typeof showCardShowcaseBanner === 'function') {
+          showCardShowcaseBanner(d, 'ฝั่งตรงข้ามเลือกทิ้งการ์ด', `🔥 ฝั่งตรงข้ามเลือกทิ้ง "${d.name}" ลงนรก`, '#ef4444', 1200);
+        }
         setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
         checkDiscardTriggers(other, d);
         doneOpp();
@@ -4832,6 +4874,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
     handleActiveDiscard(() => {
       handleOpponentDiscard(() => {
         renderGame();
+        if (typeof syncBoardToOpponent === 'function') syncBoardToOpponent();
         if (onComplete) onComplete();
       });
     });
