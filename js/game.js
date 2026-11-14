@@ -679,6 +679,7 @@ const gameState = {
   isWaitingForChoice: false,
   isRollingDice: false,
   isAttacking: false,
+  _attackingTimeout: null,
   gameOver: false,
   matchLogHistory: [],
   player: null,
@@ -5842,8 +5843,20 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
   }
 
   gameState.isAttacking = true;
+  if (gameState._attackingTimeout) clearTimeout(gameState._attackingTimeout);
+  gameState._attackingTimeout = setTimeout(() => {
+    if (gameState.isAttacking) {
+      gameState.isAttacking = false;
+      renderGame();
+    }
+  }, 10000);
+
   const wrappedOnComplete = () => {
     gameState.isAttacking = false;
+    if (gameState._attackingTimeout) {
+      clearTimeout(gameState._attackingTimeout);
+      gameState._attackingTimeout = null;
+    }
     renderGame();
     if (onCompleteCallback) onCompleteCallback();
   };
@@ -7364,6 +7377,13 @@ function handleNextPhaseButtonClick() {
     setLog('⏳ กรุณารอฝ่ายตรงข้ามเลือกการป้องกันให้เสร็จก่อน!');
     return;
   }
+  if (gameState.isAttacking && !gameState.pendingAction && !gameState.isWaitingForChoice && !isChoiceModalOpen()) {
+    gameState.isAttacking = false;
+    if (gameState._attackingTimeout) {
+      clearTimeout(gameState._attackingTimeout);
+      gameState._attackingTimeout = null;
+    }
+  }
   if (isInteractionBlocked()) {
     setLog('⚠️ กรุณารอและดำเนินการเลือกของความสามารถที่ค้างอยู่ให้เสร็จก่อนเปลี่ยนเฟส!');
     return;
@@ -7449,6 +7469,11 @@ function triggerPlayerPassTurn() {
 
   executeEndPhaseCleanup(gameState.player);
   gameState.phase = 'End Phase';
+  gameState.isAttacking = false;
+  if (gameState._attackingTimeout) {
+    clearTimeout(gameState._attackingTimeout);
+    gameState._attackingTimeout = null;
+  }
   gameState.selectedHandIndex = null;
   gameState.selectedAttackerSlot = null;
   disableControls();
@@ -8695,6 +8720,10 @@ function isChoiceModalOpen() {
 function startPlayerTurn() {
   if (gameState.gameOver) return;
   gameState.isAttacking = false;
+  if (gameState._attackingTimeout) {
+    clearTimeout(gameState._attackingTimeout);
+    gameState._attackingTimeout = null;
+  }
   gameState.phase = 'Main Phase';
   gameState.pendingAction = null;
 
@@ -9402,6 +9431,10 @@ function initGame() {
   gameState.isRollingDice = false;
   gameState.isWaitingForChoice = false;
   gameState.isAttacking = false;
+  if (gameState._attackingTimeout) {
+    clearTimeout(gameState._attackingTimeout);
+    gameState._attackingTimeout = null;
+  }
   gameState.gameOver = false;
   gameState.matchLogHistory = [];
   gameState.lastPlayedCardInfo = null;
@@ -9612,6 +9645,11 @@ function handleIncomingPvpData(data) {
         data.targetType,
         data.targetSlot,
         (specialResult) => {
+          gameState.isAttacking = false;
+          if (gameState._attackingTimeout) {
+            clearTimeout(gameState._attackingTimeout);
+            gameState._attackingTimeout = null;
+          }
           if (specialResult === 'FORCE_END_TURN') {
             executeEndPhaseCleanup(gameState.ai);
             sendPvpPacket({
@@ -9645,6 +9683,11 @@ function handleIncomingPvpData(data) {
   if (data.type === 'ATTACK_RESOLVED') {
     pvpState.isApplyingRemote = true;
     pvpState.waitingForDefense = false;
+    gameState.isAttacking = false;
+    if (gameState._attackingTimeout) {
+      clearTimeout(gameState._attackingTimeout);
+      gameState._attackingTimeout = null;
+    }
     gameState.ai = data.senderData;
     gameState.player = data.receiverData;
     gameState.ai.name = 'ฝ่ายตรงข้าม';
@@ -9703,6 +9746,11 @@ function handleIncomingPvpData(data) {
       }
     } else if (data.type === 'PASS_TURN') {
       pvpState.waitingForDefense = false;
+      gameState.isAttacking = false;
+      if (gameState._attackingTimeout) {
+        clearTimeout(gameState._attackingTimeout);
+        gameState._attackingTimeout = null;
+      }
       gameState.turnCount = data.nextTurnCount;
       gameState.ai = data.senderData;
       gameState.player = data.receiverData;
