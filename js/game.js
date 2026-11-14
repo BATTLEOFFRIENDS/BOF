@@ -678,15 +678,17 @@ const gameState = {
   pendingAction: null,
   isWaitingForChoice: false,
   isRollingDice: false,
+  isAttacking: false,
   gameOver: false,
   matchLogHistory: [],
   player: null,
   ai: null
 };
 
-// ตรวจสอบว่ากำลังมีหน้าต่างตัวเลือก, รอเลือกเป้าหมาย หรือรอการตัดสินใจของสกิลอยู่หรือไม่
+// ตรวจสอบว่ากำลังมีหน้าต่างตัวเลือก, รอเลือกเป้าหมาย, ยูนิตกำลังโจมตี หรือรอการตัดสินใจของสกิลอยู่หรือไม่
 function isInteractionBlocked() {
   if (gameState.gameOver) return false;
+  if (gameState.isAttacking) return true;
   if (gameState.pendingAction) return true;
   if (gameState.isWaitingForChoice) return true;
   const choiceModal = document.getElementById('custom-choice-modal');
@@ -4621,11 +4623,32 @@ function checkDiscardTriggers(contestant, card) {
           setLog(`🔥 [AI ออโต้โคเอ็น] ถูกทิ้ง -> ทำลายยูนิทช่องที่ ${bestSlot + 1} ของคุณ!`);
         }
       } else if (other.hand.length > 0) {
-        const oppD = other.hand.pop();
-        resetCardStateForZoneChange(oppD);
-        other.graveyard.push(oppD);
-        setLog(`🔥 [AI ออโต้โคเอ็น] ถูกทิ้ง -> บังคับฝ่ายตรงข้ามทิ้งการ์ด "${oppD.name}" 1 ใบ!`);
-        checkDiscardTriggers(other, oppD);
+        if (other === gameState.player) {
+          const discardOptions = other.hand.map((c, idx) => ({
+            label: `ทิ้ง "${c.name}"`,
+            color: '#dc2626',
+            onSelect: () => {
+              const discarded = other.hand.splice(idx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              other.graveyard.push(discarded);
+              setLog(`🔥 [ออโต้โคเอ็น] คุณเลือกทิ้งการ์ด "${discarded.name}" 1 ใบลงนรก`);
+              checkDiscardTriggers(other, discarded);
+              renderGame();
+            }
+          }));
+          showChoiceModal('🔥 ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"', 'ฝ่ายตรงข้ามใช้สกิลบังคับให้คุณทิ้งการ์ดบนมือ 1 ใบ:\nเลือกการ์ดที่จะทิ้งลงนรก:', discardOptions);
+        } else {
+          let pickIdx = 0, minP = 999;
+          other.hand.forEach((c, i) => {
+            const p = (c.type === 'Monster') ? (c.power || 0) : 1;
+            if (p < minP) { minP = p; pickIdx = i; }
+          });
+          const oppD = other.hand.splice(pickIdx, 1)[0];
+          resetCardStateForZoneChange(oppD);
+          other.graveyard.push(oppD);
+          setLog(`🔥 [AI ออโต้โคเอ็น] ถูกทิ้ง -> ฝ่ายตรงข้ามทิ้งการ์ด "${oppD.name}" 1 ใบ!`);
+          checkDiscardTriggers(other, oppD);
+        }
       }
       renderGame();
     } else {
@@ -4659,10 +4682,15 @@ function checkDiscardTriggers(contestant, card) {
           label: '🗑️ บังคับอีกฝ่ายทิ้งการ์ดบนมือ 1 ใบ',
           color: '#7c3aed',
           onSelect: () => {
-            const oppD = other.hand.pop();
+            let pickIdx = 0, minP = 999;
+            other.hand.forEach((c, i) => {
+              const p = (c.type === 'Monster') ? (c.power || 0) : 1;
+              if (p < minP) { minP = p; pickIdx = i; }
+            });
+            const oppD = other.hand.splice(pickIdx, 1)[0];
             resetCardStateForZoneChange(oppD);
             other.graveyard.push(oppD);
-            setLog(`🔥 [ออโต้โคเอ็น] บังคับ ${other.name} ทิ้งการ์ด "${oppD.name}" 1 ใบ!`);
+            setLog(`🔥 [ออโต้โคเอ็น] ${other.name} ทิ้งการ์ด "${oppD.name}" 1 ใบลงนรก!`);
             checkDiscardTriggers(other, oppD);
             renderGame();
           }
@@ -4702,10 +4730,15 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
         return;
       }
       if (contestant !== gameState.player) {
-        const d = contestant.hand.pop();
+        let pickIdx = 0, minP = 999;
+        contestant.hand.forEach((c, i) => {
+          const p = (c.type === 'Monster') ? (c.power || 0) : 1;
+          if (p < minP) { minP = p; pickIdx = i; }
+        });
+        const d = contestant.hand.splice(pickIdx, 1)[0];
         resetCardStateForZoneChange(d);
         contestant.graveyard.push(d);
-        setLog(`🔥 [AI ออโต้คาเงโร่] ทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
+        setLog(`🔥 [ออโต้คาเงโร่] ${contestant.name} เลือกทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
         checkDiscardTriggers(contestant, d);
         doneActive();
         return;
@@ -4752,10 +4785,15 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
         return;
       }
       if (other !== gameState.player) {
-        const d = other.hand.pop();
+        let pickIdx = 0, minP = 999;
+        other.hand.forEach((c, i) => {
+          const p = (c.type === 'Monster') ? (c.power || 0) : 1;
+          if (p < minP) { minP = p; pickIdx = i; }
+        });
+        const d = other.hand.splice(pickIdx, 1)[0];
         resetCardStateForZoneChange(d);
         other.graveyard.push(d);
-        setLog(`🔥 [AI ออโต้คาเงโร่] ฝ่ายตรงข้ามทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
+        setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
         checkDiscardTriggers(other, d);
         doneOpp();
         return;
@@ -4807,7 +4845,12 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
 
   if (contestant !== gameState.player) {
     if (contestant.hand.length > 1 && hasEnemyUnits) {
-      const d = contestant.hand.pop();
+      let pickIdx = 0, minP = 999;
+      contestant.hand.forEach((c, i) => {
+        const p = (c.type === 'Monster') ? (c.power || 0) : 1;
+        if (p < minP) { minP = p; pickIdx = i; }
+      });
+      const d = contestant.hand.splice(pickIdx, 1)[0];
       resetCardStateForZoneChange(d);
       contestant.graveyard.push(d);
       let bestSlot = -1, maxP = -1;
@@ -5743,12 +5786,24 @@ function triggerBelphegorAttackSuccess(attacker, defender, attackingMonster) {
 
 // ฟังก์ชันหลักเมื่อสั่งโจมตี (เพิ่มแอนิเมชันพุ่งโจมตีก่อนประมวลผล)
 function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback = null) {
+  if (gameState.isAttacking) {
+    setLog('⏳ ยูนิตกำลังทำการโจมตีอยู่ กรุณารอให้การโจมตีนี้เสร็จสิ้นก่อน!');
+    if (onCompleteCallback) onCompleteCallback();
+    return;
+  }
   const attackingMonster = attacker.board[attackerSlot];
   const check = canContestantAttack(attacker, attackingMonster);
   if (!check.allowed) {
     if (onCompleteCallback) onCompleteCallback();
     return;
   }
+
+  gameState.isAttacking = true;
+  const wrappedOnComplete = () => {
+    gameState.isAttacking = false;
+    renderGame();
+    if (onCompleteCallback) onCompleteCallback();
+  };
 
   // 🐍 ตรวจสอบว่ายูนิทที่สั่งโจมตีถูกสกิลของ "ลิเวียธาน บาปความริษยา" (DMM03) ล็อกเป้าไว้หรือไม่
   if (attackingMonster.tauntedByLeviathanUid) {
@@ -5786,7 +5841,7 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
         return;
       }
 
-      checkDefenderAttackReactions(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback);
+      checkDefenderAttackReactions(attacker, defender, attackerSlot, targetType, targetSlot, wrappedOnComplete);
     });
   };
 
@@ -8596,6 +8651,7 @@ function isChoiceModalOpen() {
 
 function startPlayerTurn() {
   if (gameState.gameOver) return;
+  gameState.isAttacking = false;
   gameState.phase = 'Main Phase';
   gameState.pendingAction = null;
 
@@ -9302,6 +9358,7 @@ function initGame() {
   gameState.pendingAction = null;
   gameState.isRollingDice = false;
   gameState.isWaitingForChoice = false;
+  gameState.isAttacking = false;
   gameState.gameOver = false;
   gameState.matchLogHistory = [];
   gameState.lastPlayedCardInfo = null;
