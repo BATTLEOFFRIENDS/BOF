@@ -36,7 +36,7 @@ CARD_DATABASE.push(
   },
   {
     id: 'KG04',
-    name: 'ดราโกนิค โอเวอร์ลอร์ด the x',
+    name: 'ดราโกนิค โอเวอร์ลอร์ด THE X',
     type: 'Monster',
     tribe: 'คาเงโร่',
     rarity: 'SR',

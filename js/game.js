@@ -6035,9 +6035,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (demonCountOnDefenderBoard >= 1)
     && (defender.spellQuota.reactionUsed < 1);
 
-  const canUseTheXInGrave = defender.graveyard.some(c => c && c.id === 'KG04')
-    && !defender.kg04UsedThisGame
-    && defender.board.some(m => m === null);
+  const canUseTheXInGrave = defender.graveyard.some(c => c && (c.id === 'KG04' || (c.name && c.name.toLowerCase().includes('the x'))))
+    && !defender.kg04UsedThisGame;
 
   const canUseNagisa = defender.hand.some(c => c && c.id === 'MD07')
     && attacker.attacksThisTurn === 2
@@ -6065,16 +6064,29 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseTheXInGrave && (targetType === 'leader' || attackingMonster.power >= 2)) {
       defender.kg04UsedThisGame = true;
-      const xIdx = defender.graveyard.findIndex(c => c && c.id === 'KG04');
-      const emptySlot = defender.board.findIndex(m => m === null);
-      if (xIdx !== -1 && emptySlot !== -1) {
+      const xIdx = defender.graveyard.findIndex(c => c && (c.id === 'KG04' || (c.name && c.name.toLowerCase().includes('the x'))));
+      if (xIdx !== -1) {
         const xCard = defender.graveyard.splice(xIdx, 1)[0];
         resetCardStateForZoneChange(xCard);
         xCard.state = 'Stand';
-        defender.board[emptySlot] = xCard;
+        const emptySlot = defender.board.findIndex(m => m === null);
+        if (emptySlot !== -1) {
+          defender.board[emptySlot] = xCard;
+        } else {
+          let replaceSlot = 0;
+          let minPow = Infinity;
+          defender.board.forEach((m, sIdx) => {
+            if (m) {
+              const p = getEffectivePower(m, defender);
+              if (p < minPow) { minPow = p; replaceSlot = sIdx; }
+            }
+          });
+          sendOverwrittenMonsterToGrave(defender, replaceSlot);
+          defender.board[replaceSlot] = xCard;
+        }
         destroyBoardMonster(attacker, attackerSlot, false, true);
         showCardShowcaseBanner(xCard, 'AI ใช้สกิล The X จากนรก!', `🔥 ทำลาย "${attackingMonster.name}" และอัญเชิญ The X ลงสนาม!`, '#ef4444', 1200);
-        setLog(`🔥 [AI The X] สั่งใช้งานจากนรก -> ทำลาย "${attackingMonster.name}" และอัญเชิญ The X ลงสนาม!`);
+        setLog(`🔥 [AI The X] สั่งใช้งานจากนรก -> ทำลาย "${attackingMonster.name}" และอัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The X" ลงสนาม! (ยกเลิกการโจมตี)`);
         renderGame();
         if (onCompleteCallback) onCompleteCallback();
         return;
@@ -6395,17 +6407,50 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         color: '#ef4444',
         onSelect: () => {
           defender.kg04UsedThisGame = true;
-          const xIdx = defender.graveyard.findIndex(c => c && c.id === 'KG04');
-          const emptySlot = defender.board.findIndex(m => m === null);
-          if (xIdx !== -1 && emptySlot !== -1) {
-            const xCard = defender.graveyard.splice(xIdx, 1)[0];
-            resetCardStateForZoneChange(xCard);
-            xCard.state = 'Stand';
-            defender.board[emptySlot] = xCard;
+          const xIdx = defender.graveyard.findIndex(c => c && (c.id === 'KG04' || (c.name && c.name.toLowerCase().includes('the x'))));
+          if (xIdx === -1) {
+            continueNormalAttackFlow();
+            return;
+          }
+          const xCard = defender.graveyard.splice(xIdx, 1)[0];
+          resetCardStateForZoneChange(xCard);
+          xCard.state = 'Stand';
+
+          const finishTheXEffect = (slotToPlace) => {
+            defender.board[slotToPlace] = xCard;
             destroyBoardMonster(attacker, attackerSlot, false, true);
-            setLog(`🔥 [The X - ในนรก] ทำลาย "${attackingMonster.name}" และอัญเชิญ The X ลงสนามสำเร็จ!`);
+            showCardShowcaseBanner(xCard, 'สั่งใช้สกิล The X จากนรก!', `🔥 ทำลาย "${attackingMonster.name}" และอัญเชิญ The X ลงสนาม!`, '#ef4444', 1200);
+            setLog(`🔥 [The X - ในนรก] ทำลาย "${attackingMonster.name}" และอัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The X" ลงสนามสำเร็จ! (ยกเลิกการโจมตี)`);
             renderGame();
             if (onCompleteCallback) onCompleteCallback();
+          };
+
+          const emptySlot = defender.board.findIndex(m => m === null);
+          if (emptySlot !== -1) {
+            finishTheXEffect(emptySlot);
+          } else {
+            const replaceChoices = defender.board.map((m, sIdx) => ({
+              label: `💀 ส่ง "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" ลงนรก และวาง The X ทับ`,
+              color: '#ef4444',
+              onSelect: () => {
+                sendOverwrittenMonsterToGrave(defender, sIdx);
+                finishTheXEffect(sIdx);
+              }
+            }));
+            replaceChoices.push({
+              label: 'ยกเลิก (ไม่ใช้ The X และดำเนินการป้องกันตามปกติ)',
+              color: '#475569',
+              onSelect: () => {
+                defender.kg04UsedThisGame = false;
+                defender.graveyard.push(xCard);
+                continueNormalAttackFlow();
+              }
+            });
+            showChoiceModal(
+              '🔥 สนามเต็ม 3 ช่อง: เลือกยูนิทที่จะวาง The X ทับ',
+              'เลือกยูนิทบนสนามของคุณ 1 ตัวเพื่อส่งลงนรก แล้วอัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The X" ลงแทนที่:',
+              replaceChoices
+            );
           }
         }
       });
