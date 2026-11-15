@@ -12461,6 +12461,60 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           ]
         }
       ]
+    },
+    {
+      leaderId: 'L07',
+      deckName: '🎀 เด็คมาโดกะ',
+      overview: 'จุดเด่น: พลังแห่งมิตรภาพของสาวน้อยเวทมนตร์ ใช้โทโมเอะ มามิ เสกเบเบ้ลงสนามพร้อมจั่วการ์ด และปลดล็อกอาคุมะ โฮมุระ บุกจู่โจมฉับพลันเมื่อโจมตีสะสมครบ 2–3 ครั้ง!',
+      combos: [
+        {
+          id: 'madoka_mami_bebe',
+          title: '🎀 คอมโบ 1: โทโมเอะ มามิ เสกเบเบ้ + จั่วการ์ด & ซายากะทำลายยูนิตศัตรู!',
+          cards: ['MD01', 'MD06', 'MD02'],
+          steps: [
+            '1. อัญเชิญ "โทโมเอะ มามิ (MD01)" จากมือลงสนาม -> คลิกที่มามิบนสนามเพื่อใช้สกิล โดยทิ้งการ์ดบนมือ 1 ใบเพื่ออัญเชิญ "เบเบ้ (MD06)" จากกองลงสนามฟรี!',
+            '2. เมื่อเบเบ้ลงสนามด้วยสกิล สกิลเบเบ้จะทำงานจั่วการ์ด 1 ใบฟรีทันที และมามิได้รับพลังโจมตี +1 (เป็น Power 3)!',
+            '3. อัญเชิญ "มิกิ ซายากะ (MD02)" ลงสนาม -> สกิลเมื่อลงสนามจะทำลายมอนสเตอร์ของอีกฝ่าย 1 ใบทันที!'
+          ]
+        },
+        {
+          id: 'madoka_akuma_homura',
+          title: '🖤 คอมโบ 2: อาคุมะ โฮมุระ จู่โจมฉับพลัน ล้างสนาม & ปิดเกม!',
+          cards: ['MD05', 'MD03', 'MD08'],
+          steps: [
+            '1. กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase แล้วสั่งมอนสเตอร์บนสนามเราโจมตีสะสมครบ 2 ครั้งในเทิร์นนี้',
+            '2. เมื่อโจมตีครบ 2 ครั้ง "อาคุมะ โฮมุระ (MD08)" บนมือจะเรืองแสงสีม่วง -> คลิกที่อาคุมะ โฮมุระบนมือ แล้วเลือกส่งมอนสเตอร์เราลงนรก 1 ใบเพื่ออัญเชิญลงสนาม พร้อมเลือกทำลายการ์ดอีกฝ่าย 1 ใบ!',
+            '3. สั่ง "อาคุมะ โฮมุระ (MD08)" พลัง 3 โจมตีใส่ Leader ของอีกฝ่ายเพื่อคว้าชัยชนะ!'
+          ]
+        }
+      ]
+    },
+    {
+      leaderId: 'L08',
+      deckName: '🐉 เด็คคาเงโร่',
+      overview: 'จุดเด่น: มังกรเพลิงพิโรธ "ดราโกนิค โอเวอร์ลอร์ด The end" โจมตีแล้วทิ้งมือลุกขึ้น Stand ตีซ้ำได้ทันที และเวทคอนโรเร่งจั่วเติมมอนสเตอร์ในนรกบัฟพลังเบิร์นเอาท์!',
+      combos: [
+        {
+          id: 'kagero_the_end',
+          title: '🔥 คอมโบ 1: เพลิงพิโรธ ดราโกนิค โอเวอร์ลอร์ด The End ตีเบิ้ล 2 ครั้งปิดเกม!',
+          cards: ['KG02', 'KG01'],
+          steps: [
+            '1. กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase แล้วสั่ง "ดราโกนิค โอเวอร์ลอร์ด The end (KG02)" โจมตีใส่ Leader ของอีกฝ่าย',
+            '2. ทันทีที่สั่งโจมตี สกิลจะทำงาน ให้กดยืนยันทิ้ง "ดราโกนิค โอเวอร์ลอร์ด (KG01)" บนมือ -> The End จะลุกขึ้น Stand ทันที และโอเวอร์ลอร์ดที่ถูกทิ้งจะอัญเชิญตัวเองลงสนามฟรี!',
+            '3. สั่ง The End โจมตีซ้ำอีกรอบเพื่อสร้างความเสียหายต่อเนื่องและปิดเกม!'
+          ]
+        },
+        {
+          id: 'kagero_burnout_conroe',
+          title: '⚡ คอมโบ 2: คอนโรโม่กองจั่ว 2 & ดราโกนิค เบิร์นเอาท์ เติมไฟ Power 3!',
+          cards: ['KG08', 'KG07'],
+          steps: [
+            '1. ร่ายเวท "ลิซาร์ดโซลเจอร์ คอนโร (KG08)" จากบนมือ -> เลือกส่งมอนสเตอร์จากกองลงนรก 1 ใบ แล้วจั่วการ์ด 2 ใบฟรี!',
+            '2. เมื่อในนรกมีมอนสเตอร์ครบ 3 ใบแล้ว ให้อัญเชิญ "ดราโกนิค เบิร์นเอาท์ (KG07)" ลงสนาม -> พลังโจมตีจะเพิ่มขึ้น +2 กลายเป็น Power 3 ทันที!',
+            '3. สั่งเบิร์นเอาท์โจมตีใส่ Leader อีกฝ่ายเพื่อสร้างความเสียหายหนัก!'
+          ]
+        }
+      ]
     }
   ];
 
@@ -13635,6 +13689,186 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             title: 'สเต็ป 3/3: ร่ายเวทใบที่ 2 ในเทิร์นเดียว "ท่าไม้ตาย(มั้ง) (OS01)" ทำลายสนาม AI ยกแผง!',
             desc: 'เพราะโควต้า Normal Spell ยังเหลือ 0/1 คุณจึงคลิกร่าย "ท่าไม้ตาย(มั้ง) (OS01)" ต่อได้ทันที -> คลิกทิ้งการ์ดบนมือ 3 ใบเพื่อทำลายมอนสเตอร์บนสนามของ AI ทั้งหมด!',
             isDone: () => p.spellQuota.normalUsed >= 1 && ai.board.every(m => m === null) && !gameState.pendingAction
+          }
+        ];
+        break;
+      }
+
+      // ==================== เด็คมาโดกะ (L07) ====================
+      case 'madoka_mami_bebe': {
+        p.hand = [makeCard('MD01'), makeCard('MD04'), makeCard('MD02')];
+        p.deck = [makeCard('MD06'), makeCard('MD05')];
+        p.board = [null, null, null];
+        ai.board = [makeCard('M01'), null, null];
+        steps = [
+          {
+            action: 'SUMMON_HAND',
+            cardId: 'MD01',
+            targetSlot: 0,
+            pointerText: '👆 1. คลิกเลือก "โทโมเอะ มามิ" บนมือ',
+            slotPointerText: '👆 2. คลิกวางลงช่องที่ 1 บนสนามเรา!',
+            title: 'สเต็ป 1/3: อัญเชิญ "โทโมเอะ มามิ (MD01)" ลงสนาม',
+            desc: 'คลิกเลือก "โทโมเอะ มามิ (MD01)" บนมือ แล้วคลิกวางลงช่องที่ 1 บนสนามเรา',
+            isDone: () => p.board.some(m => m && m.id === 'MD01')
+          },
+          {
+            action: 'CLICK_BOARD_UNIT',
+            cardId: 'MD01',
+            choiceOptionIndex: 0,
+            pendingHandCardId: 'MD04',
+            pointerText: '👆 1. คลิกที่ "โทโมเอะ มามิ" บนสนาม',
+            choicePointerText: '👆 2. กดใช้สกิลทิ้งมือ 1 ใบเพื่อเสกเบเบ้!',
+            pendingPointerText: '👆 3. คลิกทิ้ง "อาเคมิ โฮมุระ" บนมือเป็นค่าร่าย!',
+            title: 'สเต็ป 2/3: ใช้สกิลมามิ เสก "เบเบ้" ลงสนาม & จั่วการ์ดฟรี!',
+            desc: 'คลิกที่ "โทโมเอะ มามิ (MD01)" บนสนาม -> กดยืนยันใช้สกิล -> คลิกทิ้ง "อาเคมิ โฮมุระ (MD04)" บนมือ -> เลือกอัญเชิญ "เบเบ้ (MD06)" ลงสนาม -> สกิลเบเบ้จะทำงานจั่วการ์ด 1 ใบและมามิพลัง +1!',
+            isDone: () => p.board.some(m => m && m.id === 'MD06') && !gameState.pendingAction && !isChoiceModalOpen()
+          },
+          {
+            action: 'SUMMON_HAND',
+            cardId: 'MD02',
+            targetSlot: 2,
+            pointerText: '👆 1. คลิกเลือก "มิกิ ซายากะ" บนมือ',
+            slotPointerText: '👆 2. คลิกวางลงช่องที่ 3 บนสนามเรา!',
+            pendingPointerText: '👆 3. คลิกทำลายมอนสเตอร์ของอีกฝ่าย!',
+            title: 'สเต็ป 3/3: อัญเชิญ "มิกิ ซายากะ (MD02)" ทำลายยูนิตของอีกฝ่าย!',
+            desc: 'คลิกเลือก "มิกิ ซายากะ (MD02)" บนมือ -> คลิกวางลงช่องที่ 3 บนสนามเรา -> แล้วคลิกทำลายมอนสเตอร์ของ AI!',
+            isDone: () => p.board.some(m => m && m.id === 'MD02') && ai.board.every(m => m === null) && !gameState.pendingAction
+          }
+        ];
+        break;
+      }
+
+      case 'madoka_akuma_homura': {
+        p.board = [makeCard('MD05'), makeCard('MD03'), null];
+        p.hand = [makeCard('MD08')];
+        ai.board = [makeCard('M01'), null, null];
+        ai.leader.hp = 3;
+        steps = [
+          {
+            action: 'NEXT_PHASE',
+            pointerText: '👆 กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase!',
+            title: 'สเต็ป 1/4: เปลี่ยนเฟสเข้าสู่ Battle Phase',
+            desc: 'กดปุ่มเปลี่ยนเฟสเพื่อเข้าสู่ Battle Phase และเตรียมสั่งโจมตีสะสมเงื่อนไขของ อาคุมะ โฮมุระ!',
+            isDone: () => gameState.phase === 'Battle Phase'
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'MD05',
+            pointerText: '👆 1. คลิกที่ "ซากุระ เคียวโกะ" เพื่อสั่งโจมตี',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI!',
+            title: 'สเต็ป 2/4: โจมตีครั้งที่ 1 ด้วย "ซากุระ เคียวโกะ"',
+            desc: 'คลิกที่ "ซากุระ เคียวโกะ (MD05)" บนสนาม แล้วคลิกโจมตีใส่ Leader ของ AI!',
+            isDone: () => p.attacksThisTurn >= 1
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'MD03',
+            pointerText: '👆 1. คลิกที่ "คานาเมะ มาโดกะ" เพื่อสั่งโจมตี',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI!',
+            title: 'สเต็ป 3/4: โจมตีครั้งที่ 2 ด้วย "คานาเมะ มาโดกะ" เพื่อปลดล็อกโฮมุระ!',
+            desc: 'คลิกที่ "คานาเมะ มาโดกะ (MD03)" บนสนาม แล้วคลิกโจมตีใส่ Leader ของ AI! (เมื่อโจมตีครบ 2 ครั้ง สกิลของ อาคุมะ โฮมุระ บนมือจะเรืองแสงสีม่วง)',
+            isDone: () => p.attacksThisTurn >= 2
+          },
+          {
+            action: 'CLICK_HAND',
+            cardId: 'MD08',
+            choiceOptionIndex: 0,
+            pointerText: '👆 1. คลิกที่ "อาคุมะ โฮมุระ" บนมือที่เรืองแสง!',
+            choicePointerText: '👆 2. กดยืนยันอัญเชิญอาคุมะ โฮมุระ!',
+            pendingBoardCardId: 'MD05',
+            pendingPointerText: '👆 3. คลิกเลือกมอนสเตอร์เรา 1 ใบส่งลงนรก!',
+            title: 'สเต็ป 4/4: สั่งใช้ อาคุมะ โฮมุระ จากมือ ทำลายยูนิต AI & โจมตีปิดเกม!',
+            desc: 'คลิกที่ "อาคุมะ โฮมุระ (MD08)" บนมือ -> กดยืนยันใช้สกิล -> คลิกส่ง "ซากุระ เคียวโกะ" ลงนรก 1 ใบ -> วางโฮมุระลงสนาม -> ทำลายมอนสเตอร์ของ AI -> แล้วสั่งโฮมุระโจมตีปิดเกม!',
+            isDone: () => p.board.some(m => m && m.id === 'MD08') && !gameState.pendingAction
+          }
+        ];
+        break;
+      }
+
+      // ==================== เด็คคาเงโร่ (L08) ====================
+      case 'kagero_the_end': {
+        p.board = [makeCard('KG02'), null, null];
+        p.hand = [makeCard('KG01')];
+        ai.board = [null, null, null];
+        ai.leader.hp = 6;
+        steps = [
+          {
+            action: 'NEXT_PHASE',
+            pointerText: '👆 กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase!',
+            title: 'สเต็ป 1/3: เปลี่ยนเฟสเข้าสู่ Battle Phase',
+            desc: 'กดปุ่มเปลี่ยนเฟสเพื่อเข้าสู่ Battle Phase และเตรียมสั่งมังกรเพลิงพิโรธโจมตี!',
+            isDone: () => gameState.phase === 'Battle Phase'
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'KG02',
+            choiceOptionIndex: 0,
+            pointerText: '👆 1. คลิกที่ "ดราโกนิค โอเวอร์ลอร์ด The end" เพื่อสั่งโจมตี',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI!',
+            choicePointerText: '👆 3. กดยืนยันทิ้งการ์ดบนมือเพื่อลุกขึ้น Stand!',
+            title: 'สเต็ป 2/3: สั่ง The End โจมตี & ทิ้งโอเวอร์ลอร์ดเพื่อลุก Stand!',
+            desc: 'สั่ง "ดราโกนิค โอเวอร์ลอร์ด The end (KG02)" โจมตีใส่ Leader AI -> เมื่อมีหน้าต่างถาม ให้กดยืนยันทิ้ง "ดราโกนิค โอเวอร์ลอร์ด (KG01)" บนมือ -> The End จะลุกขึ้น Stand ทันที และโอเวอร์ลอร์ดที่ถูกทิ้งจะอัญเชิญตัวเองลงสนามฟรี!',
+            isDone: () => {
+              const theEnd = p.board.find(m => m && m.id === 'KG02');
+              return !!(theEnd && theEnd.attacksThisTurn >= 1 && theEnd.state === 'Stand');
+            }
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'KG02',
+            pointerText: '👆 1. คลิกที่ The End ที่ Stand อยู่',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI อีกครั้ง!',
+            title: 'สเต็ป 3/3: สั่ง The End โจมตีซ้ำอีกรอบ ปิดเกม!',
+            desc: 'คลิกที่ The End ซึ่งลุกขึ้น Stand แล้ว สั่งโจมตีใส่ Leader ของ AI อีกครั้งเพื่อสร้างความเสียหายต่อเนื่องและคว้าชัยชนะ!',
+            isDone: () => {
+              const theEnd = p.board.find(m => m && m.id === 'KG02');
+              return !!(theEnd && theEnd.attacksThisTurn >= 2);
+            }
+          }
+        ];
+        break;
+      }
+
+      case 'kagero_burnout_conroe': {
+        p.board = [null, null, null];
+        p.hand = [makeCard('KG08'), makeCard('KG07')];
+        p.graveyard = [makeCard('KG01'), makeCard('KG05')];
+        p.deck = [makeCard('KG03'), makeCard('KG04'), makeCard('KG06')];
+        ai.board = [null, null, null];
+        ai.leader.hp = 3;
+        steps = [
+          {
+            action: 'CLICK_HAND',
+            cardId: 'KG08',
+            choiceOptionIndex: 0,
+            pointerText: '👆 1. คลิกร่ายเวทมนตร์ "คอนโร" บนมือ',
+            choicePointerText: '👆 2. เลือกส่งมอนสเตอร์จากกองลงนรก!',
+            title: 'สเต็ป 1/3: คลิกร่ายเวทมนตร์ "ลิซาร์ดโซลเจอร์ คอนโร (KG08)"',
+            desc: 'คลิกที่ "คอนโร (KG08)" บนมือ -> เลือกส่งมอนสเตอร์จากกองลงนรก 1 ใบ -> แล้วจั่วการ์ด 2 ใบฟรี! ทำให้นรกมีมอนสเตอร์ครบ 3 ใบพอดี',
+            isDone: () => p.spellQuota.normalUsed >= 1 && p.graveyard.filter(c => c && c.type === 'Monster').length >= 3 && !isChoiceModalOpen()
+          },
+          {
+            action: 'SUMMON_HAND',
+            cardId: 'KG07',
+            targetSlot: 0,
+            pointerText: '👆 1. คลิกเลือก "ดราโกนิค เบิร์นเอาท์" บนมือ',
+            slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
+            title: 'สเต็ป 2/3: อัญเชิญ "ดราโกนิค เบิร์นเอาท์ (KG07)" ลงสนาม (Power 3)!',
+            desc: 'คลิกเลือก "ดราโกนิค เบิร์นเอาท์ (KG07)" บนมือ แล้ววางลงช่องว่างบนสนามเรา -> สกิลต่อเนื่องทำงาน: มีมอนสเตอร์ในนรก ≥ 3 ใบ พลังโจมตีเพิ่ม +2 (กลายเป็น Power 3)!',
+            isDone: () => {
+              const bo = p.board.find(m => m && m.id === 'KG07');
+              return !!(bo && getEffectivePower(bo) >= 3);
+            }
+          },
+          {
+            action: 'NEXT_PHASE',
+            pointerText: '👆 กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase!',
+            title: 'สเต็ป 3/3: เข้าสู่ Battle Phase แล้วสั่งเบิร์นเอาท์โจมตี!',
+            desc: 'กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase แล้วสั่ง "ดราโกนิค เบิร์นเอาท์" โจมตีใส่ Leader ของ AI ปิดเกม!',
+            isDone: () => {
+              const bo = p.board.find(m => m && m.id === 'KG07');
+              return !!(bo && bo.attacksThisTurn >= 1);
+            }
           }
         ];
         break;
