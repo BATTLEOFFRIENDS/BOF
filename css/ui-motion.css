@@ -30,7 +30,7 @@
   font-family: var(--font-display); letter-spacing: .01em;
 }
 .lm-h-ico { display: inline-block; margin-right: .2em; }
-#pvp-room-modal .modal-box > div {
+#pvp-room-modal .modal-box > .mp-card, #ai-setup-modal .modal-box > div {
   background: var(--um-panel-2) !important;
   border: 1px solid var(--um-edge-2) !important;
   border-radius: 14px !important;

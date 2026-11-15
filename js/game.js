@@ -10586,14 +10586,26 @@ function setupLobbyEvents() {
 
   document.getElementById('btn-lobby-pvp')?.addEventListener('click', () => {
     document.getElementById('pvp-room-modal').style.display = 'flex';
+    if (window.BOFAuth && typeof window.BOFAuth.onOpenMultiplayerModal === 'function') {
+      window.BOFAuth.onOpenMultiplayerModal();
+    }
   });
-  document.getElementById('btn-close-pvp-modal')?.addEventListener('click', () => {
+  const closePvpFn = () => {
     document.getElementById('pvp-room-modal').style.display = 'none';
+    if (window.BOFAuth && typeof window.BOFAuth.onCloseMultiplayerModal === 'function') {
+      window.BOFAuth.onCloseMultiplayerModal();
+    }
+  };
+  document.getElementById('btn-close-pvp-modal')?.addEventListener('click', closePvpFn);
+  document.getElementById('btn-close-pvp-x')?.addEventListener('click', closePvpFn);
+  document.getElementById('btn-create-room')?.addEventListener('click', () => {
+    (window.createPvpRoomAsHost || createPvpRoomAsHost)();
   });
-  document.getElementById('btn-create-room')?.addEventListener('click', createPvpRoomAsHost);
   document.getElementById('btn-join-room')?.addEventListener('click', () => {
-    joinPvpRoomAsGuest(document.getElementById('input-join-code').value);
+    (window.joinPvpRoomAsGuest || joinPvpRoomAsGuest)(document.getElementById('input-join-code').value);
   });
+  window.createPvpRoomAsHost = createPvpRoomAsHost;
+  window.joinPvpRoomAsGuest = joinPvpRoomAsGuest;
 
   const openDeckFn = (e) => { if (e) e.preventDefault(); openDeckBuilder(); };
   const openCardsFn = (e) => {

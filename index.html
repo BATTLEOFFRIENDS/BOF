@@ -351,7 +351,24 @@
 
             <div class="bof-auth-field">
               <label for="bof-input-password">🔑 รหัสผ่าน (Password อย่างน้อย 6 ตัวอักษร)</label>
-              <input id="bof-input-password" class="bof-auth-input" type="password" minlength="6" placeholder="••••••" required>
+              <div class="bof-input-wrap">
+                <input id="bof-input-password" class="bof-auth-input" type="password" minlength="6" placeholder="••••••" required>
+                <button type="button" class="bof-pw-toggle" data-target="bof-input-password" aria-label="แสดง/ซ่อนรหัสผ่าน" tabindex="-1">👁️</button>
+              </div>
+            </div>
+
+            <div class="bof-auth-field" id="bof-confirm-pass-field" style="display: none;">
+              <label for="bof-input-password-confirm">🔑 ยืนยันรหัสผ่านอีกครั้ง</label>
+              <div class="bof-input-wrap">
+                <input id="bof-input-password-confirm" class="bof-auth-input" type="password" minlength="6" placeholder="••••••">
+                <button type="button" class="bof-pw-toggle" data-target="bof-input-password-confirm" aria-label="แสดง/ซ่อนรหัสผ่าน" tabindex="-1">👁️</button>
+              </div>
+            </div>
+
+            <!-- บัญชีที่เคยบันทึกไว้ในเครื่องนี้ (Quick Switch) -->
+            <div id="bof-saved-accounts-section" class="bof-saved-accounts-section" style="display:none;">
+              <span class="bof-saved-accounts-title">👥 บัญชีที่เคยเข้าในเครื่องนี้:</span>
+              <div id="bof-saved-accounts-list" class="bof-saved-accounts-list"></div>
             </div>
 
             <div id="bof-avatar-field" class="bof-auth-field" style="display: none;">
@@ -359,11 +376,25 @@
                 🃏 เลือกเด็คเริ่มต้น 1 เด็ค
                 <span style="display: block; margin-top: 3px; font-size: 12px; font-weight: 500; color: #fde047; white-space: nowrap;">(รับการ์ดเฉพาะในเด็คที่เลือก 21 ใบ + เหรียญเริ่มต้น 2,000 🪙)</span>
               </label>
-              <div id="bof-register-avatar-picker" class="bof-avatar-grid"></div>
+              <div class="bof-avatar-scroll-wrap">
+                <div id="bof-register-avatar-picker" class="bof-avatar-grid"></div>
+              </div>
             </div>
 
             <button type="submit" id="bof-auth-submit-btn" class="bof-auth-submit">เข้าสู่ระบบ ▶</button>
           </form>
+
+          <!-- ส่วนตั้งชื่อเล่น Guest โดยไม่ต้องสมัครสมาชิก -->
+          <div id="bof-guest-quick-section" class="bof-guest-quick-section">
+            <div class="bof-guest-quick-divider"><span>หรือตั้งชื่อเล่นผู้เยี่ยมชม (Guest)</span></div>
+            <div class="bof-guest-quick-box">
+              <label for="bof-input-guest-nickname">🎭 ชื่อเล่นที่แสดงในเกม & ในห้องดวลเพื่อน:</label>
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <input type="text" id="bof-input-guest-nickname" class="bof-auth-input" maxlength="16" placeholder="เช่น ผู้เยี่ยมชม_01" style="height:38px;font-size:14px;">
+                <button type="button" id="bof-btn-save-guest-nick" class="bof-auth-submit" style="width:auto;padding:0 14px;height:38px;font-size:13px;white-space:nowrap;">บันทึกชื่อ</button>
+              </div>
+            </div>
+          </div>
 
           <!-- มุมมองพิเศษ: นำเข้ารหัสย้ายเครื่อง / สำรองข้อมูล -->
           <div id="bof-auth-sync-view" style="display: none; margin-top: 10px;">
@@ -409,27 +440,31 @@
             </div>
           </div>
 
-          <div style="background:#151833;border:1px solid #334155;border-radius:12px;padding:12px;margin:12px 0;">
-            <div style="font-size:13px;font-weight:bold;color:#fde047;margin-bottom:4px;">📦 สำรองข้อมูล & ย้ายไปเล่นเครื่องอื่น</div>
-            <p style="font-size:11.5px;color:#94a3b8;margin:0 0 10px 0;">คัดลอกรหัสนี้ไปกรอกในเครื่องอื่น หรือดาวน์โหลดเก็บไว้ เพื่อเล่นบัญชีเดิมได้ทุกที่</p>
-            <div style="display:flex;gap:8px;">
-              <button type="button" id="bof-btn-copy-sync-key" class="bof-auth-tab is-active" style="flex:1;font-size:12px;padding:6px 10px;">📋 คัดลอกรหัสย้ายเครื่อง</button>
-              <button type="button" id="bof-btn-download-backup" class="bof-auth-tab" style="flex:1;font-size:12px;padding:6px 10px;background:#334155;">💾 บันทึกไฟล์ .bof</button>
+          <div class="bof-backup-box">
+            <div class="bof-backup-header">
+              <span class="bof-backup-title">📦 สำรองข้อมูล & ย้ายไปเล่นเครื่องอื่น</span>
+            </div>
+            <p class="bof-backup-desc">คัดลอกรหัสนี้ไปกรอกในเครื่องอื่น หรือดาวน์โหลดเก็บไว้ เพื่อเล่นบัญชีเดิมได้ทุกที่</p>
+            <div class="bof-backup-btns">
+              <button type="button" id="bof-btn-copy-sync-key" class="bof-backup-btn bof-backup-btn-primary">📋 คัดลอกรหัสย้ายเครื่อง</button>
+              <button type="button" id="bof-btn-download-backup" class="bof-backup-btn bof-backup-btn-sub">💾 บันทึกไฟล์ .bof</button>
             </div>
           </div>
 
-          <div class="bof-auth-field">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <label style="margin:0;">🖼️ เปลี่ยนรูปโปรไฟล์ประจำตัว</label>
-              <div style="display:flex;gap:6px;">
-                <label class="bof-quest-claim-btn" style="cursor:pointer;padding:3px 10px;font-size:11px;background:#2563eb;">
+          <div class="bof-avatar-section">
+            <div class="bof-avatar-header">
+              <label class="bof-avatar-title">🖼️ เปลี่ยนรูปโปรไฟล์ประจำตัว</label>
+              <div class="bof-avatar-actions">
+                <label class="bof-btn-upload-avatar">
                   📷 อัปโหลดรูปของฉัน
                   <input type="file" id="bof-upload-custom-avatar" accept="image/*" style="display:none;">
                 </label>
-                <button type="button" id="bof-btn-reset-avatar" class="bof-quest-claim-btn" style="padding:3px 8px;font-size:11px;background:#475569;display:none;">🔄 รีเซ็ต</button>
+                <button type="button" id="bof-btn-reset-avatar" class="bof-btn-reset-avatar" style="display:none;">🔄 รีเซ็ต</button>
               </div>
             </div>
-            <div id="bof-profile-avatar-picker" class="bof-avatar-grid"></div>
+            <div class="bof-avatar-scroll-wrap">
+              <div id="bof-profile-avatar-picker" class="bof-avatar-grid"></div>
+            </div>
           </div>
 
           <div class="bof-profile-actions">
@@ -484,31 +519,75 @@
 
   <!-- หน้าต่างสร้างห้อง / เข้าร่วมห้องสำหรับเล่นกับเพื่อน (Multiplayer Modal) -->
   <div class="modal-overlay" id="pvp-room-modal" style="display: none;">
-    <div class="modal-box" style="max-width: 480px;">
-      <h2 style="color: #38bdf8;">🌐 ดวลการ์ดกับเพื่อน (ออนไลน์)</h2>
-      <p style="color: #94a3b8; font-size: 13px; margin: 8px 0 18px 0;">
-        สร้างห้องเพื่อรับรหัสส่งให้เพื่อน หรือกรอกรหัสห้องของเพื่อนเพื่อเริ่มดวล
-      </p>
+    <div class="modal-box">
+      <!-- ส่วนหัว Header พร้อมปุ่มปิด X -->
+      <div class="mp-header">
+        <div class="mp-title-group">
+          <h2>🌐 ดวลการ์ดกับเพื่อน (P2P Online)</h2>
+          <p>สร้างห้องเพื่อส่งรหัสหรือลิงก์ให้เพื่อน หรือกรอกรหัสห้องเพื่อเริ่มดวล</p>
+        </div>
+        <button type="button" class="bof-auth-close-x" id="btn-close-pvp-x" aria-label="ปิด">✕</button>
+      </div>
 
-      <div style="background: #141724; padding: 15px; border-radius: 10px; border: 1px solid #2e344e; margin-bottom: 15px;">
-        <button class="btn" id="btn-create-room" style="width: 100%; background: #2563eb; padding: 10px;">
-          ➕ สร้างห้องใหม่ (เป็นเจ้าบ้าน)
+      <!-- แถบระบุชื่อผู้เล่นที่จะเข้าสู่การแข่งขัน -->
+      <div class="mp-player-banner" id="mp-player-banner">
+        <div class="mp-banner-left">
+          <img class="mp-banner-avatar" id="mp-banner-avatar" src="images/thumbs/เด็คจิต/1.webp" alt="">
+          <span class="mp-banner-text">ชื่อของคุณ: <strong id="mp-current-name">ผู้เยี่ยมชม</strong></span>
+        </div>
+        <button type="button" id="mp-btn-edit-guest" class="mp-edit-badge">✏️ เปลี่ยนชื่อเล่น</button>
+      </div>
+
+      <div class="mp-guest-edit-row" id="mp-guest-edit-row" style="display: none;">
+        <input type="text" id="mp-guest-name-input" maxlength="16" placeholder="พิมพ์ชื่อเล่นสำหรับเล่นกับเพื่อน...">
+        <button type="button" id="mp-btn-save-guest" class="mp-pill-btn-blue">บันทึก</button>
+        <button type="button" id="mp-btn-cancel-guest" class="mp-pill-btn-gray">ยกเลิก</button>
+      </div>
+
+      <!-- แบนเนอร์กรณีเปิดเกมมาจากลิงก์ชวนเพื่อน (?room=XXXX) -->
+      <div id="mp-invite-banner" class="mp-invite-banner" style="display: none;">
+        <span>🎉 คุณได้รับคำเชิญเข้าห้อง <b id="mp-invite-code-text">----</b></span>
+        <button type="button" id="btn-quick-join-invite" class="mp-btn-green">⚔️ เข้าร่วมทันที</button>
+      </div>
+
+      <!-- การ์ดที่ 1: สำหรับ Host (สร้างห้อง) -->
+      <div class="mp-card">
+        <div class="mp-card-title">👑 ฝั่งเจ้าบ้าน (Host)</div>
+        <button type="button" class="mp-btn-host" id="btn-create-room">
+          ➕ สร้างห้องใหม่ (รับรหัส 4 หลัก)
         </button>
-        <div id="room-code-display" style="margin-top: 12px; font-size: 18px; font-weight: bold; color: #4ade80; display: none;">
-          รหัสห้องของคุณ: <span id="my-room-code">----</span>
-          <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">ส่งรหัสนี้ให้เพื่อนกรอกเพื่อเริ่มเกม...</div>
+
+        <div id="room-code-display" class="mp-code-box-wrap" style="display: none;">
+          <div class="mp-code-box-label">รหัสห้องสำหรับส่งให้เพื่อน:</div>
+          <div class="mp-code-val" id="my-room-code">----</div>
+          <div class="mp-share-group">
+            <button type="button" id="btn-copy-room-code" class="mp-btn-copy">📋 คัดลอกรหัสห้อง</button>
+            <button type="button" id="btn-copy-room-link" class="mp-btn-link">🔗 คัดลอกลิงก์ชวนเพื่อน</button>
+          </div>
+          <div class="mp-waiting-indicator">
+            <span class="mp-radar-ping"></span>
+            <span>รอเพื่อนเข้าร่วมห้อง... (เปิดหน้านี้รอไว้)</span>
+          </div>
+          <div>
+            <button type="button" id="btn-cancel-host-room" class="mp-btn-cancel">❌ ยกเลิก / ปิดห้องนี้</button>
+          </div>
         </div>
       </div>
 
-      <div style="background: #141724; padding: 15px; border-radius: 10px; border: 1px solid #2e344e; margin-bottom: 15px;">
-        <div style="font-size: 13px; margin-bottom: 8px; color: #cbd5e1;">มีรหัสห้องของเพื่อนแล้ว?</div>
-        <div style="display: flex; gap: 8px;">
-          <input type="text" id="input-join-code" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="กรอกรหัสห้อง เช่น 4829" style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #0f111a; color: #fff;">
-          <button class="btn" id="btn-join-room" style="background: #16a34a;">เข้าร่วม</button>
+      <!-- การ์ดที่ 2: สำหรับ Guest (เข้าร่วมห้องเพื่อน) -->
+      <div class="mp-card">
+        <div class="mp-card-title">⚔️ ฝั่งผู้ท้าชิง (Guest)</div>
+        <div class="mp-join-row">
+          <div class="mp-input-wrap">
+            <input type="text" id="input-join-code" class="mp-join-input" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="กรอกรหัส 4 หลัก">
+            <button type="button" id="btn-paste-join-code" class="mp-paste-inside" title="วางรหัสจากคลิปบอร์ด">📋 วาง</button>
+          </div>
+          <button type="button" class="mp-btn-join" id="btn-join-room">เข้าร่วมห้อง ▶</button>
         </div>
+        <div id="mp-join-status" class="mp-status-msg" style="display: none;"></div>
       </div>
 
-      <button class="btn" id="btn-close-pvp-modal" style="background: #475569; width: 100%;">กลับหน้าล็อบบี้</button>
+      <button type="button" class="btn" id="btn-close-pvp-modal" style="background: #334155; width: 100%; height: 40px; font-weight: 600; border-radius: 10px;">⬅️ กลับหน้าล็อบบี้</button>
     </div>
   </div>
 

@@ -22,6 +22,8 @@
   const STORAGE_ACCOUNTS_KEY = 'bof_accounts_db_v1';
   const STORAGE_SESSION_KEY = 'bof_active_user_v1';
   const DECK_STORAGE_KEY = 'my_card_game_deck';
+  const GUEST_NICK_KEY = 'bof_guest_nickname';
+  const LAST_USER_KEY = 'bof_last_username';
 
   const AVATAR_LEADERS = [
     { id: 'L01', label: 'เด็คจิต (เดจิต)', image: 'images/thumbs/เด็คจิต/1.webp' },
@@ -85,6 +87,21 @@
     if (currentUser && currentUser.customAvatar) return currentUser.customAvatar;
     const found = AVATAR_LEADERS.find(a => a.id === avatarId) || AVATAR_LEADERS[0];
     return found.image;
+  }
+
+  function getEffectivePlayerName() {
+    if (currentUser && currentUser.username) return currentUser.username;
+    try {
+      const nick = localStorage.getItem(GUEST_NICK_KEY);
+      if (nick && nick.trim()) return nick.trim();
+    } catch (e) {}
+    return 'ผู้เยี่ยมชม';
+  }
+
+  function getEffectivePlayerAvatar() {
+    if (currentUser && currentUser.customAvatar) return currentUser.customAvatar;
+    if (currentUser && currentUser.avatarId) return getAvatarImage(currentUser.avatarId);
+    return getAvatarImage('L01');
   }
 
   function generateAccountSyncKey(profile) {
@@ -447,20 +464,59 @@
       }
     } else {
       if (avatarImg) avatarImg.src = getAvatarImage('L01');
-      if (nameEl) nameEl.textContent = 'ผู้เยี่ยมชม (Guest)';
+      const eff = getEffectivePlayerName();
+      if (nameEl) nameEl.textContent = eff === 'ผู้เยี่ยมชม' ? 'ผู้เยี่ยมชม (Guest)' : `${eff} (Guest)`;
       if (subEl) subEl.textContent = 'คลิกเพื่อเข้าสู่ระบบ / สมัคร';
       if (badgeEl) badgeEl.style.display = 'none';
     }
+    updateMultiplayerPlayerBanner();
   }
 
   function updateInGamePlayerIdentity() {
+    const effName = getEffectivePlayerName();
     const roleTag = document.querySelector('#player-leader-box .leader-role-tag');
     if (roleTag) {
-      roleTag.textContent = currentUser ? `👑 ${currentUser.username}` : '👑 Player Leader';
+      roleTag.textContent = `👑 ${effName}`;
     }
     if (typeof gameState !== 'undefined' && gameState.player) {
-      gameState.player.name = currentUser ? currentUser.username : 'Player';
+      gameState.player.name = effName;
     }
+  }
+
+  function renderSavedAccountsList() {
+    const section = document.getElementById('bof-saved-accounts-section');
+    const list = document.getElementById('bof-saved-accounts-list');
+    if (!section || !list) return;
+    const db = loadLocalAccounts();
+    const accounts = Object.values(db || {});
+    if (!accounts.length) {
+      section.style.display = 'none';
+      return;
+    }
+    list.innerHTML = '';
+    accounts.forEach(acc => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'bof-account-chip';
+      const img = document.createElement('img');
+      img.src = getAvatarImage(acc.avatarId || 'L01');
+      const name = document.createElement('span');
+      name.textContent = acc.username;
+      chip.appendChild(img);
+      chip.appendChild(name);
+      chip.addEventListener('click', () => {
+        const userInp = document.getElementById('bof-input-username');
+        const passInp = document.getElementById('bof-input-password');
+        if (userInp) userInp.value = acc.username;
+        if (passInp) {
+          passInp.value = '';
+          passInp.focus();
+        }
+        setStatusMessage(`เลือกบัญชี "${acc.username}" แล้ว กรุณากรอกรหัสผ่าน`, false);
+      });
+      list.appendChild(chip);
+    });
+    section.style.display = 'block';
   }
 
   /* ---------------- หน้าต่าง Modal เข้าสู่ระบบ / โปรไฟล์ ---------------- */
@@ -539,11 +595,41 @@
       if (authMode === 'sync') {
         if (formEl) formEl.style.display = 'none';
         if (syncView) syncView.style.display = 'block';
+        const guestSec = document.getElementById('bof-guest-quick-section');
+        if (guestSec) guestSec.style.display = 'none';
       } else {
         if (formEl) formEl.style.display = 'block';
         if (syncView) syncView.style.display = 'none';
         if (avatarField) avatarField.style.display = authMode === 'register' ? 'block' : 'none';
         if (submitBtn) submitBtn.textContent = authMode === 'login' ? 'เข้าสู่ระบบ ▶' : 'สร้างบัญชีและเริ่มซิงค์ ▶';
+
+        const confirmField = document.getElementById('bof-confirm-pass-field');
+        if (confirmField) confirmField.style.display = authMode === 'register' ? 'block' : 'none';
+
+        if (authMode === 'login') {
+          renderSavedAccountsList();
+          const userInp = document.getElementById('bof-input-username');
+          if (userInp && !userInp.value) {
+            try {
+              const lastUser = localStorage.getItem(LAST_USER_KEY);
+              if (lastUser) userInp.value = lastUser;
+            } catch (e) {}
+          }
+        } else {
+          const savedSec = document.getElementById('bof-saved-accounts-section');
+          if (savedSec) savedSec.style.display = 'none';
+        }
+
+        const guestSec = document.getElementById('bof-guest-quick-section');
+        if (guestSec) {
+          guestSec.style.display = 'block';
+          const guestInp = document.getElementById('bof-input-guest-nickname');
+          if (guestInp) {
+            try {
+              guestInp.value = localStorage.getItem(GUEST_NICK_KEY) || '';
+            } catch (e) {}
+          }
+        }
       }
 
       const handlePickStarterDeck = newId => {
@@ -634,6 +720,9 @@
           if (aiHeader) aiHeader.textContent = data.username;
           const aiRole = document.querySelector('#ai-leader-box .leader-role-tag');
           if (aiRole) aiRole.textContent = `👑 ${data.username}`;
+          if (typeof _originalSetLog === 'function') {
+            _originalSetLog(`⚔️ ฝ่ายตรงข้ามคือ "${data.username}" พร้อมสำหรับการดวล!`);
+          }
           return;
         }
         return origHandlePvp.apply(this, arguments);
@@ -645,12 +734,12 @@
       window.startPvpMatchBoard = function (role) {
         const res = origStartPvp.apply(this, arguments);
         updateInGamePlayerIdentity();
-        if (currentUser && typeof pvpState !== 'undefined' && pvpState.conn && pvpState.conn.open) {
+        if (typeof pvpState !== 'undefined' && pvpState.conn && pvpState.conn.open) {
           try {
             pvpState.conn.send({
               type: 'PLAYER_PROFILE',
-              username: currentUser.username,
-              avatarId: currentUser.avatarId
+              username: getEffectivePlayerName(),
+              avatar: getEffectivePlayerAvatar()
             });
           } catch (e) {}
         }
@@ -665,7 +754,18 @@
 
     document.getElementById('lb-auth-bar')?.addEventListener('click', () => {
       renderAuthDialogContent();
-      dialog.showModal();
+      try {
+        if (!dialog.open) dialog.showModal();
+      } catch (e) {
+        dialog.setAttribute('open', '');
+      }
+    });
+
+    dialog.addEventListener('click', e => {
+      const rect = dialog.getBoundingClientRect();
+      const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height
+        && rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+      if (!isInDialog) dialog.close();
     });
 
     document.getElementById('bof-auth-close')?.addEventListener('click', () => dialog.close());
@@ -781,6 +881,36 @@
       }
     });
 
+    // ปุ่มสลับดูรหัสผ่าน (Password Show/Hide Toggle)
+    document.querySelectorAll('.bof-pw-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        const inp = document.getElementById(targetId);
+        if (!inp) return;
+        const isPass = inp.type === 'password';
+        inp.type = isPass ? 'text' : 'password';
+        btn.textContent = isPass ? '🙈' : '👁️';
+      });
+    });
+
+    // ปุ่มบันทึกชื่อเล่น Guest ด่วนในหน้าล็อกอิน
+    document.getElementById('bof-btn-save-guest-nick')?.addEventListener('click', () => {
+      const inp = document.getElementById('bof-input-guest-nickname');
+      if (!inp) return;
+      const val = inp.value.trim();
+      if (!val) {
+        setStatusMessage('⚠️ กรุณาระบุชื่อเล่นสำหรับ Guest', true);
+        return;
+      }
+      try {
+        localStorage.setItem(GUEST_NICK_KEY, val);
+      } catch (e) {}
+      renderAuthBar();
+      updateInGamePlayerIdentity();
+      updateMultiplayerPlayerBanner();
+      setStatusMessage(`✨ บันทึกชื่อเล่น "${val}" เรียบร้อยแล้ว!`, false);
+    });
+
     document.getElementById('bof-auth-form')?.addEventListener('submit', async e => {
       e.preventDefault();
       const userInp = document.getElementById('bof-input-username');
@@ -791,10 +921,21 @@
       try {
         if (submitBtn) submitBtn.disabled = true;
         if (authMode === 'register') {
+          const passConfirmInp = document.getElementById('bof-input-password-confirm');
+          if (passConfirmInp && passConfirmInp.value !== passInp.value) {
+            throw new Error('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+          }
           await registerAccount(userInp.value, passInp.value, selectedAvatarId);
+          try {
+            localStorage.setItem(LAST_USER_KEY, normalizeUsername(userInp.value));
+          } catch (e) {}
           setStatusMessage('🎉 สมัครสมาชิกและเข้าสู่ระบบสำเร็จ!', false);
+          if (passConfirmInp) passConfirmInp.value = '';
         } else {
           await loginAccount(userInp.value, passInp.value);
+          try {
+            localStorage.setItem(LAST_USER_KEY, normalizeUsername(userInp.value));
+          } catch (e) {}
           setStatusMessage('✅ เข้าสู่ระบบสำเร็จ!', false);
         }
         userInp.value = '';
@@ -811,6 +952,329 @@
       await logoutAccount();
       renderAuthDialogContent();
     });
+  }
+
+  /* ---------------- ระบบควบคุมห้องดวลกับเพื่อนออนไลน์ (Multiplayer Controller) ---------------- */
+  let hostKeepAliveTimer = null;
+  let guestTimeoutTimer = null;
+
+  function updateMultiplayerPlayerBanner() {
+    const nameEl = document.getElementById('mp-current-name');
+    if (nameEl) nameEl.textContent = getEffectivePlayerName();
+    const avatarEl = document.getElementById('mp-banner-avatar');
+    if (avatarEl) avatarEl.src = getEffectivePlayerAvatar();
+  }
+
+  function setJoinStatus(text, type = 'info') {
+    const statusEl = document.getElementById('mp-join-status');
+    if (!statusEl) return;
+    if (!text) {
+      statusEl.style.display = 'none';
+      statusEl.textContent = '';
+      return;
+    }
+    statusEl.textContent = text;
+    statusEl.className = 'mp-status-msg is-' + type;
+    statusEl.style.display = 'block';
+  }
+
+  function cancelHostRoom() {
+    if (hostKeepAliveTimer) { clearInterval(hostKeepAliveTimer); hostKeepAliveTimer = null; }
+    if (typeof pvpState !== 'undefined') {
+      if (pvpState.peer) {
+        try { pvpState.peer.destroy(); } catch (e) {}
+        pvpState.peer = null;
+      }
+      pvpState.roomCode = null;
+    }
+    const hostBtn = document.getElementById('btn-create-room');
+    const codeBox = document.getElementById('room-code-display');
+    if (hostBtn) { hostBtn.disabled = false; hostBtn.textContent = '➕ สร้างห้องใหม่ (รับรหัส 4 หลัก)'; }
+    if (codeBox) codeBox.style.display = 'none';
+  }
+
+  window.createPvpRoomAsHost = function () {
+    if (typeof Peer === 'undefined') {
+      alert('ไม่พบระบบเชื่อมต่อเครือข่ายออนไลน์ (PeerJS)');
+      return;
+    }
+    if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playClick === 'function') window.BOF_AUDIO.playClick();
+    if (hostKeepAliveTimer) { clearInterval(hostKeepAliveTimer); hostKeepAliveTimer = null; }
+
+    const hostBtn = document.getElementById('btn-create-room');
+    const codeBox = document.getElementById('room-code-display');
+    const codeEl = document.getElementById('my-room-code');
+
+    if (hostBtn) { hostBtn.disabled = true; hostBtn.textContent = '⏳ กำลังสร้างห้อง...'; }
+    if (codeBox) codeBox.style.display = 'block';
+    if (codeEl) codeEl.textContent = 'กำลังสร้าง...';
+    setJoinStatus('', 'info');
+
+    const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
+    if (typeof pvpState !== 'undefined') {
+      if (pvpState.peer) try { pvpState.peer.destroy(); } catch (e) {}
+      pvpState.role = 'host';
+      pvpState.roomCode = randomCode;
+      pvpState.peer = new Peer(`my-tcg-room-${randomCode}`);
+
+      pvpState.peer.on('open', () => {
+        if (codeEl) codeEl.textContent = randomCode;
+        if (hostBtn) { hostBtn.disabled = true; hostBtn.textContent = '🏠 ห้องของคุณเปิดอยู่'; }
+        // Keepalive ping to prevent PeerJS cloud server from disconnecting idle host
+        hostKeepAliveTimer = setInterval(() => {
+          if (pvpState.peer && !pvpState.peer.destroyed && pvpState.peer.socket && typeof pvpState.peer.socket.send === 'function') {
+            try { pvpState.peer.socket.send({ type: 'ping' }); } catch (e) {}
+          }
+        }, 25000);
+      });
+
+      pvpState.peer.on('error', err => {
+        if (hostKeepAliveTimer) { clearInterval(hostKeepAliveTimer); hostKeepAliveTimer = null; }
+        if (err && err.type === 'unavailable-id') {
+          // ID ชนในเซิร์ฟเวอร์ -> สุ่มรหัสใหม่และลองอีกครั้งทันที
+          setTimeout(() => window.createPvpRoomAsHost(), 200);
+          return;
+        }
+        if (codeEl) codeEl.textContent = 'เกิดข้อผิดพลาด';
+        if (hostBtn) { hostBtn.disabled = false; hostBtn.textContent = '➕ สร้างห้องใหม่ (ลองอีกครั้ง)'; }
+        setJoinStatus(`⚠️ เชื่อมต่อเครือข่ายไม่สำเร็จ (${err.message || err.type})`, 'error');
+      });
+
+      pvpState.peer.on('connection', conn => {
+        if (hostKeepAliveTimer) { clearInterval(hostKeepAliveTimer); hostKeepAliveTimer = null; }
+        pvpState.conn = conn;
+        if (codeEl) codeEl.textContent = '✨ เพื่อนเชื่อมต่อแล้ว!';
+        conn.on('open', () => {
+          conn.send({ type: 'START_PVP_MATCH' });
+          conn.send({
+            type: 'PLAYER_PROFILE',
+            username: getEffectivePlayerName(),
+            avatar: getEffectivePlayerAvatar()
+          });
+          if (typeof startPvpMatchBoard === 'function') {
+            startPvpMatchBoard('host');
+          }
+        });
+        conn.on('data', handleIncomingPvpData);
+        conn.on('close', () => {
+          if (pvpState.isMultiplayer && !gameState.gameOver) {
+            gameState.gameOver = true;
+            disableControls();
+            if (typeof _originalSetLog === 'function') _originalSetLog('🔌 ฝ่ายตรงข้ามออกจากการเชื่อมต่อ!');
+            showEndMatchModal('🏆 คุณชนะ!', 'ฝ่ายตรงข้ามตัดการเชื่อมต่อไป');
+          }
+        });
+      });
+    }
+  };
+
+  window.joinPvpRoomAsGuest = function (codeInput) {
+    const code = String(codeInput || '').replace(/\D+/g, '').slice(0, 4);
+    if (!code || code.length !== 4) {
+      setJoinStatus('⚠️ กรุณากรอกรหัสห้องเป็นตัวเลข 4 หลัก เช่น 4829', 'error');
+      const inp = document.getElementById('input-join-code');
+      if (inp) inp.focus();
+      return;
+    }
+
+    if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playClick === 'function') window.BOF_AUDIO.playClick();
+    if (guestTimeoutTimer) clearTimeout(guestTimeoutTimer);
+
+    const joinBtn = document.getElementById('btn-join-room');
+    const joinInp = document.getElementById('input-join-code');
+    if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = '⏳ กำลังค้นหา...'; }
+    if (joinInp) joinInp.disabled = true;
+    setJoinStatus(`🔄 กำลังค้นหาและเชื่อมต่อไปยังห้อง ${code}...`, 'info');
+
+    if (typeof pvpState !== 'undefined') {
+      pvpState.role = 'guest';
+      if (pvpState.peer) try { pvpState.peer.destroy(); } catch (e) {}
+      pvpState.peer = new Peer();
+
+      let hasConnected = false;
+      guestTimeoutTimer = setTimeout(() => {
+        if (!hasConnected) {
+          if (pvpState.conn) try { pvpState.conn.close(); } catch (e) {}
+          if (pvpState.peer) try { pvpState.peer.destroy(); } catch (e) {}
+          pvpState.conn = null;
+          pvpState.peer = null;
+          setJoinStatus(`⚠️ ไม่พบห้อง ${code} หรือเจ้าของห้องปิดห้องไปแล้ว (กรุณาตรวจรหัสห้องอีกครั้ง)`, 'error');
+          if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = 'เข้าร่วมห้อง ▶'; }
+          if (joinInp) { joinInp.disabled = false; joinInp.focus(); }
+        }
+      }, 12000);
+
+      pvpState.peer.on('open', () => {
+        const conn = pvpState.peer.connect(`my-tcg-room-${code}`, { reliable: true });
+        pvpState.conn = conn;
+
+        conn.on('open', () => {
+          hasConnected = true;
+          clearTimeout(guestTimeoutTimer);
+          setJoinStatus('✅ เชื่อมต่อห้องสำเร็จ! กำลังเข้าสู่การดวล...', 'ok');
+          conn.send({
+            type: 'PLAYER_PROFILE',
+            username: getEffectivePlayerName(),
+            avatar: getEffectivePlayerAvatar()
+          });
+        });
+
+        conn.on('data', handleIncomingPvpData);
+
+        conn.on('close', () => {
+          if (pvpState.isMultiplayer && !gameState.gameOver) {
+            gameState.gameOver = true;
+            disableControls();
+            if (typeof _originalSetLog === 'function') _originalSetLog('🔌 ฝ่ายตรงข้ามออกจากการเชื่อมต่อ!');
+            showEndMatchModal('🏆 คุณชนะ!', 'ฝ่ายตรงข้ามตัดการเชื่อมต่อไป');
+          }
+        });
+
+        conn.on('error', () => {
+          clearTimeout(guestTimeoutTimer);
+          setJoinStatus(`⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อไปยังห้อง ${code}`, 'error');
+          if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = 'เข้าร่วมห้อง ▶'; }
+          if (joinInp) { joinInp.disabled = false; }
+        });
+      });
+
+      pvpState.peer.on('error', () => {
+        clearTimeout(guestTimeoutTimer);
+        setJoinStatus(`⚠️ ไม่พบห้อง ${code} หรือระบบเครือข่ายขัดข้อง`, 'error');
+        if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = 'เข้าร่วมห้อง ▶'; }
+        if (joinInp) { joinInp.disabled = false; }
+      });
+    }
+  };
+
+  function bindMultiplayerUI() {
+    updateMultiplayerPlayerBanner();
+
+    // ปุ่มยกเลิก/ปิดห้องฝั่ง Host
+    document.getElementById('btn-cancel-host-room')?.addEventListener('click', cancelHostRoom);
+
+    // ปุ่มคัดลอกรหัสห้อง
+    document.getElementById('btn-copy-room-code')?.addEventListener('click', () => {
+      const code = typeof pvpState !== 'undefined' ? pvpState.roomCode : null;
+      if (!code) return;
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('btn-copy-room-code');
+        if (btn) {
+          const old = btn.textContent;
+          btn.textContent = '✓ คัดลอกแล้ว!';
+          setTimeout(() => { btn.textContent = old; }, 2000);
+        }
+      }).catch(() => {
+        prompt('รหัสห้องของคุณ:', code);
+      });
+    });
+
+    // ปุ่มคัดลอกลิงก์ชวนเพื่อน
+    document.getElementById('btn-copy-room-link')?.addEventListener('click', () => {
+      const code = typeof pvpState !== 'undefined' ? pvpState.roomCode : null;
+      if (!code) return;
+      const url = window.location.origin + window.location.pathname + '?room=' + code;
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('btn-copy-room-link');
+        if (btn) {
+          const old = btn.textContent;
+          btn.textContent = '✓ คัดลอกลิงก์แล้ว!';
+          setTimeout(() => { btn.textContent = old; }, 2000);
+        }
+      }).catch(() => {
+        prompt('ลิงก์สำหรับส่งให้เพื่อน:', url);
+      });
+    });
+
+    // ปุ่มวางรหัสห้องจากคลิปบอร์ด
+    document.getElementById('btn-paste-join-code')?.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        const code = String(text || '').replace(/\D+/g, '').slice(0, 4);
+        if (code) {
+          const inp = document.getElementById('input-join-code');
+          if (inp) {
+            inp.value = code;
+            inp.focus();
+            setJoinStatus(`📋 วางรหัส ${code} แล้ว กด "เข้าร่วมห้อง" ได้เลย`, 'info');
+          }
+        }
+      } catch (e) {}
+    });
+
+    // กด Enter ในช่องกรอกรหัสห้องเพื่อเข้าร่วมทันที
+    document.getElementById('input-join-code')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const code = document.getElementById('input-join-code').value;
+        window.joinPvpRoomAsGuest(code);
+      }
+    });
+
+    // แก้ไขชื่อเล่น Guest ด่วนในหน้าสร้างห้อง
+    const editGuestBtn = document.getElementById('mp-btn-edit-guest');
+    const guestEditRow = document.getElementById('mp-guest-edit-row');
+    const guestNameInput = document.getElementById('mp-guest-name-input');
+    const saveGuestBtn = document.getElementById('mp-btn-save-guest');
+    const cancelGuestBtn = document.getElementById('mp-btn-cancel-guest');
+
+    editGuestBtn?.addEventListener('click', () => {
+      if (!guestEditRow) return;
+      const isOpen = guestEditRow.style.display !== 'none';
+      guestEditRow.style.display = isOpen ? 'none' : 'flex';
+      if (!isOpen && guestNameInput) {
+        guestNameInput.value = localStorage.getItem(GUEST_NICK_KEY) || (currentUser ? currentUser.username : '');
+        guestNameInput.focus();
+      }
+    });
+
+    cancelGuestBtn?.addEventListener('click', () => {
+      if (guestEditRow) guestEditRow.style.display = 'none';
+    });
+
+    saveGuestBtn?.addEventListener('click', () => {
+      if (!guestNameInput) return;
+      const val = guestNameInput.value.trim();
+      if (!val) return;
+      try {
+        localStorage.setItem(GUEST_NICK_KEY, val);
+      } catch (e) {}
+      if (guestEditRow) guestEditRow.style.display = 'none';
+      renderAuthBar();
+      updateInGamePlayerIdentity();
+      updateMultiplayerPlayerBanner();
+    });
+
+    // ตรวจจับ URL Parameter ชวนเข้าห้อง (?room=XXXX หรือ #room=XXXX)
+    checkUrlInviteRoom();
+  }
+
+  function checkUrlInviteRoom() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      let roomCode = urlParams.get('room') || '';
+      if (!roomCode && window.location.hash) {
+        const match = window.location.hash.match(/room=(\d{4})/i);
+        if (match) roomCode = match[1];
+      }
+      roomCode = String(roomCode || '').replace(/\D+/g, '').slice(0, 4);
+      if (roomCode.length === 4) {
+        const modal = document.getElementById('pvp-room-modal');
+        const inp = document.getElementById('input-join-code');
+        const banner = document.getElementById('mp-invite-banner');
+        const codeTxt = document.getElementById('mp-invite-code-text');
+        const quickJoinBtn = document.getElementById('btn-quick-join-invite');
+
+        if (inp) inp.value = roomCode;
+        if (codeTxt) codeTxt.textContent = roomCode;
+        if (banner) banner.style.display = 'flex';
+        if (modal) modal.style.display = 'flex';
+
+        quickJoinBtn?.addEventListener('click', () => {
+          window.joinPvpRoomAsGuest(roomCode);
+        });
+      }
+    } catch (e) {}
   }
 
   async function restoreSession() {
@@ -831,6 +1295,18 @@
 
   window.BOFAuth = {
     currentUser: () => currentUser,
+    getEffectivePlayerName,
+    getEffectivePlayerAvatar,
+    onOpenMultiplayerModal: () => {
+      updateMultiplayerPlayerBanner();
+      setJoinStatus('', 'info');
+    },
+    onCloseMultiplayerModal: () => {
+      if (typeof pvpState !== 'undefined' && pvpState.role === 'host' && !pvpState.isMultiplayer) {
+        cancelHostRoom();
+      }
+      setJoinStatus('', 'info');
+    },
     loginAccount,
     registerAccount,
     logoutAccount,
@@ -853,6 +1329,7 @@
   };
 
   bindAuthUI();
+  bindMultiplayerUI();
   hookGameEvents();
   restoreSession();
 })();
