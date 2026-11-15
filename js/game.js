@@ -10364,6 +10364,7 @@ function handleIncomingPvpData(data) {
       gameState.phase = 'Main Phase';
       disableControls();
       _originalSetLog('🔮 ฝ่ายตรงข้ามเปิดใช้สกิล "มายอา" พบโซเนบุ — เทิร์นของคุณถูกบังคับจบทันที!');
+    }
     const isRemoteOver = !!data.gameOver;
     _originalRenderGame();
     if (!checkGameOver() && isRemoteOver) {
