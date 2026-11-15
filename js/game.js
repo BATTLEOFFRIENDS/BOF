@@ -5401,11 +5401,19 @@ function handleHandCardClick(handIndex) {
 
   // กรณีที่ 2: คลิกการ์ด Monster บนมือ
   if (clickedCard.type === 'Monster') {
-    if (clickedCard.id === 'M04' || clickedCard.id === 'MD09' || clickedCard.cannotNormalSummon) {
-      setLog(`🚫 "${clickedCard.name}" ไม่สามารถอัญเชิญแบบปกติได้! (ต้องสั่งใช้งานจากมิติมืดหรือเงื่อนไขพิเศษเท่านั้น)`);
+    // 1. ไฮบริดเด็คไดโน (อินโดมินัสเร็กซ์ DN06 / อินโดแรปเตอร์ DN07)
+    if (Array.isArray(clickedCard.hybridMaterials)) {
+      handleDinoHybridHandMenu(handIndex);
       return;
     }
 
+    // 2. เด็ควันสิ้นโลก: ฟิวเจอร์ไดรฟ์ / แอชชี่ล่า
+    if (clickedCard.id === 'DM07' || clickedCard.futureBaseId) {
+      handleDoomsdayHandMenu(handIndex);
+      return;
+    }
+
+    // 3. อาคุมะ โฮมุระ (MD08)
     if (clickedCard.id === 'MD08') {
       const canTriggerSpecial = (player.attacksThisTurn >= 2 && player.attacksThisTurn <= 3 && player.board.some(m => m !== null));
       if (gameState.phase === 'Battle Phase') {
@@ -5444,21 +5452,13 @@ function handleHandCardClick(handIndex) {
       }
     }
 
-    if (Array.isArray(clickedCard.hybridMaterials)) {
-      handleDinoHybridHandMenu(handIndex);
-      return;
-    }
-
-    if (clickedCard.id === 'DM07' || clickedCard.futureBaseId) {
-      handleDoomsdayHandMenu(handIndex);
-      return;
-    }
-
+    // 4. เด็คขุนเหนือ (NM01, NM02, NM03)
     if (clickedCard.id === 'NM01' || clickedCard.id === 'NM02' || clickedCard.id === 'NM03') {
       handleNueaHandAbilityMenu(handIndex);
       return;
     }
 
+    // 5. สายลับไพร่เหนือ (NM05 / isSpy)
     if (clickedCard.id === 'NM05' || clickedCard.isSpy) {
       if (!ai.board.some(m => m === null)) {
         setLog('⚠️ สนามของฝ่ายตรงข้ามเต็มทั้ง 3 ช่อง จึงไม่สามารถส่งสายลับไปลงได้!');
@@ -5470,6 +5470,12 @@ function handleHandCardClick(handIndex) {
         setLog('🕵️ เลือก "สายลับไพร่เหนือ" แล้ว — คลิกที่ช่องว่างบนสนามของฝ่ายตรงข้าม (ด้านบน) เพื่อวางสายลับ!');
         renderGame();
       });
+      return;
+    }
+
+    // 6. การ์ดที่ห้ามอัญเชิญแบบปกติ (ที่ไม่มีเงื่อนไขสั่งใช้งานจากบนมือ)
+    if (clickedCard.id === 'M04' || clickedCard.id === 'MD09' || clickedCard.cannotNormalSummon) {
+      setLog(`🚫 "${clickedCard.name}" ไม่สามารถอัญเชิญแบบปกติได้! (ต้องสั่งใช้งานจากมิติมืดหรือเงื่อนไขพิเศษเท่านั้น)`);
       return;
     }
 
