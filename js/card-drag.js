@@ -26,7 +26,7 @@
     if (typeof isChoiceModalOpen === 'function' && isChoiceModalOpen()) return null;
     // กดค้างจนเปิด Inspect แล้วลากต่อ = ไม่ใช่การลาก (ไม่งั้นการ์ดลงสนามอยู่หลังหน้า Inspect)
     if (inspecting()) return null;
-    if (card.type !== 'Monster' || card.id === 'M04' || card.cannotNormalSummon || card.futureBaseId || MENU_IDS.includes(card.id)) return null;
+    if (card.type !== 'Monster' || card.id === 'M04' || card.id === 'MD09' || card.cannotNormalSummon || card.futureBaseId || MENU_IDS.includes(card.id)) return null;
     if (card.id === 'NM05' || card.isSpy) return 'spy';
     return 'board';
   };

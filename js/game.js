@@ -441,7 +441,10 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   // กฎแห่งวัฏจักร (MD12): ป้องกันไม่ออกจากสนาม 1 ครั้ง
   if (monster.protectedOnce) {
     delete monster.protectedOnce;
-    setLog(`🛡️ [กฎแห่งวัฏจักร] ป้องกันไม่ให้ "${monster.name}" ถูกนำออกจากสนาม 1 ครั้ง!`);
+    if (typeof showCardShowcaseBanner === 'function') {
+      showCardShowcaseBanner(monster, '🛡️ กฎแห่งวัฏจักร!', `ป้องกันไม่ให้ "${monster.name}" ถูกทำลาย 1 ครั้ง!`, '#ec4899', 1100);
+    }
+    setLog(`🛡️ [กฎแห่งวัฏจักร] ป้องกันไม่ให้ "${monster.name}" ถูกทำลายหรือนำออกจากสนาม 1 ครั้ง!`);
     return { destroyed: false, reason: 'law_of_cycles', monster };
   }
 
@@ -938,7 +941,10 @@ function checkGameOver() {
     gameState.pendingAction = null;
     setLog('💀 จบเกม! Leader ของคุณ HP เหลือ 0 — คุณเป็นฝ่ายพ่ายแพ้!');
     disableControls();
-    setTimeout(() => showEndMatchModal('💀 คุณพ่ายแพ้!', 'Leader ของคุณ HP เหลือ 0'), 500);
+    if (typeof showCardShowcaseBanner === 'function' && gameState.ai && gameState.ai.leader) {
+      showCardShowcaseBanner(gameState.ai.leader, '💀 คุณพ่ายแพ้!', 'Leader ของคุณ HP เหลือ 0!', '#ef4444', 1500);
+    }
+    setTimeout(() => showEndMatchModal('💀 คุณพ่ายแพ้!', 'Leader ของคุณ HP เหลือ 0'), 400);
     return true;
   }
   if (gameState.ai.leader.hp <= 0) {
@@ -946,7 +952,10 @@ function checkGameOver() {
     gameState.pendingAction = null;
     setLog('🏆 ยินดีด้วย! Leader ของฝ่ายตรงข้าม HP เหลือ 0 — คุณเป็นฝ่ายชนะ!');
     disableControls();
-    setTimeout(() => showEndMatchModal('🏆 ยินดีด้วย คุณชนะ!', 'คุณโจมตี Leader ของฝ่ายตรงข้ามจน HP เหลือ 0 สำเร็จ!'), 500);
+    if (typeof showCardShowcaseBanner === 'function' && gameState.player && gameState.player.leader) {
+      showCardShowcaseBanner(gameState.player.leader, '🏆 ยินดีด้วย คุณชนะ!', 'Leader ของฝ่ายตรงข้าม HP เหลือ 0 สำเร็จ!', '#10b981', 1500);
+    }
+    setTimeout(() => showEndMatchModal('🏆 ยินดีด้วย คุณชนะ!', 'คุณโจมตี Leader ของฝ่ายตรงข้ามจน HP เหลือ 0 สำเร็จ!'), 400);
     return true;
   }
   return false;
@@ -3449,7 +3458,7 @@ function initiatePlayerSpell(handIndex) {
           return;
         }
         const choices = player.deck.map((c, dIdx) => ({
-          label: `💀 [${dIdx + 1}] ${c.name} (${c.type})`,
+          label: `💀 เลือก "${c.name}" (${c.type})`,
           color: '#ec4899',
           onSelect: () => {
             const sent = player.deck.splice(dIdx, 1)[0];
@@ -5337,10 +5346,11 @@ function handleHandCardClick(handIndex) {
   if (!clickedCard) return;
 
   const isAshilaReadyInBattle = (clickedCard.id === 'DM07' && player.unitsDestroyedThisTurn >= 2 && gameState.phase === 'Battle Phase');
+  const isHomuraReadyInBattle = (clickedCard.id === 'MD08' && player.attacksThisTurn >= 2 && player.attacksThisTurn <= 3 && gameState.phase === 'Battle Phase' && player.board.some(m => m !== null));
   const awaitingHandTarget = gameState.pendingAction && gameState.pendingAction.type === 'MODULAR_SELECT_TARGET' && gameState.pendingAction.targetZone === 'PLAYER_HAND';
 
   if (!awaitingHandTarget) {
-    if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player' || (gameState.phase !== 'Main Phase' && !isAshilaReadyInBattle)) {
+    if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player' || (gameState.phase !== 'Main Phase' && !isAshilaReadyInBattle && !isHomuraReadyInBattle)) {
       setLog('⚠️ ลงการ์ดหรือใช้เวทมนตร์จากมือได้เฉพาะใน Main Phase ของคุณเท่านั้น!');
       return;
     }
@@ -5383,9 +5393,47 @@ function handleHandCardClick(handIndex) {
 
   // กรณีที่ 2: คลิกการ์ด Monster บนมือ
   if (clickedCard.type === 'Monster') {
-    if (clickedCard.id === 'M04') {
-      setLog('🚫 "ออลฟอจิต" ไม่สามารถอัญเชิญแบบปกติได้!');
+    if (clickedCard.id === 'M04' || clickedCard.id === 'MD09' || clickedCard.cannotNormalSummon) {
+      setLog(`🚫 "${clickedCard.name}" ไม่สามารถอัญเชิญแบบปกติได้! (ต้องสั่งใช้งานจากมิติมืดหรือเงื่อนไขพิเศษเท่านั้น)`);
       return;
+    }
+
+    if (clickedCard.id === 'MD08') {
+      const canTriggerSpecial = (player.attacksThisTurn >= 2 && player.attacksThisTurn <= 3 && player.board.some(m => m !== null));
+      if (gameState.phase === 'Battle Phase') {
+        if (canTriggerSpecial) {
+          checkAkumaHomuraHandTrigger(player);
+        } else {
+          setLog('⚠️ "อาคุมะ โฮมุระ" สั่งใช้งานใน Battle Phase ได้เมื่อทำการโจมตีครบ 2-3 ครั้งในเทิร์นนี้และมียูนิตสังเวยบนสนาม!');
+        }
+        return;
+      }
+      if (canTriggerSpecial) {
+        showChoiceModal(
+          '👿 อาคุมะ โฮมุระ',
+          'เลือกรูปแบบการใช้งาน "อาคุมะ โฮมุระ":',
+          [
+            {
+              label: '👿 สั่งใช้งานจากบนมือ (สังเวยยูนิตเรา 1 ใบเพื่ออัญเชิญ และทำลายยูนิตอีกฝ่าย 1 ใบ)',
+              color: '#7c3aed',
+              onSelect: () => checkAkumaHomuraHandTrigger(player)
+            },
+            {
+              label: '👤 อัญเชิญแบบปกติ (วางลงช่องสนามตามปกติ)',
+              color: '#16a34a',
+              onSelect: () => {
+                askCardUseConfirmation(clickedCard, 'อัญเชิญยูนิตใบนี้ลงสู่สนามของคุณ', () => {
+                  gameState.selectedAttackerSlot = null;
+                  gameState.selectedHandIndex = handIndex;
+                  setLog(`เลือก "${clickedCard.name}" แล้ว — คลิกที่ช่องบนสนามของคุณเพื่อวาง Monster`);
+                  renderGame();
+                });
+              }
+            }
+          ]
+        );
+        return;
+      }
     }
 
     if (Array.isArray(clickedCard.hybridMaterials)) {
@@ -5557,20 +5605,11 @@ function handlePlayerSlotClick(slotIndex) {
     const selectedCard = player.hand[gameState.selectedHandIndex];
     if (!selectedCard || selectedCard.type !== 'Monster') return;
 
-    if (selectedCard.cannotNormalSummon) {
-      setLog(`🚫 "${selectedCard.name}" ไม่สามารถอัญเชิญแบบปกติได้!`);
+    if (selectedCard.cannotNormalSummon || selectedCard.id === 'MD09') {
+      setLog(`🚫 "${selectedCard.name}" ไม่สามารถอัญเชิญแบบปกติได้! (ต้องสั่งใช้งานจากมิติมืดเท่านั้น)`);
       gameState.selectedHandIndex = null;
       renderGame();
       return;
-    }
-
-    if (selectedCard.id === 'MD08') {
-      if (player.attacksThisTurn < 2 || player.attacksThisTurn > 3) {
-        setLog('⚠️ "อาคุมะ โฮมุระ" อัญเชิญได้เมื่อบนสนามเราทำการโจมตี 2-3 ครั้งในเทิร์นนี้เท่านั้น!');
-        gameState.selectedHandIndex = null;
-        renderGame();
-        return;
-      }
     }
 
     if (selectedCard.id === 'NM05' || selectedCard.isSpy) {
@@ -5592,26 +5631,6 @@ function handlePlayerSlotClick(slotIndex) {
 
     setLog(`✅ อัญเชิญ "${summoned.name}" ลงช่องที่ ${slotIndex + 1} สำเร็จ!${overwriteMsg}`);
 
-    // อาคุมะ โฮมุระ (MD08): เมื่ออัญเชิญสำเร็จ ทำลายการ์ดบนสนามอีกฝ่าย 1 ใบ
-    if (summoned.id === 'MD08') {
-      const oppUnits = [];
-      gameState.ai.board.forEach((m, s) => {
-        if (m) {
-          oppUnits.push({
-            label: `💥 ทำลาย "${m.name}" (ช่อง ${s + 1})`,
-            color: '#dc2626',
-            onSelect: () => {
-              destroyBoardMonster(gameState.ai, s, false, true);
-              setLog(`👿 [อาคุมะ โฮมุระ] ทำลาย "${m.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
-              renderGame();
-            }
-          });
-        }
-      });
-      if (oppUnits.length > 0) {
-        showChoiceModal('👿 อาคุมะ โฮมุระ: ทำลายการ์ดบนสนามอีกฝ่าย', 'เลือกยูนิทฝ่ายตรงข้าม 1 ใบที่จะทำลาย:', oppUnits);
-      }
-    }
 
     EffectEngine.triggerCardEffects(summoned, 'ON_SUMMON', {
       caster: player,
@@ -6055,6 +6074,132 @@ function triggerBelphegorAttackSuccess(attacker, defender, attackingMonster) {
   }
 }
 
+function checkAkumaHomuraHandTrigger(contestant, onDone = null) {
+  if (!contestant || gameState.gameOver) {
+    if (onDone) onDone();
+    return;
+  }
+  const attacks = contestant.attacksThisTurn || 0;
+  if (attacks < 2 || attacks > 3) {
+    if (onDone) onDone();
+    return;
+  }
+  const homuraIdx = contestant.hand.findIndex(c => c && c.id === 'MD08');
+  if (homuraIdx === -1) {
+    if (onDone) onDone();
+    return;
+  }
+  const hasBoardMonster = contestant.board.some(m => m !== null);
+  if (!hasBoardMonster) {
+    if (onDone) onDone();
+    return;
+  }
+
+  const opponent = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  const isLocalPlayer = (contestant === gameState.player);
+
+  const activateHomuraSkill = (sacrificeSlot, doneCallback) => {
+    const homuraCard = contestant.hand.splice(homuraIdx, 1)[0];
+    resetCardStateForZoneChange(homuraCard);
+    homuraCard.state = 'Stand';
+
+    const sacrificed = contestant.board[sacrificeSlot];
+    sendOverwrittenMonsterToGrave(contestant, sacrificeSlot);
+    contestant.board[sacrificeSlot] = homuraCard;
+
+    showCardShowcaseBanner(homuraCard, `${contestant.name} อัญเชิญ อาคุมะ โฮมุระ!`, `👿 สั่งใช้งานจากบนมือหลังโจมตีครบ ${attacks} ครั้ง!`, '#7c3aed', 1200);
+    setLog(`👿 [อาคุมะ โฮมุระ] บนสนามทำการโจมตีครบ ${attacks} ครั้งในเทิร์นนี้! สั่งใช้งานจากบนมือ ส่ง "${sacrificed ? sacrificed.name : 'ยูนิต'}" ลงนรก และอัญเชิญ "อาคุมะ โฮมุระ" ลงสู่สนามสำเร็จ!`);
+    renderGame();
+
+    const oppUnits = [];
+    opponent.board.forEach((m, s) => {
+      if (m) {
+        oppUnits.push({
+          label: `💥 ทำลาย "${m.name}" (ช่อง ${s + 1})`,
+          color: '#dc2626',
+          slot: s,
+          monster: m,
+          onSelect: () => {
+            destroyBoardMonster(opponent, s, false, true);
+            setLog(`👿 [สกิลอาคุมะ โฮมุระ] ทำลาย "${m.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
+            renderGame();
+            checkGameOver();
+            if (doneCallback) doneCallback();
+          }
+        });
+      }
+    });
+
+    if (oppUnits.length > 0) {
+      if (isLocalPlayer) {
+        showChoiceModal('👿 อาคุมะ โฮมุระ: ทำลายการ์ดบนสนามอีกฝ่าย', 'เลือกยูนิทฝ่ายตรงข้าม 1 ใบที่จะทำลาย:', oppUnits);
+      } else {
+        let bestTarget = oppUnits[0];
+        let maxP = -1;
+        oppUnits.forEach(opt => {
+          const p = getEffectivePower(opt.monster, opponent);
+          if (p > maxP) { maxP = p; bestTarget = opt; }
+        });
+        bestTarget.onSelect();
+      }
+    } else {
+      if (doneCallback) doneCallback();
+    }
+  };
+
+  if (!isLocalPlayer) {
+    if (aiConfig.difficulty === 'EASY') {
+      if (onDone) onDone();
+      return;
+    }
+    let sacrificeSlot = -1;
+    let minP = Infinity;
+    contestant.board.forEach((m, s) => {
+      if (m) {
+        const p = getEffectivePower(m, contestant);
+        if (p < minP) { minP = p; sacrificeSlot = s; }
+      }
+    });
+    if (sacrificeSlot !== -1) {
+      activateHomuraSkill(sacrificeSlot, onDone);
+    } else {
+      if (onDone) onDone();
+    }
+    return;
+  }
+
+  showChoiceModal(
+    '👿 สั่งใช้งานจากบนมือ: อาคุมะ โฮมุระ',
+    `บนสนามของคุณทำการโจมตีครบ ${attacks} ครั้งในเทิร์นนี้!\nต้องการสั่งใช้งานความสามารถของ "อาคุมะ โฮมุระ" จากบนมือหรือไม่?\n(ส่งยูนิตเรา 1 ใบลงนรก เพื่ออัญเชิญอาคุมะ โฮมุระ ลงสนาม แล้วทำลายการ์ดบนสนามอีกฝ่าย 1 ใบ)`,
+    [
+      {
+        label: '👿 สั่งใช้งาน: เลือกยูนิตเรา 1 ใบส่งลงนรกเพื่ออัญเชิญ!',
+        color: '#7c3aed',
+        onSelect: () => {
+          const sacChoices = [];
+          contestant.board.forEach((m, s) => {
+            if (m) {
+              sacChoices.push({
+                label: `💀 ส่ง "${m.name}" (ช่อง ${s + 1}) ลงนรก`,
+                color: '#7c3aed',
+                onSelect: () => activateHomuraSkill(s, onDone)
+              });
+            }
+          });
+          showChoiceModal('👿 อาคุมะ โฮมุระ: เลือกยูนิตสังเวย', 'เลือกยูนิตบนสนามฝั่งเรา 1 ใบที่จะส่งลงนรก:', sacChoices);
+        }
+      },
+      {
+        label: 'ไม่ใช้ความสามารถ (เก็บไว้บนมือ)',
+        color: '#475569',
+        onSelect: () => {
+          if (onDone) onDone();
+        }
+      }
+    ]
+  );
+}
+
 // ฟังก์ชันหลักเมื่อสั่งโจมตี (เพิ่มแอนิเมชันพุ่งโจมตีก่อนประมวลผล)
 function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback = null) {
   if (gameState.isAttacking) {
@@ -6085,7 +6230,13 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
       gameState._attackingTimeout = null;
     }
     renderGame();
-    if (onCompleteCallback) onCompleteCallback();
+    if (!gameState.gameOver && typeof checkAkumaHomuraHandTrigger === 'function') {
+      checkAkumaHomuraHandTrigger(attacker, () => {
+        if (onCompleteCallback) onCompleteCallback();
+      });
+    } else {
+      if (onCompleteCallback) onCompleteCallback();
+    }
   };
 
   // 🐍 ตรวจสอบว่ายูนิทที่สั่งโจมตีถูกสกิลของ "ลิเวียธาน บาปความริษยา" (DMM03) ล็อกเป้าไว้หรือไม่
@@ -6227,9 +6378,9 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
         resetCardStateForZoneChange(returned);
         attacker.deck.push(returned);
         attacker.deck = shuffleDeck(attacker.deck);
-        attackingMonster.tempPowerMod += 1;
-        showCardShowcaseBanner(attackingMonster, 'AI ใช้สกิล เคียวโกะ!', `🍎 นำ "${returned.name}" จากนรกกลับเข้ากอง พลัง +1!`, '#ef4444', 1100);
-        setLog(`🍎 [AI ซากุระ เคียวโกะ] นำ "${returned.name}" จากนรกกลับเข้ากอง สับกอง และได้รับพลังโจมตี +1 หน่วย!`);
+        attackingMonster.permPowerMod = (attackingMonster.permPowerMod || 0) + 1;
+        showCardShowcaseBanner(attackingMonster, 'AI ใช้สกิล เคียวโกะ!', `🍎 นำ "${returned.name}" จากนรกกลับเข้ากอง พลัง +1 (ถาวร)!`, '#ef4444', 1100);
+        setLog(`🍎 [AI ซากุระ เคียวโกะ] นำ "${returned.name}" จากนรกกลับเข้ากอง สับกอง และได้รับพลังโจมตี +1 หน่วย (คงอยู่จนกว่าจะออกจากสนาม, พลังรวม: ${getEffectivePower(attackingMonster, attacker)})!`);
       }
     } else {
       const graveOptions = attacker.graveyard.map((c, gIdx) => ({
@@ -6242,8 +6393,8 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
             resetCardStateForZoneChange(returned);
             attacker.deck.push(returned);
             attacker.deck = shuffleDeck(attacker.deck);
-            attackingMonster.tempPowerMod += 1;
-            setLog(`🍎 [ออโต้ ซากุระ เคียวโกะ] นำ "${returned.name}" จากนรกเรากลับเข้ากอง สับกอง และพลังโจมตี +1 หน่วย!`);
+            attackingMonster.permPowerMod = (attackingMonster.permPowerMod || 0) + 1;
+            setLog(`🍎 [ออโต้ ซากุระ เคียวโกะ] นำ "${returned.name}" จากนรกเรากลับเข้ากอง สับกอง และได้รับพลังโจมตี +1 หน่วย (คงอยู่จนกว่าจะออกจากสนาม, พลังรวม: ${getEffectivePower(attackingMonster, attacker)})!`);
             renderGame();
           }
           proceedWithAttackExecution(false);
@@ -6779,7 +6930,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseLawOfCycles) {
       options.push({
-        label: '🛡️ ร่าย "กฎแห่งวัฏจักร": สแตร์นยูนิทเรา 1 ใบ ได้รับเกราะไม่ออกจากสนาม 1 ครั้ง และบังคับโจมตีใส่ใบนั้น!',
+        label: '🛡️ ร่าย "กฎแห่งวัฏจักร": สแตร์นยูนิทเรา 1 ใบ ได้รับเกราะไม่ออกจากสนาม 1 ครั้ง และดำเนินการต่อสู้/ป้องกัน!',
         color: '#ec4899',
         onSelect: () => {
           const spellCard = defender.hand.splice(md12InHandIdx, 1)[0];
@@ -6796,16 +6947,14 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
                 onSelect: () => {
                   m.state = 'Stand';
                   m.protectedOnce = true;
-                  targetType = 'monster';
-                  targetSlot = s;
-                  setLog(`🛡️ [กฎแห่งวัฏจักร] สแตร์น "${m.name}" ได้รับเกราะป้องกันไม่ออกจากสนาม 1 ครั้ง และเปลี่ยนเป้าหมายการโจมตีมาที่ยูนิทนี้!`);
+                  setLog(`🛡️ [กฎแห่งวัฏจักร] สแตร์น "${m.name}" และได้รับเกราะป้องกันไม่ออกจากสนาม 1 ครั้งในเทิร์นนี้!`);
                   renderGame();
                   continueNormalAttackFlow();
                 }
               });
             }
           });
-          showChoiceModal('🛡️ กฎแห่งวัฏจักร: เลือกยูนิทเป้าหมาย', 'เลือกยูนิทฝั่งเราที่จะสแตร์นและรับการโจมตี:', allyChoices);
+          showChoiceModal('🛡️ กฎแห่งวัฏจักร: เลือกยูนิทเป้าหมาย', 'เลือกยูนิทฝั่งเราที่จะสแตร์นและได้รับเกราะป้องกัน 1 ครั้ง:', allyChoices);
         }
       });
     }
@@ -7316,7 +7465,9 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
       burnMsg = ` และสกิลออโต้ของ "${monsterA.name}" ทำดาเมจใส่ Leader อีกฝ่าย 1 หน่วย (เหลือ ${contestantB.leader.hp}/6)!`;
       if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(contestantB);
     }
-    const msg = `"${monsterA.name}" (${totalA}) ชนะ "${monsterB.name}" (${totalB})!${luciferNote}${burnMsg}`;
+    const msg = resB.destroyed
+      ? `"${monsterA.name}" (${totalA}) ชนะและทำลาย "${monsterB.name}" (${totalB})!${luciferNote}${burnMsg}`
+      : `"${monsterA.name}" (${totalA}) ชนะการต่อสู้ แต่ "${monsterB.name}" (${totalB}) ได้รับการปกป้อง ไม่ออกจากสนาม!${luciferNote}`;
 
     // 💤 ออโต้ของ "เบลเฟกอร์ บาปเกียจคร้าน" (DMM07): เมื่อโจมตีชนะสำเร็จ นำการ์ดใบบนสุดของทั้ง 2 ฝั่งเข้ามิติมืดของตน
     triggerBelphegorAttackSuccess(contestantA, contestantB, monsterA);
@@ -7368,7 +7519,9 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
     return msg;
   } else if (totalA < totalB) {
     const resA = destroyBoardMonster(contestantA, slotA, true, false);
-    const msg = `"${monsterB.name}" (${totalB}) พลังสูงกว่า! สวนกลับทำลาย "${monsterA.name}" (${totalA})!${luciferNote}`;
+    const msg = resA.destroyed
+      ? `"${monsterB.name}" (${totalB}) พลังสูงกว่า! สวนกลับทำลาย "${monsterA.name}" (${totalA})!${luciferNote}`
+      : `"${monsterB.name}" (${totalB}) พลังสูงกว่า! แต่ "${monsterA.name}" (${totalA}) ได้รับการปกป้อง ไม่ออกจากสนาม!${luciferNote}`;
 
     if (resA.destroyed) {
       EffectEngine.triggerCardEffects(monsterB, 'ON_KILL_UNIT', {
@@ -9058,6 +9211,10 @@ function renderGame() {
       cardEl.style.outline = '3px solid #f59e0b';
       cardEl.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.9)';
     }
+    if (card.id === 'MD08' && player.attacksThisTurn >= 2 && player.attacksThisTurn <= 3 && player.board.some(m => m !== null)) {
+      cardEl.style.outline = '3px solid #a855f7';
+      cardEl.style.boxShadow = '0 0 16px rgba(168, 85, 247, 0.9)';
+    }
     if (Array.isArray(card.hybridMaterials) && canSummonHybridCard(player, card)) {
       cardEl.style.outline = '3px solid #10b981';
       cardEl.style.boxShadow = '0 0 16px rgba(16, 185, 129, 0.9)';
@@ -10207,12 +10364,12 @@ function handleIncomingPvpData(data) {
       gameState.phase = 'Main Phase';
       disableControls();
       _originalSetLog('🔮 ฝ่ายตรงข้ามเปิดใช้สกิล "มายอา" พบโซเนบุ — เทิร์นของคุณถูกบังคับจบทันที!');
-    } else {
-      gameState.gameOver = data.gameOver;
-    }
-
+    const isRemoteOver = !!data.gameOver;
     _originalRenderGame();
-    checkGameOver();
+    if (!checkGameOver() && isRemoteOver) {
+      gameState.gameOver = true;
+      disableControls();
+    }
     pvpState.isApplyingRemote = false;
     return;
   }
