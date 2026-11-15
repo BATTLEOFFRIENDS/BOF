@@ -3727,3 +3727,124 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
 .bof-coach-btn.is-exit:hover .ci-arrow, .bof-coach-btn.is-exit:focus-visible .ci-arrow { transform: translateX(3px); }
 .bof-coach-btn:active .bof-ci { transform: scale(.88); }
 @media (prefers-reduced-motion: reduce) { .bof-ci * { transition: none !important; } }
+
+/* ============================================================================
+   FALLBACK / SAFEGUARD STYLES: Multiplayer Player Banner & Profile View
+   ============================================================================ */
+#pvp-room-modal .mp-player-banner {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+  background: rgba(160, 175, 255, 0.08) !important;
+  border: 1px solid rgba(160, 175, 255, 0.2) !important;
+  margin-bottom: 12px !important;
+}
+
+#pvp-room-modal .mp-banner-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+#pvp-room-modal img.mp-banner-avatar,
+img#mp-banner-avatar,
+.mp-banner-avatar {
+  width: 36px !important;
+  height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  object-position: center 18% !important;
+  border: 2px solid #38bdf8 !important;
+  background: #080a14 !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+}
+
+#pvp-room-modal .mp-banner-text {
+  font-size: 13px !important;
+  color: #cbd5e1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#pvp-room-modal .mp-banner-text strong {
+  color: #ffe39a !important;
+}
+
+#pvp-room-modal .mp-edit-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(160, 175, 255, 0.25) !important;
+  border-radius: 20px !important;
+  color: #cbd5e1 !important;
+  font-size: 11px !important;
+  padding: 3px 10px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+/* Profile Dialog Avatar Picker Fallback */
+.bof-avatar-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+}
+
+.bof-avatar-option {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 8px 4px 6px !important;
+  border-radius: 12px !important;
+  border: 1.5px solid rgba(160, 175, 255, 0.18) !important;
+  background: rgba(11, 13, 26, 0.7) !important;
+  cursor: pointer !important;
+}
+
+.bof-avatar-option img {
+  width: 52px !important;
+  height: 52px !important;
+  max-width: 52px !important;
+  max-height: 52px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  object-position: center 18% !important;
+  border: 2px solid rgba(160, 175, 255, 0.25) !important;
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+.bof-avatar-option.is-selected img {
+  border-color: #f3c969 !important;
+  box-shadow: 0 0 12px rgba(243, 201, 105, 0.65) !important;
+  transform: scale(1.06) !important;
+}
+
+.bof-backup-box {
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.5) 0%, rgba(15, 23, 42, 0.7) 100%) !important;
+  border: 1px solid rgba(243, 201, 105, 0.25) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  margin-bottom: 14px !important;
+}
+
+.bof-backup-btn-primary {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: #1a1405 !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25) !important;
+}
+
+.bof-backup-btn-sub {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(160, 175, 255, 0.25) !important;
+  color: #e2e8f0 !important;
+}
