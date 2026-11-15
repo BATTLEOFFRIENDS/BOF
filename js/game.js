@@ -204,26 +204,34 @@ function getEffectivePower(card, ownerContestant) {
     + (card.tempPowerMod || 0)
     + (card.untilEnemyEndPowerMod || 0);
 
-  if (ownerContestant && Array.isArray(ownerContestant.board)) {
+  const owner = ownerContestant || (typeof gameState !== 'undefined' ? (
+    (gameState.player && Array.isArray(gameState.player.board) && gameState.player.board.some(m => m && m.uid === card.uid))
+      ? gameState.player
+      : ((gameState.ai && Array.isArray(gameState.ai.board) && gameState.ai.board.some(m => m && m.uid === card.uid))
+        ? gameState.ai
+        : (gameState.player || null))
+  ) : null);
+
+  if (owner && Array.isArray(owner.board)) {
     // 0. แลนด์สเปล "สัญญาปีศาจ" (DMS01) ในมิติมืด: ยูนิทเผ่า "ปีศาจ" ทุกใบบนสนามพลังโจมตี +1 ทั้งเกม
-    if (hasCardTribe(card, 'ปีศาจ') && Array.isArray(ownerContestant.darkDimension)) {
-      if (ownerContestant.darkDimension.some(d => d && d.id === 'DMS01')) {
+    if (hasCardTribe(card, 'ปีศาจ') && Array.isArray(owner.darkDimension)) {
+      if (owner.darkDimension.some(d => d && d.id === 'DMS01')) {
         total += 1;
       }
     }
 
     // 0.1 ดราโกนิค โอเวอร์ลอร์ด (KG01): เมื่อมือเราน้อยกว่าอีกฝ่าย พลัง +1
     if (card.id === 'KG01' && typeof gameState !== 'undefined') {
-      const opp = (ownerContestant === gameState.player) ? gameState.ai : gameState.player;
-      if (opp && Array.isArray(opp.hand) && Array.isArray(ownerContestant.hand) && ownerContestant.hand.length < opp.hand.length) {
+      const opp = (owner === gameState.player) ? gameState.ai : gameState.player;
+      if (opp && Array.isArray(opp.hand) && Array.isArray(owner.hand) && owner.hand.length < opp.hand.length) {
         total += 1;
       }
     }
 
     // 0.2 ดราโกนิค โอเวอร์ลอร์ด The Rebirth (KG03): พลัง +1 ตามการ์ด "ดราโกนิค โอเวอร์ลอร์ด" ที่ชื่อไม่ซ้ำกันในนรก
-    if (card.id === 'KG03') {
+    if (card.id === 'KG03' && Array.isArray(owner.graveyard)) {
       const uniqueOverlords = new Set();
-      (ownerContestant.graveyard || []).forEach(c => {
+      owner.graveyard.forEach(c => {
         if (c && c.name && c.name.includes('ดราโกนิค โอเวอร์ลอร์ด')) {
           uniqueOverlords.add(c.id || c.name);
         }
@@ -232,8 +240,8 @@ function getEffectivePower(card, ownerContestant) {
     }
 
     // 0.3 ดราโกนิค เบิร์นเอาท์ (KG07): เมื่อมียูนิทในนรก >= 3 ใบ พลัง +2
-    if (card.id === 'KG07') {
-      const monsterGraveCount = (ownerContestant.graveyard || []).filter(c => c && c.type === 'Monster').length;
+    if (card.id === 'KG07' && Array.isArray(owner.graveyard)) {
+      const monsterGraveCount = owner.graveyard.filter(c => c && c.type === 'Monster').length;
       if (monsterGraveCount >= 3) {
         total += 2;
       }
@@ -6338,6 +6346,7 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
         attackingMonster.state = 'Stand';
         showCardShowcaseBanner(attackingMonster, 'AI ใช้สกิล The End!', `🔥 ทิ้ง "${discarded.name}" 1 ใบ สแตร์น The End ทันที!`, '#ef4444', 1100);
         setLog(`🔥 [AI The End] ทิ้งการ์ด "${discarded.name}" 1 ใบ -> สแตร์น "ดราโกนิค โอเวอร์ลอร์ด The end" พร้อมโจมตีต่อ!`);
+        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(attacker, discarded);
       }
     } else {
       const discardOptions = attacker.hand.map((c, hIdx) => ({
@@ -6351,6 +6360,7 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
             attacker.graveyard.push(discarded);
             attackingMonster.state = 'Stand';
             setLog(`🔥 [ออโต้ The End] ทิ้งการ์ด "${discarded.name}" 1 ใบ -> สแตร์น "ดราโกนิค โอเวอร์ลอร์ด The end" สำเร็จ!`);
+            if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(attacker, discarded);
             renderGame();
           }
           proceedWithAttackExecution(false);
@@ -13810,7 +13820,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             desc: 'สั่ง "ดราโกนิค โอเวอร์ลอร์ด The end (KG02)" โจมตีใส่ Leader AI -> เมื่อมีหน้าต่างถาม ให้กดยืนยันทิ้ง "ดราโกนิค โอเวอร์ลอร์ด (KG01)" บนมือ -> The End จะลุกขึ้น Stand ทันที และโอเวอร์ลอร์ดที่ถูกทิ้งจะอัญเชิญตัวเองลงสนามฟรี!',
             isDone: () => {
               const theEnd = p.board.find(m => m && m.id === 'KG02');
-              return !!(theEnd && theEnd.attacksThisTurn >= 1 && theEnd.state === 'Stand');
+              const overlord = p.board.find(m => m && m.id === 'KG01');
+              return !!(theEnd && p.attacksThisTurn >= 1 && theEnd.state === 'Stand' && overlord);
             }
           },
           {
@@ -13820,10 +13831,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI อีกครั้ง!',
             title: 'สเต็ป 3/3: สั่ง The End โจมตีซ้ำอีกรอบ ปิดเกม!',
             desc: 'คลิกที่ The End ซึ่งลุกขึ้น Stand แล้ว สั่งโจมตีใส่ Leader ของ AI อีกครั้งเพื่อสร้างความเสียหายต่อเนื่องและคว้าชัยชนะ!',
-            isDone: () => {
-              const theEnd = p.board.find(m => m && m.id === 'KG02');
-              return !!(theEnd && theEnd.attacksThisTurn >= 2);
-            }
+            isDone: () => p.attacksThisTurn >= 2
           }
         ];
         break;
@@ -13843,7 +13851,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             pointerText: '👆 1. คลิกร่ายเวทมนตร์ "คอนโร" บนมือ',
             choicePointerText: '👆 2. เลือกส่งมอนสเตอร์จากกองลงนรก!',
-            title: 'สเต็ป 1/3: คลิกร่ายเวทมนตร์ "ลิซาร์ดโซลเจอร์ คอนโร (KG08)"',
+            title: 'สเต็ป 1/4: คลิกร่ายเวทมนตร์ "ลิซาร์ดโซลเจอร์ คอนโร (KG08)"',
             desc: 'คลิกที่ "คอนโร (KG08)" บนมือ -> เลือกส่งมอนสเตอร์จากกองลงนรก 1 ใบ -> แล้วจั่วการ์ด 2 ใบฟรี! ทำให้นรกมีมอนสเตอร์ครบ 3 ใบพอดี',
             isDone: () => p.spellQuota.normalUsed >= 1 && p.graveyard.filter(c => c && c.type === 'Monster').length >= 3 && !isChoiceModalOpen()
           },
@@ -13853,22 +13861,28 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             targetSlot: 0,
             pointerText: '👆 1. คลิกเลือก "ดราโกนิค เบิร์นเอาท์" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
-            title: 'สเต็ป 2/3: อัญเชิญ "ดราโกนิค เบิร์นเอาท์ (KG07)" ลงสนาม (Power 3)!',
+            title: 'สเต็ป 2/4: อัญเชิญ "ดราโกนิค เบิร์นเอาท์ (KG07)" ลงสนาม (Power 3)!',
             desc: 'คลิกเลือก "ดราโกนิค เบิร์นเอาท์ (KG07)" บนมือ แล้ววางลงช่องว่างบนสนามเรา -> สกิลต่อเนื่องทำงาน: มีมอนสเตอร์ในนรก ≥ 3 ใบ พลังโจมตีเพิ่ม +2 (กลายเป็น Power 3)!',
             isDone: () => {
               const bo = p.board.find(m => m && m.id === 'KG07');
-              return !!(bo && getEffectivePower(bo) >= 3);
+              return !!(bo && getEffectivePower(bo, p) >= 3);
             }
           },
           {
             action: 'NEXT_PHASE',
             pointerText: '👆 กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase!',
-            title: 'สเต็ป 3/3: เข้าสู่ Battle Phase แล้วสั่งเบิร์นเอาท์โจมตี!',
-            desc: 'กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase แล้วสั่ง "ดราโกนิค เบิร์นเอาท์" โจมตีใส่ Leader ของ AI ปิดเกม!',
-            isDone: () => {
-              const bo = p.board.find(m => m && m.id === 'KG07');
-              return !!(bo && bo.attacksThisTurn >= 1);
-            }
+            title: 'สเต็ป 3/4: เปลี่ยนเฟสเข้าสู่ Battle Phase',
+            desc: 'กดปุ่มเปลี่ยนเฟสเพื่อเข้าสู่ Battle Phase และเตรียมสั่งเบิร์นเอาท์โจมตี!',
+            isDone: () => gameState.phase === 'Battle Phase'
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'KG07',
+            pointerText: '👆 1. คลิกที่ "ดราโกนิค เบิร์นเอาท์" (Power 3)',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI ปิดเกม!',
+            title: 'สเต็ป 4/4: สั่งเบิร์นเอาท์โจมตีปิดเกม!',
+            desc: 'คลิกที่ "ดราโกนิค เบิร์นเอาท์ (KG07)" บนสนามเรา แล้วคลิกโจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะ!',
+            isDone: () => p.attacksThisTurn >= 1
           }
         ];
         break;
