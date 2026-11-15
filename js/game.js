@@ -478,8 +478,18 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   const otherContestant = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
 
   const targetGraveContestant = getCardOriginalOwner(monster, boardOwner);
+  const wasRevivedThisTurn = !!monster.revivedThisTurn;
   resetCardStateForZoneChange(monster);
+  monster.revivedThisTurn = wasRevivedThisTurn;
   targetGraveContestant.graveyard.push(monster);
+
+  // คาเงโร่: ดราโกนิค เบลดมาสเตอร์ (KG05) ถูกทำลาย -> โม่ใบบนสุดกองฝ่ายตรงข้าม 1 ใบลงนรก
+  if (monster.id === 'KG05' && otherContestant.deck.length > 0) {
+    const milled = otherContestant.deck.pop();
+    resetCardStateForZoneChange(milled);
+    otherContestant.graveyard.push(milled);
+    setLog(`🔥 [ออโต้เบลดมาสเตอร์] ถูกทำลาย -> โม่ใบบนสุดกอง ${otherContestant.name} ("${milled.name}") ลงนรก!`);
+  }
 
   // คาเงโร่: ดราโกนิค เบลดมาสเตอร์ (KG05) & เบิร์นเอาท์ (KG07) ฟื้นคืนชีพเทิร์นละ 1 ครั้งเมื่อถูกทำลาย
   if ((monster.id === 'KG05' || monster.id === 'KG07') && !monster.revivedThisTurn) {
@@ -489,15 +499,10 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
       const gIdx = targetGraveContestant.graveyard.findIndex(c => c.uid === monster.uid);
       if (gIdx !== -1) targetGraveContestant.graveyard.splice(gIdx, 1);
       resetCardStateForZoneChange(monster);
+      monster.revivedThisTurn = true;
       monster.state = 'Stand';
       boardOwner.board[emptySlot] = monster;
       setLog(`🔥 [ออโต้/1 เทิร์น - ${monster.name}] ฟื้นคืนชีพอัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`);
-    }
-    if (monster.id === 'KG05' && otherContestant.deck.length > 0) {
-      const milled = otherContestant.deck.pop();
-      resetCardStateForZoneChange(milled);
-      otherContestant.graveyard.push(milled);
-      setLog(`🔥 [ออโต้เบลดมาสเตอร์] ถูกทำลาย -> โม่ใบบนสุดกอง ${otherContestant.name} ("${milled.name}") ลงนรก!`);
     }
   }
 
@@ -506,7 +511,58 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     const kouenIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'KG06');
     const emptySlot = boardOwner.board.findIndex(m => m === null);
     if (kouenIdx !== -1) {
-      if (boardOwner !== gameState.player) {
+      const isPvpRemoteOwner = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && boardOwner !== gameState.player);
+      if (isPvpRemoteOwner) {
+        requestPvpChoice(
+          '🔥 สั่งใช้งานในนรก: ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"',
+          '"ดราโกนิค เบลดมาสเตอร์" บนสนามของคุณถูกทำลาย!\nต้องการสั่งใช้งาน "โคเอ็น" จากนรก เพื่ออัญเชิญลงสนาม (1 ครั้งต่อเกม) หรือไม่?',
+          [
+            { label: '🔥 สั่งใช้งาน: อัญเชิญ "โคเอ็น" ลงสนาม!', color: '#ef4444' },
+            { label: 'ไม่ใช้ (เก็บไว้ในนรกก่อน)', color: '#475569' }
+          ],
+          (optIdx) => {
+            if (optIdx !== 0) {
+              renderGame();
+              return;
+            }
+            const curKouenIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'KG06');
+            if (curKouenIdx === -1 || boardOwner.kg06RevivedThisGame) return;
+            const curEmpty = boardOwner.board.findIndex(m => m === null);
+            if (curEmpty !== -1) {
+              boardOwner.kg06RevivedThisGame = true;
+              const kouen = boardOwner.graveyard.splice(curKouenIdx, 1)[0];
+              resetCardStateForZoneChange(kouen);
+              kouen.state = 'Stand';
+              boardOwner.board[curEmpty] = kouen;
+              setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] ฝ่ายตรง้ามอัญเชิญโคเอ็นลงช่องที่ ${curEmpty + 1} สำเร็จ!`);
+              renderGame();
+            } else {
+              const slotOpts = boardOwner.board.map((m, sIdx) => ({
+                label: `💀 วางทับ "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" (ช่อง ${sIdx + 1})`,
+                color: '#ef4444'
+              }));
+              requestPvpChoice(
+                '🔥 สนามเต็ม 3 ช่อง: เลือกช่องวาง "โคเอ็น" ทับ',
+                'เลือกช่องบนสนามของคุณ 1 ช่องเพื่อวาง "ดราโกนิค เบลดมาสเตอร์ โคเอ็น" ทับ:',
+                slotOpts,
+                (slotChoice) => {
+                  const kIdx2 = boardOwner.graveyard.findIndex(c => c && c.id === 'KG06');
+                  if (kIdx2 === -1 || boardOwner.kg06RevivedThisGame) return;
+                  const targetS = (slotChoice >= 0 && slotChoice < 3) ? slotChoice : 0;
+                  boardOwner.kg06RevivedThisGame = true;
+                  const kouen = boardOwner.graveyard.splice(kIdx2, 1)[0];
+                  resetCardStateForZoneChange(kouen);
+                  kouen.state = 'Stand';
+                  if (boardOwner.board[targetS]) sendOverwrittenMonsterToGrave(boardOwner, targetS);
+                  boardOwner.board[targetS] = kouen;
+                  setLog(`🔥 [สกิลในนรก - โคเอ็น] ฝ่ายตรง้ามอัญเชิญโคเอ็นลงช่องที่ ${targetS + 1}!`);
+                  renderGame();
+                }
+              );
+            }
+          }
+        );
+      } else if (boardOwner !== gameState.player) {
         if (emptySlot !== -1) {
           boardOwner.kg06RevivedThisGame = true;
           const kouen = boardOwner.graveyard.splice(kouenIdx, 1)[0];
@@ -516,7 +572,6 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
           setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] "ดราโกนิค เบลดมาสเตอร์" ถูกทำลาย -> AI อัญเชิญโคเอ็นลงสนามช่องที่ ${emptySlot + 1}!`);
           renderGame();
         } else {
-          // ถ้าสนาม AI เต็ม เลือกวางทับช่องแรก
           boardOwner.kg06RevivedThisGame = true;
           const kouen = boardOwner.graveyard.splice(kouenIdx, 1)[0];
           resetCardStateForZoneChange(kouen);
@@ -537,24 +592,42 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
               onSelect: () => {
                 const currentKouenIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'KG06');
                 if (currentKouenIdx === -1 || boardOwner.kg06RevivedThisGame) return;
-                boardOwner.kg06RevivedThisGame = true;
-                const kouen = boardOwner.graveyard.splice(currentKouenIdx, 1)[0];
-                resetCardStateForZoneChange(kouen);
-                kouen.state = 'Stand';
                 const curEmpty = boardOwner.board.findIndex(m => m === null);
                 if (curEmpty !== -1) {
+                  boardOwner.kg06RevivedThisGame = true;
+                  const kouen = boardOwner.graveyard.splice(currentKouenIdx, 1)[0];
+                  resetCardStateForZoneChange(kouen);
+                  kouen.state = 'Stand';
                   boardOwner.board[curEmpty] = kouen;
                   setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] อัญเชิญโคเอ็นลงช่องที่ ${curEmpty + 1} สำเร็จ!`);
                   renderGame();
                 } else {
-                  gameState.pendingAction = {
-                    type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-                    targetContestant: boardOwner,
-                    cardToPlace: kouen,
-                    onAfterPlace: null
-                  };
-                  setLog('🔥 [โคเอ็น - ในนรก] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "โคเอ็น" ทับ!');
-                  renderGame();
+                  const replaceChoices = boardOwner.board.map((m, sIdx) => ({
+                    label: `💀 วางทับ "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" (ช่อง ${sIdx + 1})`,
+                    color: '#ef4444',
+                    onSelect: () => {
+                      const kIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'KG06');
+                      if (kIdx === -1 || boardOwner.kg06RevivedThisGame) return;
+                      boardOwner.kg06RevivedThisGame = true;
+                      const kouen = boardOwner.graveyard.splice(kIdx, 1)[0];
+                      resetCardStateForZoneChange(kouen);
+                      kouen.state = 'Stand';
+                      if (boardOwner.board[sIdx]) sendOverwrittenMonsterToGrave(boardOwner, sIdx);
+                      boardOwner.board[sIdx] = kouen;
+                      setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] อัญเชิญโคเอ็นลงช่องที่ ${sIdx + 1} สำเร็จ!`);
+                      renderGame();
+                    }
+                  }));
+                  replaceChoices.push({
+                    label: 'ยกเลิก (เก็บไว้ในนรกก่อน)',
+                    color: '#475569',
+                    onSelect: () => renderGame()
+                  });
+                  showChoiceModal(
+                    '🔥 สนามเต็ม 3 ช่อง: เลือกช่องที่จะวาง "โคเอ็น" ทับ',
+                    'เลือกยูนิทบนสนามของคุณ 1 ตัวเพื่อส่งลงนรก แล้วอัญเชิญ "โคเอ็น" ลงแทนที่:',
+                    replaceChoices
+                  );
                 }
               }
             },
@@ -725,15 +798,19 @@ function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckLis
 
 function findCardMentionedInLog(message) {
   if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE) || !message) return null;
+  const sortedCards = CARD_DATABASE.filter(c => c && c.name).slice().sort((a, b) => b.name.length - a.name.length);
+  for (const c of sortedCards) {
+    if (message.includes(`"${c.name}"`)) return c;
+  }
   const quoted = message.match(/"([^"]+)"/);
   if (quoted && quoted[1]) {
-    const foundQuoted = CARD_DATABASE.find(c => c.name === quoted[1].trim());
+    const foundQuoted = sortedCards.find(c => c.name === quoted[1].trim());
     if (foundQuoted) return foundQuoted;
   }
   const bracketed = message.match(/\[(?:AI\s+|ออโต้\s*-\s*|คู่หู\s*-\s*)?([^\]]+)\]/);
   if (bracketed && bracketed[1]) {
     const clean = bracketed[1].replace(/^AI\s+/i, '').trim();
-    const foundBracket = CARD_DATABASE.find(c => c.name === clean || clean.includes(c.name));
+    const foundBracket = sortedCards.find(c => c.name === clean || clean.includes(c.name));
     if (foundBracket) return foundBracket;
   }
   return null;
@@ -3379,6 +3456,61 @@ function initiatePlayerSpell(handIndex) {
         player.graveyard.push(usedSpell);
       }
       const opp = gameState.ai;
+      const isPvpRemote = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open);
+      if (isPvpRemote) {
+        if (opp.hand.length < 2) {
+          opp.leader.hp = Math.max(0, opp.leader.hp - 1);
+          setLog(`🔥 [ลีเจี้ยน เมท] ฝ่ายตรงข้ามมีการ์ดบนมือไม่ถึง 2 ใบ -> ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${opp.leader.hp}/6)!`);
+          if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(opp);
+          checkGameOver();
+          renderGame();
+          return;
+        }
+        requestPvpChoice(
+          '🔥 ฝ่ายตรงข้ามใช้เวทมนตร์ "ลีเจี้ยน เมท"',
+          'เลือกทิ้งการ์ดบนมือของคุณ 2 ใบ หรือเลือกให้ลีดเดอร์เสียพลังชีวิต 1 หน่วย:',
+          [
+            { label: '🗑️ ทิ้งการ์ดบนมือ 2 ใบ', color: '#dc2626' },
+            { label: '💔 ไม่ทิ้งการ์ด (ลีดเดอร์เสียพลังชีวิต 1 HP)', color: '#7f1d1d' }
+          ],
+          (choiceIdx) => {
+            if (choiceIdx === 0 && opp.hand.length >= 2) {
+              const discardOneByOne = (remaining) => {
+                if (remaining <= 0 || opp.hand.length === 0) {
+                  renderGame();
+                  return;
+                }
+                const handOpts = opp.hand.map(c => ({
+                  label: `🗑️ ทิ้ง "${c.name}"`,
+                  color: '#dc2626'
+                }));
+                requestPvpChoice(
+                  `🔥 ลีเจี้ยน เมท: เลือกการ์ดที่จะทิ้ง (เหลืออีก ${remaining} ใบ)`,
+                  'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:',
+                  handOpts,
+                  (pickIdx) => {
+                    const idx = (pickIdx >= 0 && pickIdx < opp.hand.length) ? pickIdx : 0;
+                    const d = opp.hand.splice(idx, 1)[0];
+                    resetCardStateForZoneChange(d);
+                    opp.graveyard.push(d);
+                    setLog(`🔥 [ลีเจี้ยน เมท] ฝ่ายตรงข้ามทิ้ง "${d.name}" ลงนรก!`);
+                    checkDiscardTriggers(opp, d);
+                    waitForAllDecisionsDone(() => discardOneByOne(remaining - 1));
+                  }
+                );
+              };
+              discardOneByOne(2);
+            } else {
+              opp.leader.hp = Math.max(0, opp.leader.hp - 1);
+              setLog(`🔥 [ลีเจี้ยน เมท] ฝ่ายตรงข้ามเลือกให้ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${opp.leader.hp}/6)!`);
+              if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(opp);
+              checkGameOver();
+              renderGame();
+            }
+          }
+        );
+        return;
+      }
       if (opp.hand.length >= 2) {
         for (let i = 0; i < 2; i++) {
           const d = opp.hand.pop();
@@ -4683,6 +4815,28 @@ function checkDiscardTriggers(contestant, card) {
           label: '🗑️ บังคับอีกฝ่ายทิ้งการ์ดบนมือ 1 ใบ',
           color: '#7c3aed',
           onSelect: () => {
+            const isPvpRemote = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && other !== gameState.player);
+            if (isPvpRemote) {
+              const handOpts = other.hand.map(c => ({
+                label: `🗑️ ทิ้ง "${c.name}"`,
+                color: '#dc2626'
+              }));
+              requestPvpChoice(
+                '🔥 ฝ่ายตรงข้ามเปิดออโต้ "โคเอ็น"',
+                'ฝ่ายตรงข้ามบังคับให้คุณทิ้งการ์ดบนมือ 1 ใบ:\nเลือกการ์ดที่จะทิ้งลงนรก:',
+                handOpts,
+                (optIdx) => {
+                  const idx = (optIdx >= 0 && optIdx < other.hand.length) ? optIdx : 0;
+                  const oppD = other.hand.splice(idx, 1)[0];
+                  resetCardStateForZoneChange(oppD);
+                  other.graveyard.push(oppD);
+                  setLog(`🔥 [ออโต้โคเอ็น] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${oppD.name}" 1 ใบลงนรก!`);
+                  checkDiscardTriggers(other, oppD);
+                  renderGame();
+                }
+              );
+              return;
+            }
             let pickIdx = 0, minP = 999;
             other.hand.forEach((c, i) => {
               const p = (c.type === 'Monster') ? (c.power || 0) : 1;
@@ -4727,7 +4881,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
         if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(contestant);
         renderGame();
         checkGameOver();
-        doneActive();
+        waitForAllDecisionsDone(doneActive);
         return;
       }
       if (contestant !== gameState.player) {
@@ -4741,7 +4895,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
         contestant.graveyard.push(d);
         setLog(`🔥 [ออโต้คาเงโร่] ${contestant.name} เลือกทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
         checkDiscardTriggers(contestant, d);
-        doneActive();
+        waitForAllDecisionsDone(doneActive);
         return;
       }
       const discardOptions = contestant.hand.map((card, idx) => ({
@@ -4753,7 +4907,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
           contestant.graveyard.push(discarded);
           setLog(`🔥 [ออโต้คาเงโร่] คุณเลือกทิ้ง "${discarded.name}" 1 ใบจากมือลงนรก`);
           checkDiscardTriggers(contestant, discarded);
-          doneActive();
+          waitForAllDecisionsDone(doneActive);
         }
       }));
       discardOptions.push({
@@ -4765,7 +4919,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
           if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(contestant);
           renderGame();
           checkGameOver();
-          doneActive();
+          waitForAllDecisionsDone(doneActive);
         }
       });
       showChoiceModal(
@@ -4782,13 +4936,12 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
         if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(other);
         renderGame();
         checkGameOver();
-        doneOpp();
+        waitForAllDecisionsDone(doneOpp);
         return;
       }
 
-      // 🌐 กรณีโหมด PvP: ส่งหน้าต่างตัวเลือกไปยังเครื่องของเพื่อน ให้เพื่อนเลือกทิ้งการ์ดบนมือของตนเอง
+      // 🌐 กรณีโหมด PvP: ส่งหน้าต่างตัวเลือกไปยังเครื่องของเพื่อน ให้เพื่อนเลือกทิ้งการ์ดบนมือของตนเอง และรอจนกว่าเพื่อนจะเลือกเสร็จ
       if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && other !== gameState.player) {
-        setLog('🔥 [ออโต้คาเงโร่] กำลังรอฝ่ายตรงข้ามเลือกทิ้งการ์ดบนมือของตน...');
         const pvpOptions = other.hand.map(c => ({
           label: `🗑️ ทิ้ง "${c.name}"`,
           color: '#dc2626'
@@ -4797,30 +4950,27 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
           label: '💔 ไม่ทิ้งการ์ด (ยอมเสียเลือดลีดเดอร์ 1 HP)',
           color: '#7f1d1d'
         });
-        sendPvpPacket({
-          type: 'REQUEST_PVP_CHOICE',
-          choiceId: 'kagero_discard_' + Date.now(),
-          title: '🔥 ผลจากลีดเดอร์คาเงโร่: แต่ละฝั่งต้องทิ้งการ์ดบนมือ 1 ใบ',
-          description: 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก หรือเลือกยอมเสียเลือดลีดเดอร์ 1 HP:',
-          options: pvpOptions
-        });
-        pvpState.pendingChoiceResolver = (optIdx) => {
-          if (optIdx < other.hand.length) {
-            const discarded = other.hand.splice(optIdx, 1)[0];
-            resetCardStateForZoneChange(discarded);
-            other.graveyard.push(discarded);
-            setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${discarded.name}" 1 ใบจากมือลงนรก`);
-            checkDiscardTriggers(other, discarded);
-          } else {
-            other.leader.hp = Math.max(0, other.leader.hp - 1);
-            setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกไม่ทิ้งการ์ด -> ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${other.leader.hp}/6)!`);
-            if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(other);
+        requestPvpChoice(
+          '🔥 ผลจากลีดเดอร์คาเงโร่: แต่ละฝั่งต้องทิ้งการ์ดบนมือ 1 ใบ',
+          'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก หรือเลือกยอมเสียเลือดลีดเดอร์ 1 HP:',
+          pvpOptions,
+          (optIdx) => {
+            if (optIdx >= 0 && optIdx < other.hand.length) {
+              const discarded = other.hand.splice(optIdx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              other.graveyard.push(discarded);
+              setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${discarded.name}" 1 ใบจากมือลงนรก`);
+              checkDiscardTriggers(other, discarded);
+            } else {
+              other.leader.hp = Math.max(0, other.leader.hp - 1);
+              setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกไม่ทิ้งการ์ด -> ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${other.leader.hp}/6)!`);
+              if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(other);
+            }
+            renderGame();
+            checkGameOver();
+            waitForAllDecisionsDone(doneOpp);
           }
-          renderGame();
-          checkGameOver();
-          if (typeof syncBoardToOpponent === 'function') syncBoardToOpponent();
-          doneOpp();
-        };
+        );
         return;
       }
 
@@ -4838,7 +4988,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
         }
         setLog(`🔥 [ออโต้คาเงโร่] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
         checkDiscardTriggers(other, d);
-        doneOpp();
+        waitForAllDecisionsDone(doneOpp);
         return;
       }
       const discardOptions = other.hand.map((card, idx) => ({
@@ -4850,7 +5000,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
           other.graveyard.push(discarded);
           setLog(`🔥 [ออโต้คาเงโร่] คุณเลือกทิ้ง "${discarded.name}" 1 ใบจากมือลงนรก`);
           checkDiscardTriggers(other, discarded);
-          doneOpp();
+          waitForAllDecisionsDone(doneOpp);
         }
       }));
       discardOptions.push({
@@ -4862,7 +5012,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
           if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(other);
           renderGame();
           checkGameOver();
-          doneOpp();
+          waitForAllDecisionsDone(doneOpp);
         }
       });
       showChoiceModal(
@@ -4907,7 +5057,7 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
       }
       checkDiscardTriggers(contestant, d);
     }
-    runMandatoryDiscardStep();
+    waitForAllDecisionsDone(() => runMandatoryDiscardStep());
     return;
   }
 
@@ -4929,26 +5079,28 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
               setLog(`🔥 [คาเงโร่] ทิ้ง "${discarded.name}" จากมือลงนรก`);
               checkDiscardTriggers(contestant, discarded);
 
-              const targetChoices = [];
-              other.board.forEach((unit, slotIdx) => {
-                if (unit) {
-                  targetChoices.push({
-                    label: `💥 ทำลาย "${unit.name}" (ช่อง ${slotIdx + 1})`,
-                    color: '#b91c1c',
-                    onSelect: () => {
-                      destroyBoardMonster(other, slotIdx, false, true);
-                      setLog(`🔥 [คาเงโร่] ทำลาย "${unit.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
-                      renderGame();
-                      runMandatoryDiscardStep();
-                    }
-                  });
+              waitForAllDecisionsDone(() => {
+                const targetChoices = [];
+                other.board.forEach((unit, slotIdx) => {
+                  if (unit) {
+                    targetChoices.push({
+                      label: `💥 ทำลาย "${unit.name}" (ช่อง ${slotIdx + 1})`,
+                      color: '#b91c1c',
+                      onSelect: () => {
+                        destroyBoardMonster(other, slotIdx, false, true);
+                        setLog(`🔥 [คาเงโร่] ทำลาย "${unit.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
+                        renderGame();
+                        waitForAllDecisionsDone(() => runMandatoryDiscardStep());
+                      }
+                    });
+                  }
+                });
+                if (targetChoices.length > 0) {
+                  showChoiceModal('🔥 คาเงโร่: เลือกยูนิทเป้าหมายที่จะทำลาย', 'คลิกเลือกยูนิทฝั่งตรงข้าม 1 ใบ:', targetChoices);
+                } else {
+                  runMandatoryDiscardStep();
                 }
               });
-              if (targetChoices.length > 0) {
-                showChoiceModal('🔥 คาเงโร่: เลือกยูนิทเป้าหมายที่จะทำลาย', 'คลิกเลือกยูนิทฝั่งตรงข้าม 1 ใบ:', targetChoices);
-              } else {
-                runMandatoryDiscardStep();
-              }
             }
           }));
           showChoiceModal('🔥 คาเงโร่: เลือกการ์ดที่จะทิ้ง', 'คลิกเลือกการ์ดบนมือของคุณ 1 ใบที่จะทิ้งลงนรก:', discardChoices);
@@ -4984,6 +5136,7 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
       m.indestructibleUntilNextTurn = false;
       m.oatShieldUsedThisTurn = false;
       m.beelzebubBuffThisTurn = false;
+      m.revivedThisTurn = false;
       m.tauntedByLeviathanUid = null;
       // ล้างบัฟ "จนจบเทิร์นอีกฝั่ง" ของฝ่ายตรงข้ามเมื่อจบเทิร์นอีกฝั่งแล้วเข้าเทิร์นเรา
       m.untilEnemyEndPowerMod = 0;
@@ -5097,6 +5250,7 @@ function executeEndPhaseCleanup(activeContestant) {
       if (m) {
         m.tempPowerMod = 0;
         m.immuneToEnemyEffectsUntilEndOfTurn = false;
+        m.revivedThisTurn = false;
       }
     });
   });
@@ -5259,7 +5413,7 @@ function handlePlayerSlotClick(slotIndex) {
 
     if (action.type === 'CALL_FROM_EFFECT_SELECT_SLOT') {
       const targetSide = action.targetContestant || player;
-      if (targetSide !== player) {
+      if (targetSide !== player && (!targetSide.ownerPrefix || targetSide.ownerPrefix !== player.ownerPrefix)) {
         // ถ้าเป็นของ AI ไม่ให้คลิกช่องของผู้เล่น
         return;
       }
@@ -5845,11 +5999,11 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
   gameState.isAttacking = true;
   if (gameState._attackingTimeout) clearTimeout(gameState._attackingTimeout);
   gameState._attackingTimeout = setTimeout(() => {
-    if (gameState.isAttacking) {
+    if (gameState.isAttacking && !(typeof pvpState !== 'undefined' && pvpState.waitingForDefense)) {
       gameState.isAttacking = false;
       renderGame();
     }
-  }, 10000);
+  }, 15000);
 
   const wrappedOnComplete = () => {
     gameState.isAttacking = false;
@@ -5881,6 +6035,10 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
     playAttackVisualAnimation(attacker, defender, attackerSlot, targetType, targetSlot, () => {
       // 🌐 กรณีโหมด PvP และเราเป็นคนสั่งโจมตี: ส่งคำสั่งไปให้เครื่องของเพื่อนเป็นคนเลือกป้องกันเอง
       if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && attacker === gameState.player) {
+        if (gameState._attackingTimeout) {
+          clearTimeout(gameState._attackingTimeout);
+          gameState._attackingTimeout = null;
+        }
         pvpState.waitingForDefense = true;
         disableControls();
         _originalSetLog(`⚔️ สั่ง "${attackingMonster.name}" โจมตีแล้ว — ⏳ รอฝ่ายตรงข้ามตัดสินใจป้องกัน...`);
@@ -6613,7 +6771,58 @@ function checkLeaderDamagedTriggers(damagedContestant) {
   // 🐉 ดราโกนิค โอเวอร์ลอร์ด The end (KG02): สั่งใช้งานในนรก/1 เทิร์น: เมื่อลีดเดอร์สูญเสียพลังชีวิต สามารถอัญเชิญยูนิทนี้ลงบนสนามได้
   const theEndIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
   if (theEndIdx !== -1 && !damagedContestant.theEndRevivedThisTurn) {
-    if (damagedContestant !== gameState.player) {
+    const isPvpRemoteDamaged = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && damagedContestant !== gameState.player);
+    if (isPvpRemoteDamaged) {
+      requestPvpChoice(
+        '🔥 สั่งใช้งานในนรก: ดราโกนิค โอเวอร์ลอร์ด The end',
+        'ลีดเดอร์ของคุณสูญเสียพลังชีวิต!\nต้องการสั่งใช้งาน "The End" จากนรก เพื่ออัญเชิญลงบนสนาม (1 ครั้ง/เทิร์น) หรือไม่?',
+        [
+          { label: '🔥 สั่งใช้งาน: อัญเชิญ "The End" ลงสนาม!', color: '#ef4444' },
+          { label: 'ไม่ใช้ (เก็บไว้ในนรกก่อน)', color: '#475569' }
+        ],
+        (optIdx) => {
+          if (optIdx !== 0) {
+            renderGame();
+            return;
+          }
+          const curIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
+          if (curIdx === -1 || damagedContestant.theEndRevivedThisTurn) return;
+          const emptySlot = damagedContestant.board.findIndex(m => m === null);
+          if (emptySlot !== -1) {
+            damagedContestant.theEndRevivedThisTurn = true;
+            const theEnd = damagedContestant.graveyard.splice(curIdx, 1)[0];
+            resetCardStateForZoneChange(theEnd);
+            theEnd.state = 'Stand';
+            damagedContestant.board[emptySlot] = theEnd;
+            setLog(`🔥 [The End - ในนรก] ฝ่ายตรง้ามอัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The end" ลงช่องที่ ${emptySlot + 1} สำเร็จ!`);
+            renderGame();
+          } else {
+            const slotOpts = damagedContestant.board.map((m, sIdx) => ({
+              label: `💀 วางทับ "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" (ช่อง ${sIdx + 1})`,
+              color: '#ef4444'
+            }));
+            requestPvpChoice(
+              '🔥 สนามเต็ม 3 ช่อง: เลือกช่องที่จะวาง "The End" ทับ',
+              'เลือกช่องบนสนามของคุณ 1 ช่องเพื่อวาง "ดราโกนิค โอเวอร์ลอร์ด The end" ทับ:',
+              slotOpts,
+              (slotChoice) => {
+                const idx2 = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
+                if (idx2 === -1 || damagedContestant.theEndRevivedThisTurn) return;
+                const targetS = (slotChoice >= 0 && slotChoice < 3) ? slotChoice : 0;
+                damagedContestant.theEndRevivedThisTurn = true;
+                const theEnd = damagedContestant.graveyard.splice(idx2, 1)[0];
+                resetCardStateForZoneChange(theEnd);
+                theEnd.state = 'Stand';
+                if (damagedContestant.board[targetS]) sendOverwrittenMonsterToGrave(damagedContestant, targetS);
+                damagedContestant.board[targetS] = theEnd;
+                setLog(`🔥 [The End - ในนรก] ฝ่ายตรง้ามอัญเชิญ "The End" ลงช่องที่ ${targetS + 1}!`);
+                renderGame();
+              }
+            );
+          }
+        }
+      );
+    } else if (damagedContestant !== gameState.player) {
       if (aiConfig.difficulty !== 'EASY') {
         const emptySlot = damagedContestant.board.findIndex(m => m === null);
         if (emptySlot !== -1) {
@@ -6648,24 +6857,42 @@ function checkLeaderDamagedTriggers(damagedContestant) {
             onSelect: () => {
               const curIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
               if (curIdx === -1 || damagedContestant.theEndRevivedThisTurn) return;
-              damagedContestant.theEndRevivedThisTurn = true;
-              const theEnd = damagedContestant.graveyard.splice(curIdx, 1)[0];
-              resetCardStateForZoneChange(theEnd);
-              theEnd.state = 'Stand';
               const emptySlot = damagedContestant.board.findIndex(m => m === null);
               if (emptySlot !== -1) {
+                damagedContestant.theEndRevivedThisTurn = true;
+                const theEnd = damagedContestant.graveyard.splice(curIdx, 1)[0];
+                resetCardStateForZoneChange(theEnd);
+                theEnd.state = 'Stand';
                 damagedContestant.board[emptySlot] = theEnd;
                 setLog(`🔥 [The End - ในนรก] อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The end" ลงช่องที่ ${emptySlot + 1} สำเร็จ!`);
                 renderGame();
               } else {
-                gameState.pendingAction = {
-                  type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-                  targetContestant: damagedContestant,
-                  cardToPlace: theEnd,
-                  onAfterPlace: null
-                };
-                setLog('🔥 [The End - ในนรก] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "The End" ทับ!');
-                renderGame();
+                const replaceChoices = damagedContestant.board.map((m, sIdx) => ({
+                  label: `💀 วางทับ "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" (ช่อง ${sIdx + 1})`,
+                  color: '#ef4444',
+                  onSelect: () => {
+                    const idx2 = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
+                    if (idx2 === -1 || damagedContestant.theEndRevivedThisTurn) return;
+                    damagedContestant.theEndRevivedThisTurn = true;
+                    const theEnd = damagedContestant.graveyard.splice(idx2, 1)[0];
+                    resetCardStateForZoneChange(theEnd);
+                    theEnd.state = 'Stand';
+                    if (damagedContestant.board[sIdx]) sendOverwrittenMonsterToGrave(damagedContestant, sIdx);
+                    damagedContestant.board[sIdx] = theEnd;
+                    setLog(`🔥 [The End - ในนรก] อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The end" ลงช่องที่ ${sIdx + 1} สำเร็จ!`);
+                    renderGame();
+                  }
+                }));
+                replaceChoices.push({
+                  label: 'ยกเลิก (เก็บไว้ในนรกก่อน)',
+                  color: '#475569',
+                  onSelect: () => renderGame()
+                });
+                showChoiceModal(
+                  '🔥 สนามเต็ม 3 ช่อง: เลือกช่องที่จะวาง "The End" ทับ',
+                  'เลือกยูนิทบนสนามของคุณ 1 ตัวเพื่อส่งลงนรก แล้วอัญเชิญ "The End" ลงแทนที่:',
+                  replaceChoices
+                );
               }
             }
           },
@@ -9556,6 +9783,7 @@ const pvpState = {
   remoteMulliganDone: false,
   isApplyingRemote: false,
   waitingForDefense: false,
+  isResolvingAttack: false,
   pendingChoiceResolver: null
 };
 
@@ -9567,6 +9795,7 @@ function sendPvpPacket(packet) {
 
 function syncBoardToOpponent(latestLogMessage = null) {
   if (!pvpState.isMultiplayer || !pvpState.conn || !pvpState.conn.open || pvpState.isApplyingRemote) return;
+  if (pvpState.waitingForDefense || pvpState.isResolvingAttack) return;
   sendPvpPacket({
     type: 'SYNC_BOARD',
     turnCount: gameState.turnCount,
@@ -9576,6 +9805,51 @@ function syncBoardToOpponent(latestLogMessage = null) {
     senderData: gameState.player,
     receiverData: gameState.ai,
     logMessage: latestLogMessage
+  });
+}
+
+// ⏳ รอจนกว่าหน้าต่างตัวเลือก (Choice Modal), การเลือกเป้าหมายบนสนาม และตัวเลือก PvP ทั้งหมดจะเสร็จสมบูรณ์
+function waitForAllDecisionsDone(callback) {
+  const check = () => {
+    const modalOpen = (typeof isChoiceModalOpen === 'function') && isChoiceModalOpen();
+    const interceptEl = document.getElementById('intercept-modal');
+    const interceptOpen = !!(interceptEl && interceptEl.style.display !== 'none' && interceptEl.style.display !== '');
+    const waiting = !!(
+      modalOpen ||
+      interceptOpen ||
+      gameState.isWaitingForChoice ||
+      gameState.pendingAction ||
+      (typeof pvpState !== 'undefined' && pvpState.pendingChoiceResolver)
+    );
+    if (!waiting) {
+      if (callback) callback();
+    } else {
+      setTimeout(check, 80);
+    }
+  };
+  setTimeout(check, 30);
+}
+
+// 🌐 ส่งตัวเลือกไปให้ฝ่ายตรงข้ามในโหมด PvP และล็อกหน้าจอฝั่งเราจนกว่าฝ่ายตรงข้ามจะเลือกเสร็จ
+function requestPvpChoice(title, description, options, onResolve) {
+  if (!pvpState.isMultiplayer || !pvpState.conn || !pvpState.conn.open) {
+    if (onResolve) onResolve(0);
+    return;
+  }
+  gameState.isWaitingForChoice = true;
+  _originalSetLog('⏳ รอฝ่ายตรงข้ามตัดสินใจเลือก...');
+  _originalRenderGame();
+  const choiceId = 'pvp_choice_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+  pvpState.pendingChoiceResolver = (optIdx) => {
+    gameState.isWaitingForChoice = false;
+    if (onResolve) onResolve(optIdx);
+  };
+  sendPvpPacket({
+    type: 'REQUEST_PVP_CHOICE',
+    choiceId,
+    title,
+    description,
+    options: (options || []).map(o => ({ label: o.label, color: o.color || '#3b82f6' }))
   });
 }
 
@@ -9675,6 +9949,7 @@ function handleIncomingPvpData(data) {
 
   if (data.type === 'DECLARE_ATTACK') {
     pvpState.isApplyingRemote = true;
+    pvpState.isResolvingAttack = true;
     gameState.ai = data.senderData;
     gameState.player = data.receiverData;
     gameState.ai.name = 'ฝ่ายตรงข้าม';
@@ -9690,35 +9965,38 @@ function handleIncomingPvpData(data) {
         data.targetType,
         data.targetSlot,
         (specialResult) => {
-          gameState.isAttacking = false;
-          if (gameState._attackingTimeout) {
-            clearTimeout(gameState._attackingTimeout);
-            gameState._attackingTimeout = null;
-          }
-          if (specialResult === 'FORCE_END_TURN') {
-            executeEndPhaseCleanup(gameState.ai);
-            sendPvpPacket({
-              type: 'ATTACK_RESOLVED',
-              forceEndTurn: true,
-              nextTurnCount: gameState.turnCount + 1,
-              senderData: gameState.player,
-              receiverData: gameState.ai
-            });
-            gameState.turnCount += 1;
-            gameState.activeTurn = 'player';
-            startPlayerTurn();
-            syncBoardToOpponent();
-          } else {
-            sendPvpPacket({
-              type: 'ATTACK_RESOLVED',
-              forceEndTurn: false,
-              gameOver: gameState.gameOver,
-              senderData: gameState.player,
-              receiverData: gameState.ai
-            });
-            _originalRenderGame();
-            checkGameOver();
-          }
+          waitForAllDecisionsDone(() => {
+            pvpState.isResolvingAttack = false;
+            gameState.isAttacking = false;
+            if (gameState._attackingTimeout) {
+              clearTimeout(gameState._attackingTimeout);
+              gameState._attackingTimeout = null;
+            }
+            if (specialResult === 'FORCE_END_TURN') {
+              executeEndPhaseCleanup(gameState.ai);
+              sendPvpPacket({
+                type: 'ATTACK_RESOLVED',
+                forceEndTurn: true,
+                nextTurnCount: gameState.turnCount + 1,
+                senderData: gameState.player,
+                receiverData: gameState.ai
+              });
+              gameState.turnCount += 1;
+              gameState.activeTurn = 'player';
+              startPlayerTurn();
+              syncBoardToOpponent();
+            } else {
+              sendPvpPacket({
+                type: 'ATTACK_RESOLVED',
+                forceEndTurn: false,
+                gameOver: gameState.gameOver,
+                senderData: gameState.player,
+                receiverData: gameState.ai
+              });
+              _originalRenderGame();
+              checkGameOver();
+            }
+          });
         }
       );
     });
@@ -9728,6 +10006,7 @@ function handleIncomingPvpData(data) {
   if (data.type === 'ATTACK_RESOLVED') {
     pvpState.isApplyingRemote = true;
     pvpState.waitingForDefense = false;
+    pvpState.isResolvingAttack = false;
     gameState.isAttacking = false;
     if (gameState._attackingTimeout) {
       clearTimeout(gameState._attackingTimeout);
@@ -9756,14 +10035,18 @@ function handleIncomingPvpData(data) {
 
   pvpState.isApplyingRemote = true;
   try {
-    if (data.type === 'START_PVP_MATCH') startPvpMatchBoard(pvpState.role);
-    else if (data.type === 'MULLIGAN_READY') {
+    if (data.type === 'START_PVP_MATCH') {
+      pvpState.isApplyingRemote = false;
+      startPvpMatchBoard(pvpState.role);
+    } else if (data.type === 'MULLIGAN_READY') {
       pvpState.remoteMulliganDone = true;
       gameState.ai = data.playerData;
       gameState.ai.name = 'ฝ่ายตรงข้าม';
       _originalRenderGame();
+      pvpState.isApplyingRemote = false;
       checkBothPlayersMulliganReady();
     } else if (data.type === 'SYNC_BOARD') {
+      if (pvpState.isResolvingAttack) return;
       const wasGameOver = gameState.gameOver;
       gameState.turnCount = data.turnCount;
       gameState.activeTurn = data.activeTurnOnReceiver;
@@ -9791,6 +10074,7 @@ function handleIncomingPvpData(data) {
       }
     } else if (data.type === 'PASS_TURN') {
       pvpState.waitingForDefense = false;
+      pvpState.isResolvingAttack = false;
       gameState.isAttacking = false;
       if (gameState._attackingTimeout) {
         clearTimeout(gameState._attackingTimeout);
@@ -9802,12 +10086,14 @@ function handleIncomingPvpData(data) {
       gameState.ai.name = 'ฝ่ายตรงข้าม';
       gameState.player.name = 'Player';
       gameState.activeTurn = 'player';
+      pvpState.isApplyingRemote = false;
       _originalSetLog('🟢 ตาของคุณ!');
       startPlayerTurn();
       syncBoardToOpponent();
     } else if (data.type === 'LOG_ONLY') {
       _originalSetLog(`🌐 [เพื่อน] ${data.message}`);
     } else if (data.type === 'REQUEST_PVP_CHOICE') {
+      pvpState.isApplyingRemote = false;
       const opts = (data.options || []).map((o, idx) => ({
         label: o.label,
         color: o.color || '#3b82f6',
@@ -9821,6 +10107,7 @@ function handleIncomingPvpData(data) {
       }));
       showChoiceModal(data.title || '❓ ฝ่ายตรงข้ามขอการตัดสินใจ', data.description || 'กรุณาเลือก 1 อย่าง:', opts);
     } else if (data.type === 'SUBMIT_PVP_CHOICE') {
+      pvpState.isApplyingRemote = false;
       if (typeof pvpState.pendingChoiceResolver === 'function') {
         const resolver = pvpState.pendingChoiceResolver;
         pvpState.pendingChoiceResolver = null;

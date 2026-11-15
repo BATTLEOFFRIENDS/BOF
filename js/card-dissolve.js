@@ -978,6 +978,8 @@
       });
     },
   };
+  SCENES.kagero = SCENES.demon;
+  SCENES.madoka = SCENES.doom;
 
   // ============================================================================
   // deck = ธีมของผู้ทำลาย (game.js ส่งมา) · ไม่ส่ง = ธีมของการ์ดเอง
@@ -1002,7 +1004,7 @@
     const c = { el, rect, host, ghost, lvl, done, W: rect.width, H: rect.height, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, n: (small() ? .6 : 1) * (.75 + lvl * .6) };
     kick();
     // แตกพร้อมกันหลายใบ: เหลื่อมจังหวะทีละ 90ms ไม่ให้ระเบิด + สร้าง filter ตกเฟรมเดียวกัน
-    later(stagger, () => { try { SCENES[key](c); } catch (e) { console.warn('[card-dissolve]', e); done(); } });
+    later(stagger, () => { try { (SCENES[key] || SCENES.demon)(c); } catch (e) { console.warn('[card-dissolve]', e); done(); } });
   }
 
   // _fx: ให้ js/deck-fx.js (และหน้า mockup) วาดบน canvas/rAF/โหมด lite เดียวกัน · _scenes: เพิ่มฉากทดลองได้

@@ -113,11 +113,21 @@
   }
 
   function findCardInButtonLabel(label) {
-    if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE)) return null;
+    if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE) || !label) return null;
+    const candidates = CARD_DATABASE
+      .filter(c => c && c.name && c.type !== 'Leader')
+      .slice()
+      .sort((a, b) => b.name.length - a.name.length);
+    for (const c of candidates) {
+      if (label.includes(`"${c.name}"`)) return c;
+    }
     const quoted = label.match(/"([^"]+)"/);
     if (quoted) {
-      const exact = CARD_DATABASE.find(c => c.name === quoted[1].trim() && c.type !== 'Leader');
+      const exact = candidates.find(c => c.name === quoted[1].trim());
       if (exact) return exact;
+    }
+    for (const c of candidates) {
+      if (label.includes(c.name)) return c;
     }
     return null;
   }

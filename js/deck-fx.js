@@ -20,6 +20,8 @@
     dino: { rgb: '255, 150, 50', core: '#fff1d6', glow: '#ff9632' },
     demon: { rgb: '230, 40, 40', core: '#ffd6c2', glow: '#dc2626' },
     oat: { rgb: '255, 105, 180', core: '#fff0f8', glow: '#ff69b4' },
+    kagero: { rgb: '249, 115, 22', core: '#ffedd5', glow: '#ef4444' },
+    madoka: { rgb: '244, 114, 182', core: '#fdf2f8', glow: '#ec4899' },
   };
   const OAT_COLORS = ['#ff69b4', '#ffd23f', '#3ec7ff', '#9b5cff', '#5ef2a0'];
   const amount = () => (F().small() ? .6 : 1) * (F().lite() ? .7 : 1);
