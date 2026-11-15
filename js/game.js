@@ -2300,6 +2300,10 @@ const EffectEngine = {
             if (emptySlot !== -1) {
               caster.board[emptySlot] = foundCard;
               setLog(`🌊 ${cardTitle} อัญเชิญ "${foundCard.name}" ลงสนามสำเร็จ!`);
+              if (foundCard.id === 'MD06') {
+                drawCards(caster, 1);
+                setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
+              }
               EffectEngine.triggerCardEffects(foundCard, 'ON_SUMMON', {
                 caster, opponent, sourceCard: foundCard, sourceSlot: emptySlot, isAI
               }, next);
@@ -2309,6 +2313,10 @@ const EffectEngine = {
               const overwritten = sendOverwrittenMonsterToGrave(caster, overwriteSlot);
               caster.board[overwriteSlot] = foundCard;
               setLog(`🌊 ${cardTitle} สนามเต็ม 3 ช่อง — AI วาง "${foundCard.name}" ทับ "${overwritten.name}" บนสนาม AI!`);
+              if (foundCard.id === 'MD06') {
+                drawCards(caster, 1);
+                setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
+              }
               EffectEngine.triggerCardEffects(foundCard, 'ON_SUMMON', {
                 caster, opponent, sourceCard: foundCard, sourceSlot: overwriteSlot, isAI: true
               }, next);
@@ -2317,7 +2325,13 @@ const EffectEngine = {
                 type: 'CALL_FROM_EFFECT_SELECT_SLOT',
                 targetContestant: caster,
                 cardToPlace: foundCard,
-                onAfterPlace: next
+                onAfterPlace: () => {
+                  if (foundCard.id === 'MD06') {
+                    drawCards(caster, 1);
+                    setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
+                  }
+                  next();
+                }
               };
               setLog(`🌊 ${cardTitle} สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "${foundCard.name}" ทับ!`);
               renderGame();
@@ -3367,7 +3381,7 @@ function initiatePlayerSpell(handIndex) {
     return;
   }
 
-  // ✨ Soul Gem (MD11): เข้ามิติมืด ค้นหา Ultimate Madoka จากกองหรือนรก เข้ามิติมืด
+  // ✨ Soul Gem (MD11): เข้ามิติมืด ส่ง Ultimate Madoka จากมือ/กอง/นรก เข้ามิติมืด (ถ้าจากมือ ให้จั่ว 1 ใบ)
   if (spell.id === 'MD11') {
     askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "Soul Gem"', () => {
       gameState.selectedHandIndex = null;
@@ -3379,24 +3393,83 @@ function initiatePlayerSpell(handIndex) {
       player.darkDimension.push(usedSpell);
 
       let ultimateCard = null;
-      const deckIdx = player.deck.findIndex(c => c && c.id === 'MD09');
-      if (deckIdx !== -1) {
-        ultimateCard = player.deck.splice(deckIdx, 1)[0];
-        player.deck = shuffleDeck(player.deck);
+      let fromHand = false;
+      const handIdx = player.hand.findIndex(c => c && (c.id === 'MD09' || (c.name && c.name.toLowerCase().includes('ultimate madoka'))));
+      if (handIdx !== -1) {
+        ultimateCard = player.hand.splice(handIdx, 1)[0];
+        fromHand = true;
       } else {
-        const graveIdx = player.graveyard.findIndex(c => c && c.id === 'MD09');
-        if (graveIdx !== -1) {
-          ultimateCard = player.graveyard.splice(graveIdx, 1)[0];
+        const deckIdx = player.deck.findIndex(c => c && (c.id === 'MD09' || (c.name && c.name.toLowerCase().includes('ultimate madoka'))));
+        if (deckIdx !== -1) {
+          ultimateCard = player.deck.splice(deckIdx, 1)[0];
+          player.deck = shuffleDeck(player.deck);
+        } else {
+          const graveIdx = player.graveyard.findIndex(c => c && (c.id === 'MD09' || (c.name && c.name.toLowerCase().includes('ultimate madoka'))));
+          if (graveIdx !== -1) {
+            ultimateCard = player.graveyard.splice(graveIdx, 1)[0];
+          }
         }
       }
       if (ultimateCard) {
         resetCardStateForZoneChange(ultimateCard);
         player.darkDimension.push(ultimateCard);
-        setLog(`✨ [Soul Gem] ส่ง "Soul Gem" เข้าสู่มิติมืด และนำ "Ultimate Madoka" จากกอง/นรกเข้าสู่มิติมืดเรียบร้อย!`);
+        if (fromHand) {
+          drawCards(player, 1);
+          setLog(`✨ [Soul Gem] ส่ง "Soul Gem" เข้าสู่มิติมืด และส่ง "Ultimate Madoka" จากมือไปมิติมืด -> ได้จั่วการ์ด 1 ใบ!`);
+        } else {
+          setLog(`✨ [Soul Gem] ส่ง "Soul Gem" เข้าสู่มิติมืด และส่ง "Ultimate Madoka" จากกอง/นรกเข้าสู่มิติมืดเรียบร้อย!`);
+        }
       } else {
         setLog(`✨ [Soul Gem] ส่ง "Soul Gem" เข้าสู่มิติมืดเรียบร้อย!`);
       }
       renderGame();
+    });
+    return;
+  }
+
+  // 💖 หัวใจของสาวน้อยเวทมนตร์ (MD10): เลือกการ์ดในกองลงนรก 2 ใบ สับกองแล้วจั่ว 1 ใบ
+  if (spell.id === 'MD10') {
+    if (player.deck.length === 0) {
+      setLog('❌ กองการ์ดของคุณว่างเปล่า ไม่สามารถใช้งานการ์ดนี้ได้!');
+      return;
+    }
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "หัวใจของสาวน้อยเวทมนตร์"', () => {
+      gameState.selectedHandIndex = null;
+      const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
+      if (curIdx !== -1) {
+        const usedSpell = player.hand.splice(curIdx, 1)[0];
+        player.spellQuota.normalUsed += 1;
+        resetCardStateForZoneChange(usedSpell);
+        player.graveyard.push(usedSpell);
+      }
+
+      const pickCardToGrave = (stepNum, onDone) => {
+        if (player.deck.length === 0) {
+          onDone();
+          return;
+        }
+        const choices = player.deck.map((c, dIdx) => ({
+          label: `💀 [${dIdx + 1}] ${c.name} (${c.type})`,
+          color: '#ec4899',
+          onSelect: () => {
+            const sent = player.deck.splice(dIdx, 1)[0];
+            resetCardStateForZoneChange(sent);
+            player.graveyard.push(sent);
+            setLog(`💖 [หัวใจของสาวน้อยเวทมนตร์] ส่ง "${sent.name}" ใบที่ ${stepNum} จากกองลงนรก!`);
+            onDone();
+          }
+        }));
+        showChoiceModal(`💖 หัวใจของสาวน้อยเวทมนตร์: เลือกใบที่ ${stepNum}/2`, 'เลือกการ์ด 1 ใบจากกองเพื่อส่งลงนรก:', choices);
+      };
+
+      pickCardToGrave(1, () => {
+        pickCardToGrave(2, () => {
+          player.deck = shuffleDeck(player.deck);
+          drawCards(player, 1);
+          setLog('💖 [หัวใจของสาวน้อยเวทมนตร์] สับกองการ์ดแล้วจั่วการ์ด 1 ใบเรียบร้อย!');
+          renderGame();
+        });
+      });
     });
     return;
   }
@@ -6146,6 +6219,50 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
     }
   }
 
+  // 🍎 ออโต้ของ "ซากุระ เคียวโกะ" (MD05): เมื่อยูนิทนี้โจมตี สามารถนำการ์ดจากนรกเรา 1 ใบ กลับเข้ากองแล้วพลังโจมตียูนิทนี้เพิ่มขึ้น 1 หน่วย
+  if (attackingMonster.id === 'MD05' && attacker.graveyard.length > 0) {
+    if (attacker !== gameState.player) {
+      if (aiConfig.difficulty !== 'EASY') {
+        const returned = attacker.graveyard.pop();
+        resetCardStateForZoneChange(returned);
+        attacker.deck.push(returned);
+        attacker.deck = shuffleDeck(attacker.deck);
+        attackingMonster.tempPowerMod += 1;
+        showCardShowcaseBanner(attackingMonster, 'AI ใช้สกิล เคียวโกะ!', `🍎 นำ "${returned.name}" จากนรกกลับเข้ากอง พลัง +1!`, '#ef4444', 1100);
+        setLog(`🍎 [AI ซากุระ เคียวโกะ] นำ "${returned.name}" จากนรกกลับเข้ากอง สับกอง และได้รับพลังโจมตี +1 หน่วย!`);
+      }
+    } else {
+      const graveOptions = attacker.graveyard.map((c, gIdx) => ({
+        label: `นำ "${c.name}" (${c.rarity}) กลับเข้ากอง (+1 พลัง)`,
+        color: '#ef4444',
+        onSelect: () => {
+          const actualIdx = attacker.graveyard.findIndex(x => x.uid === c.uid);
+          if (actualIdx !== -1) {
+            const returned = attacker.graveyard.splice(actualIdx, 1)[0];
+            resetCardStateForZoneChange(returned);
+            attacker.deck.push(returned);
+            attacker.deck = shuffleDeck(attacker.deck);
+            attackingMonster.tempPowerMod += 1;
+            setLog(`🍎 [ออโต้ ซากุระ เคียวโกะ] นำ "${returned.name}" จากนรกเรากลับเข้ากอง สับกอง และพลังโจมตี +1 หน่วย!`);
+            renderGame();
+          }
+          proceedWithAttackExecution(false);
+        }
+      }));
+      graveOptions.push({
+        label: 'ไม่ใช้สกิล (โจมตีด้วยพลังเดิม)',
+        color: '#475569',
+        onSelect: () => proceedWithAttackExecution(false)
+      });
+      showChoiceModal(
+        '🍎 ออโต้: ซากุระ เคียวโกะ',
+        '"ซากุระ เคียวโกะ" กำลังประกาศโจมตี! คุณต้องการนำการ์ดจากนรกเรา 1 ใบกลับเข้ากอง เพื่อเพิ่มพลังโจมตี +1 หน่วยหรือไม่?',
+        graveOptions
+      );
+      return;
+    }
+  }
+
   proceedWithAttackExecution(false);
 }
 
@@ -8404,6 +8521,73 @@ function aiCastBestNormalSpell(ai, player, diff) {
       EffectEngine.activateSpecificEffect(eff, { caster: ai, opponent: player, sourceCard: spell, isAI: true });
       return true;
     }
+  }
+
+  // 8. เวทเด็คมาโดกะ: Soul Gem (MD11)
+  const md11Idx = ai.hand.findIndex(c => c.id === 'MD11');
+  if (md11Idx !== -1) {
+    const spell = ai.hand.splice(md11Idx, 1)[0];
+    ai.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    ai.darkDimension.push(spell);
+
+    let ultimateCard = null;
+    let fromHand = false;
+    const hIdx = ai.hand.findIndex(c => c && (c.id === 'MD09' || (c.name && c.name.toLowerCase().includes('ultimate madoka'))));
+    if (hIdx !== -1) {
+      ultimateCard = ai.hand.splice(hIdx, 1)[0];
+      fromHand = true;
+    } else {
+      const dIdx = ai.deck.findIndex(c => c && (c.id === 'MD09' || (c.name && c.name.toLowerCase().includes('ultimate madoka'))));
+      if (dIdx !== -1) {
+        ultimateCard = ai.deck.splice(dIdx, 1)[0];
+        ai.deck = shuffleDeck(ai.deck);
+      } else {
+        const gIdx = ai.graveyard.findIndex(c => c && (c.id === 'MD09' || (c.name && c.name.toLowerCase().includes('ultimate madoka'))));
+        if (gIdx !== -1) {
+          ultimateCard = ai.graveyard.splice(gIdx, 1)[0];
+        }
+      }
+    }
+    if (ultimateCard) {
+      resetCardStateForZoneChange(ultimateCard);
+      ai.darkDimension.push(ultimateCard);
+      if (fromHand) {
+        drawCards(ai, 1);
+        setLog('✨ [AI Soul Gem] ส่ง Soul Gem และ Ultimate Madoka จากมือไปมิติมืด -> จั่วการ์ด 1 ใบ!');
+      } else {
+        setLog('✨ [AI Soul Gem] ส่ง Soul Gem และ Ultimate Madoka จากกอง/นรกไปมิติมืดเรียบร้อย!');
+      }
+    } else {
+      setLog('✨ [AI Soul Gem] ส่ง Soul Gem เข้าสู่มิติมืดเรียบร้อย!');
+    }
+    showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', '✨ ส่ง Soul Gem และ Ultimate Madoka เข้าสู่มิติมืด!', '#f472b6');
+    renderGame();
+    return true;
+  }
+
+  // 9. เวทเด็คมาโดกะ: หัวใจของสาวน้อยเวทมนตร์ (MD10)
+  const md10Idx = ai.hand.findIndex(c => c.id === 'MD10');
+  if (md10Idx !== -1 && ai.deck.length > 0) {
+    const spell = ai.hand.splice(md10Idx, 1)[0];
+    ai.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    ai.graveyard.push(spell);
+    const sentNames = [];
+    for (let k = 0; k < 2 && ai.deck.length > 0; k++) {
+      const mgIdx = ai.deck.findIndex(c => c && hasCardTribe(c, 'สาวน้อยเวทมนตร์') && !ai.graveyard.some(g => g.name === c.name));
+      const pickIdx = mgIdx !== -1 ? mgIdx : 0;
+      const sent = ai.deck.splice(pickIdx, 1)[0];
+      resetCardStateForZoneChange(sent);
+      ai.graveyard.push(sent);
+      sentNames.push(sent.name);
+    }
+    ai.deck = shuffleDeck(ai.deck);
+    drawCards(ai, 1);
+    showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', `💖 ส่ง "${sentNames.join(', ')}" ลงนรก & จั่ว 1 ใบ!`, '#f472b6');
+    setLog(`💖 AI ใช้เวทย์ "หัวใจของสาวน้อยเวทมนตร์" ส่ง "${sentNames.join(', ')}" ลงนรก สับกอง แล้วจั่ว 1 ใบ!`);
+    renderGame();
+    return true;
   }
 
   return false;

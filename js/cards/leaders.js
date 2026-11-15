@@ -97,7 +97,7 @@ CARD_DATABASE.push(
     maxHp: 6,
     image: 'images/มาโดกะ/1.png',
     ability: 'LEADER_MADOKA',
-    desc: 'ออโต้: เมื่อเริ่มเกมค้นหา “Soul Gem” จากกองขึ้นมือ'
+    desc: 'ออโต้: เมื่อเริ่มเกมค้นหา “SOUL GEM” จากกองขึ้นมือ'
   },
   {
     id: 'L08',
