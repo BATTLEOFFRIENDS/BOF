@@ -10604,8 +10604,9 @@ function setupLobbyEvents() {
   document.getElementById('btn-join-room')?.addEventListener('click', () => {
     (window.joinPvpRoomAsGuest || joinPvpRoomAsGuest)(document.getElementById('input-join-code').value);
   });
-  window.createPvpRoomAsHost = createPvpRoomAsHost;
-  window.joinPvpRoomAsGuest = joinPvpRoomAsGuest;
+  window.handleIncomingPvpData = handleIncomingPvpData;
+  if (!window.createPvpRoomAsHost) window.createPvpRoomAsHost = createPvpRoomAsHost;
+  if (!window.joinPvpRoomAsGuest) window.joinPvpRoomAsGuest = joinPvpRoomAsGuest;
 
   const openDeckFn = (e) => { if (e) e.preventDefault(); openDeckBuilder(); };
   const openCardsFn = (e) => {
