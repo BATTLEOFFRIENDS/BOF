@@ -1420,6 +1420,7 @@
       currentUser.shards = typeof eco.shards === 'number' ? eco.shards : (currentUser.shards || 150);
       currentUser.pity = eco.pity;
       currentUser.ownedCards = eco.ownedCards;
+      if (eco.ownedDecks) currentUser.ownedDecks = eco.ownedDecks;
       currentUser.packsOpened = eco.packsOpened;
       currentUser.lastDailyClaimDate = eco.lastDailyClaimDate;
       currentUser.dailyProgress = eco.dailyProgress;

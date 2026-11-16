@@ -22,6 +22,10 @@ const CARD_SCHEMA = {
       enums: { side: ['SELF', 'OPPONENT'] },
       desc: 'จั่วการ์ด count ใบ (ถ้านรกมีอย่างน้อย bonusIfGraveAtLeast ใบ จั่ว bonusCount ใบแทน)',
     },
+    RECYCLE_GRAVE_DRAW: {
+      required: [], optional: ['minGrave', 'count'],
+      desc: 'นำการ์ดจากนรกอย่างน้อย minGrave ใบกลับเข้ากอง แล้วจั่ว count ใบ',
+    },
     HEAL_LEADER: {
       required: [], optional: ['side', 'amount'],
       enums: { side: ['SELF', 'OPPONENT'] },

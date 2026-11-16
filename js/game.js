@@ -34,6 +34,8 @@ function getCardMaxCopies(cardTemplate) { return cardTemplate && cardTemplate.ma
 // 📝 ระบบสร้างข้อความอธิบายความสามารถอัตโนมัติจากบล็อก effects (กรณีการ์ดใหม่ไม่ได้เขียน desc เอง)
 function generateStepText(step) {
   switch (step.block) {
+    case 'RECYCLE_GRAVE_DRAW':
+      return `นำการ์ดจากนรกอย่างน้อย ${step.minGrave || 5} ใบกลับเข้ากอง แล้วจั่วการ์ด ${step.count || 2} ใบ`;
     case 'DRAW':
       if (step.bonusIfGraveAtLeast) {
         return `จั่วการ์ด ${step.count} ใบ (ถ้านรกมี ${step.bonusIfGraveAtLeast} ใบขึ้นไป จั่ว ${step.bonusCount} ใบ)`;
@@ -185,6 +187,9 @@ function resetCardStateForZoneChange(card) {
   card.tauntedByLeviathanUid = null;
   card.returnFromDarkDimensionId = null;
   card.usedSkills = {};
+  card.tokoyaRestUsedThisTurn = false;
+  card.tokoyaStandUsedThisTurn = false;
+  card.taitenBattleUsedThisTurn = false;
   return card;
 }
 
@@ -440,6 +445,15 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'effect_immune', monster };
   }
 
+  // ดราโกนิค เบลดมาสเตอร์ไทเท็น (BT01_04): เมื่อมี "ดราโกนิค เบลดมาสเตอร์" ในนรก 2 ใบขึ้นไป ไม่ถูกทำลายจากความสามารถ
+  if (monster.id === 'BT01_04' && !isFromBattle) {
+    const blademasterGraveCount = (Array.isArray(boardOwner.graveyard) ? boardOwner.graveyard : []).filter(c => c && c.name && c.name.includes('ดราโกนิค เบลดมาสเตอร์')).length;
+    if (blademasterGraveCount >= 2) {
+      setLog(`🛡️ [ต่อเนื่อง - ${monster.name}] มี "ดราโกนิค เบลดมาสเตอร์" ในนรก ${blademasterGraveCount} ใบ ไม่ถูกทำลายจากความสามารถของการ์ด!`);
+      return { destroyed: false, reason: 'effect_immune', monster };
+    }
+  }
+
   // Ultimate Madoka (MD09): การ์ดใบนี้ไม่สามารถถูกทำลาย
   if (monster.id === 'MD09' || monster.isUltimateMadoka) {
     setLog(`✨ [ออโต้ - ${monster.name}] ไม่สามารถถูกทำลายได้!`);
@@ -650,6 +664,14 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
           ]
         );
       }
+    }
+  }
+
+  // คาเงโร่: ดราโกนิค โอเวอร์ลอร์ด THE ACE (BT01_05) ในนรก: เมื่อยูนิทเราถูกทำลาย สามารถอัญเชิญ THE ACE ลงสนาม (1 ครั้งต่อเทิร์น)
+  if (!boardOwner.aceRevivedThisTurn && Array.isArray(boardOwner.graveyard)) {
+    const aceIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'BT01_05');
+    if (aceIdx !== -1) {
+      triggerAceGraveSummon(boardOwner, slotIndex);
     }
   }
 
@@ -1380,6 +1402,16 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
           });
         };
       }
+      if (card.id === 'BT01_01' && ownerContestant === gameState.player && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player' && !ownerContestant.momoGraveUsedThisTurn && ownerContestant.hand.length >= 1) {
+        cardEl.style.cursor = 'pointer';
+        cardEl.style.boxShadow = '0 0 16px #3ee08f';
+        cardEl.title = '⚡ คลิกเพื่อสั่งใช้งานจากนรก: ทิ้งการ์ด 1 ใบ คอลลงสนาม!';
+        cardEl.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'none';
+          executeMomoCallFromGrave(ownerContestant, card);
+        };
+      }
       listEl.appendChild(cardEl);
     });
   }
@@ -1456,6 +1488,248 @@ function handleUltimateMadokaBattleEnd(contestant) {
   }
   setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด นำการ์ดบนมือ ${placed} ใบลงสนามในสภาพ Stand และ Ultimate Madoka กลับสู่มิติมืด!`);
   renderGame();
+}
+
+// ==================== สกิลการ์ดชุดบูสเตอร์ 01 (BT01) ====================
+
+// ⚡ โมโมจิต (BT01_01): สั่งใช้งานจากนรก: ทิ้งมือ 1 ใบ คอลลงสนาม (1 ครั้งต่อเทิร์นต่อการ์ดชื่อเดียวกัน)
+function executeMomoCallFromGrave(contestant, momoCard) {
+  if (!contestant || contestant.momoGraveUsedThisTurn || !Array.isArray(contestant.hand) || contestant.hand.length === 0) return;
+  const isPlayer = (contestant === gameState.player);
+
+  const doCall = (handIdx) => {
+    if (handIdx < 0 || handIdx >= contestant.hand.length) return;
+    const discarded = contestant.hand.splice(handIdx, 1)[0];
+    resetCardStateForZoneChange(discarded);
+    contestant.graveyard.push(discarded);
+
+    const mIdx = contestant.graveyard.findIndex(c => c && (c.uid === momoCard.uid || c.id === 'BT01_01'));
+    if (mIdx === -1) return;
+    const momo = contestant.graveyard.splice(mIdx, 1)[0];
+    resetCardStateForZoneChange(momo);
+    momo.state = 'Stand';
+    contestant.momoGraveUsedThisTurn = true;
+
+    const placeMomo = (slotIdx) => {
+      if (contestant.board[slotIdx]) {
+        sendOverwrittenMonsterToGrave(contestant, slotIdx);
+      }
+      contestant.board[slotIdx] = momo;
+      setLog(`⚡ [สั่งใช้งานจากนรก - โมโมจิต] ทิ้ง "${discarded.name}" คอล "${momo.name}" ลงสนามช่องที่ ${slotIdx + 1}!`);
+      if (typeof EffectEngine !== 'undefined') {
+        EffectEngine.runEffectsForTrigger('ON_SUMMON', {
+          caster: contestant,
+          opponent: (contestant === gameState.player ? gameState.ai : gameState.player),
+          sourceCard: momo,
+          sourceSlot: slotIdx,
+          isAI: !isPlayer
+        });
+      }
+      renderGame();
+    };
+
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    if (emptySlot !== -1) {
+      placeMomo(emptySlot);
+    } else {
+      if (isPlayer) {
+        const replaceChoices = contestant.board.map((m, sIdx) => ({
+          label: `💀 วางทับ "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" (ช่อง ${sIdx + 1})`,
+          color: '#3ee08f',
+          onSelect: () => placeMomo(sIdx)
+        }));
+        showChoiceModal(
+          '⚡ สนามเต็ม 3 ช่อง: เลือกช่องวาง "โมโมจิต" ทับ',
+          'เลือกยูนิทบนสนาม 1 ใบเพื่อส่งลงนรก แล้วคอล "โมโมจิต" ลงแทนที่:',
+          replaceChoices
+        );
+      } else {
+        placeMomo(0);
+      }
+    }
+  };
+
+  if (isPlayer) {
+    const handOpts = contestant.hand.map((c, idx) => ({
+      label: `🗑️ ทิ้ง "${c.name}"`,
+      color: '#3ee08f',
+      onSelect: () => doCall(idx)
+    }));
+    showChoiceModal(
+      '⚡ สั่งใช้งานจากนรก: โมโมจิต',
+      'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก แล้วคอล "โมโมจิต" ลงสนาม:',
+      handOpts
+    );
+  } else {
+    doCall(0);
+  }
+}
+
+// ⚡ โทโคะยาจิต (BT01_02): ตรวจสอบเมื่อถูกเลส / สแตร์นด้วยความสามารถการ์ด
+function checkTokoyaRestByEffect(unit, owner) {
+  if (unit && unit.id === 'BT01_02' && !unit.tokoyaRestUsedThisTurn) {
+    unit.tokoyaRestUsedThisTurn = true;
+    unit.state = 'Stand';
+    setLog(`⚡ [ออโต้/1 เทิร์น - โทโคะยาจิต] ถูกเลสโดยความสามารถการ์ด -> สแตร์นยูนิทนี้!`);
+    checkTokoyaStandByEffect(unit, owner);
+  }
+}
+
+function checkTokoyaStandByEffect(unit, owner) {
+  if (unit && unit.id === 'BT01_02' && !unit.tokoyaStandUsedThisTurn) {
+    unit.tokoyaStandUsedThisTurn = true;
+    unit.tempPowerMod = (unit.tempPowerMod || 0) + 1;
+    setLog(`⚡ [ออโต้/1 เทิร์น - โทโคะยาจิต] สแตร์นด้วยความสามารถการ์ด -> พลังโจมตีเพิ่ม +1 หน่วย จนจบเทิร์น! (พลังรวม ${getEffectivePower(unit, owner)})`);
+  }
+}
+
+// 🔮 จิตไนท์อาย รู้อนาคต (BT01_03): เลือกการ์ดในนรกอย่างน้อย 5 ใบกลับเข้ากอง แล้วสับกอง
+function showGraveRecycleModal(contestant, minGrave, onConfirm) {
+  const grave = Array.isArray(contestant.graveyard) ? contestant.graveyard : [];
+  if (grave.length < minGrave) return;
+
+  let modal = document.getElementById('bof-recycle-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'bof-recycle-modal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '260';
+    document.body.appendChild(modal);
+  }
+
+  const selectedUids = new Set();
+  const updateUI = () => {
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width: 650px; max-height: 85vh; overflow-y: auto; text-align: center;">
+        <h2 style="color: #38bdf8; margin-bottom: 8px;">🔮 จิตไนท์อาย รู้อนาคต</h2>
+        <p style="color: #cbd5e1; margin-bottom: 14px;">เลือกการ์ดจากนรกของคุณ <b>อย่างน้อย ${minGrave} ใบขึ้นไป</b> เพื่อนำกลับเข้ากอง (เลือกแล้ว <b style="color:#38bdf8;">${selectedUids.size}</b> / อย่างน้อย ${minGrave} ใบ):</p>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-height: 50vh; overflow-y: auto; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+          ${grave.map((c) => {
+            const isSel = selectedUids.has(c.uid);
+            return `
+              <button type="button" class="card-recycle-item" data-uid="${c.uid}" style="display: flex; flex-direction: column; align-items: center; width: 85px; padding: 4px; border-radius: 6px; cursor: pointer; border: 2px solid ${isSel ? '#38bdf8' : 'rgba(255,255,255,0.1)'}; background: ${isSel ? 'rgba(56,189,248,0.25)' : 'rgba(15,23,42,0.8)'};">
+                <img src="${c.image}" style="width: 75px; height: 105px; object-fit: cover; border-radius: 4px; pointer-events: none;">
+                <span style="font-size: 11px; color: #fff; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${c.name}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+        <div style="display: flex; justify-content: center; gap: 12px; margin-top: 16px;">
+          <button type="button" id="btn-recycle-select-all" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #475569; background: #334155; color: #fff; cursor: pointer;">เลือกทั้งหมด (${grave.length} ใบ)</button>
+          <button type="button" id="btn-recycle-confirm" ${selectedUids.size < minGrave ? 'disabled' : ''} style="padding: 8px 20px; border-radius: 8px; border: none; background: ${selectedUids.size >= minGrave ? '#0284c7' : '#475569'}; color: #fff; font-weight: bold; cursor: ${selectedUids.size >= minGrave ? 'pointer' : 'not-allowed'};">✅ ยืนยันนำกลับเข้ากอง (${selectedUids.size} ใบ)</button>
+        </div>
+      </div>
+    `;
+    modal.style.display = 'flex';
+
+    modal.querySelectorAll('.card-recycle-item').forEach(btn => {
+      btn.onclick = () => {
+        const uid = Number(btn.dataset.uid);
+        if (selectedUids.has(uid)) selectedUids.delete(uid);
+        else selectedUids.add(uid);
+        updateUI();
+      };
+    });
+
+    const selectAllBtn = modal.querySelector('#btn-recycle-select-all');
+    if (selectAllBtn) {
+      selectAllBtn.onclick = () => {
+        if (selectedUids.size === grave.length) selectedUids.clear();
+        else grave.forEach(c => selectedUids.add(c.uid));
+        updateUI();
+      };
+    }
+
+    const confirmBtn = modal.querySelector('#btn-recycle-confirm');
+    if (confirmBtn) {
+      confirmBtn.onclick = () => {
+        if (selectedUids.size < minGrave) return;
+        modal.style.display = 'none';
+        onConfirm(Array.from(selectedUids));
+      };
+    }
+  };
+
+  updateUI();
+}
+
+// 🔥 ดราโกนิค โอเวอร์ลอร์ด THE ACE (BT01_05): สั่งใช้งานในนรกเมื่อยูนิทเราถูกทำลาย
+function triggerAceGraveSummon(boardOwner, slotIndex) {
+  if (boardOwner.aceRevivedThisTurn || !Array.isArray(boardOwner.graveyard)) return;
+  const aceIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'BT01_05');
+  if (aceIdx === -1) return;
+
+  const isPlayer = (boardOwner === gameState.player);
+  const doSummonAce = () => {
+    const curAceIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'BT01_05');
+    if (curAceIdx === -1 || boardOwner.aceRevivedThisTurn) return;
+    boardOwner.aceRevivedThisTurn = true;
+    const ace = boardOwner.graveyard.splice(curAceIdx, 1)[0];
+    resetCardStateForZoneChange(ace);
+    ace.state = 'Stand';
+    const targetSlot = (boardOwner.board[slotIndex] === null) ? slotIndex : boardOwner.board.findIndex(m => m === null);
+    const finalSlot = targetSlot !== -1 ? targetSlot : slotIndex;
+    if (boardOwner.board[finalSlot]) {
+      sendOverwrittenMonsterToGrave(boardOwner, finalSlot);
+    }
+    boardOwner.board[finalSlot] = ace;
+    setLog(`🔥 [สกิลในนรก - THE ACE] อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด THE ACE" ลงสนามช่องที่ ${finalSlot + 1} สำเร็จ!`);
+    renderGame();
+  };
+
+  if (isPlayer) {
+    showChoiceModal(
+      '🔥 สั่งใช้งานในนรก: ดราโกนิค โอเวอร์ลอร์ด THE ACE',
+      'ยูนิทบนสนามของคุณถูกทำลาย!\nต้องการสั่งใช้งาน "THE ACE" จากนรก เพื่ออัญเชิญลงสนาม (1 ครั้งต่อเทิร์น) หรือไม่?',
+      [
+        {
+          label: '🔥 สั่งใช้งาน: อัญเชิญ "THE ACE" ลงสนาม!',
+          color: '#ef4444',
+          onSelect: () => doSummonAce()
+        },
+        {
+          label: 'ไม่ใช้ (เก็บไว้ในนรกก่อน)',
+          color: '#475569',
+          onSelect: () => renderGame()
+        }
+      ]
+    );
+  } else {
+    doSummonAce();
+  }
+}
+
+// 🔥 บังคับผู้เล่นหรือ AI เลือกทิ้งการ์ดบนมือ
+function promptOpponentDiscard(contestant, count, titleText) {
+  if (!contestant || !Array.isArray(contestant.hand) || contestant.hand.length === 0) return;
+  if (contestant !== gameState.player) {
+    const discarded = contestant.hand.pop();
+    resetCardStateForZoneChange(discarded);
+    contestant.graveyard.push(discarded);
+    setLog(`🔥 ${contestant.name} เลือกทิ้ง "${discarded.name}" 1 ใบลงนรก!`);
+    if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+    renderGame();
+    return;
+  }
+
+  const handOpts = contestant.hand.map((c, idx) => ({
+    label: `🗑️ ทิ้ง "${c.name}"`,
+    color: '#ef4444',
+    onSelect: () => {
+      const discarded = contestant.hand.splice(idx, 1)[0];
+      resetCardStateForZoneChange(discarded);
+      contestant.graveyard.push(discarded);
+      setLog(`🔥 คุณเลือกทิ้ง "${discarded.name}" ลงนรก!`);
+      if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+      renderGame();
+    }
+  }));
+
+  showChoiceModal(
+    titleText || '🔥 ฝ่ายตรงข้ามบังคับทิ้งการ์ดบนมือ',
+    'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:',
+    handOpts
+  );
 }
 
 
@@ -1710,7 +1984,10 @@ const EffectEngine = {
     const { caster, opponent, sourceCard, isAI } = context;
 
     if (cost.type === 'REST_SELF') {
-      if (sourceCard) sourceCard.state = 'Rest';
+      if (sourceCard) {
+        sourceCard.state = 'Rest';
+        checkTokoyaRestByEffect(sourceCard, caster);
+      }
       this.runCostQueue(costQueue, context, onCostsPaid);
       return;
     }
@@ -1771,6 +2048,7 @@ const EffectEngine = {
         caster.board.forEach(m => {
           if (m && m.state === 'Stand' && rested < count) {
             m.state = 'Rest';
+            checkTokoyaRestByEffect(m, caster);
             rested++;
           }
         });
@@ -1791,6 +2069,7 @@ const EffectEngine = {
           if (!unit || unit.state !== 'Stand' || selectedSlots.includes(slotIdx)) return false;
           selectedSlots.push(slotIdx);
           unit.state = 'Rest';
+          checkTokoyaRestByEffect(unit, caster);
           return true;
         },
         onAllSelected: () => this.runCostQueue(costQueue, context, onCostsPaid)
@@ -1820,6 +2099,49 @@ const EffectEngine = {
     const cardTitle = sourceCard ? `[${sourceCard.name}]` : '[เอฟเฟกต์]';
 
     switch (step.block) {
+      // --- นำการ์ดจากนรกอย่างน้อย minGrave ใบกลับเข้ากอง แล้วจั่วการ์ด (RECYCLE_GRAVE_DRAW) ---
+      case 'RECYCLE_GRAVE_DRAW': {
+        const minGrave = step.minGrave || 5;
+        const drawCount = step.count || 2;
+        if (!Array.isArray(caster.graveyard) || caster.graveyard.length < minGrave) {
+          setLog(`⚠️ ${cardTitle} การ์ดในนรกไม่ถึง ${minGrave} ใบ (มีเพียง ${caster.graveyard ? caster.graveyard.length : 0} ใบ) จึงไม่เกิดผล!`);
+          next();
+          return;
+        }
+
+        if (isAI) {
+          const recycled = caster.graveyard.splice(0, minGrave);
+          recycled.forEach(c => {
+            resetCardStateForZoneChange(c);
+            caster.deck.push(c);
+          });
+          shuffleArray(caster.deck);
+          setLog(`🔮 ${cardTitle} AI นำการ์ด ${recycled.length} ใบจากนรกกลับเข้ากองและสับกอง!`);
+          drawCards(caster, drawCount);
+          next();
+          return;
+        }
+
+        showGraveRecycleModal(caster, minGrave, (selectedUids) => {
+          const selectedCards = [];
+          for (let i = caster.graveyard.length - 1; i >= 0; i--) {
+            const c = caster.graveyard[i];
+            if (c && selectedUids.includes(c.uid)) {
+              caster.graveyard.splice(i, 1);
+              resetCardStateForZoneChange(c);
+              caster.deck.push(c);
+              selectedCards.push(c);
+            }
+          }
+          shuffleArray(caster.deck);
+          setLog(`🔮 ${cardTitle} นำการ์ด ${selectedCards.length} ใบจากนรกกลับเข้ากองและสับกองสำเร็จ!`);
+          drawCards(caster, drawCount);
+          renderGame();
+          next();
+        });
+        return;
+      }
+
       // --- บล็อกที่ 1: จั่วการ์ด (DRAW) ---
       case 'DRAW': {
         const targetSide = step.side === 'OPPONENT' ? opponent : caster;
@@ -2228,6 +2550,7 @@ const EffectEngine = {
       case 'STAND_SELF': {
         if (sourceCard && caster.board.some(m => m && m.uid === sourceCard.uid)) {
           sourceCard.state = 'Stand';
+          checkTokoyaStandByEffect(sourceCard, caster);
           setLog(`⚡ ${cardTitle} เปลี่ยนสถานะกลับเป็น Stand พร้อมลุยต่อ!`);
         }
         next();
@@ -5216,6 +5539,8 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.theEndRevivedThisTurn = false;
   contestant.homuraUsedThisTurn = false;
   contestant.madokaProtectUsedThisTurn = false;
+  contestant.momoGraveUsedThisTurn = false;
+  contestant.aceRevivedThisTurn = false;
 
   drawCards(contestant, 1);
 
@@ -5227,6 +5552,10 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
       m.oatShieldUsedThisTurn = false;
       m.beelzebubBuffThisTurn = false;
       m.revivedThisTurn = false;
+      m.tokoyaRestUsedThisTurn = false;
+      m.tokoyaStandUsedThisTurn = false;
+      m.taitenBattleUsedThisTurn = false;
+      m.burnLeaderOnKill = false;
       m.tauntedByLeviathanUid = null;
       // ล้างบัฟ "จนจบเทิร์นอีกฝั่ง" ของฝ่ายตรงข้ามเมื่อจบเทิร์นอีกฝั่งแล้วเข้าเทิร์นเรา
       m.untilEnemyEndPowerMod = 0;
@@ -5341,6 +5670,10 @@ function executeEndPhaseCleanup(activeContestant) {
         m.tempPowerMod = 0;
         m.immuneToEnemyEffectsUntilEndOfTurn = false;
         m.revivedThisTurn = false;
+        m.burnLeaderOnKill = false;
+        m.tokoyaRestUsedThisTurn = false;
+        m.tokoyaStandUsedThisTurn = false;
+        m.taitenBattleUsedThisTurn = false;
       }
     });
   });
@@ -7515,6 +7848,53 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
       });
     }
 
+    // 🔥 ออโต้ / 1 เทิร์น ของ "ดราโกนิค เบลดมาสเตอร์ไทเท็น" (BT01_04): เมื่อโจมตีและทำลายยูนิทสำเร็จ ฝั่งตรงข้ามทิ้งการ์ด 1 ใบ และเราเพิ่ม HP 1
+    if (monsterA.id === 'BT01_04' && resB.destroyed && !monsterA.taitenBattleUsedThisTurn) {
+      monsterA.taitenBattleUsedThisTurn = true;
+      const oldHp = contestantA.leader.hp;
+      contestantA.leader.hp = Math.min(contestantA.leader.maxHp, contestantA.leader.hp + 1);
+      fxLeaderHeal(contestantA);
+      setLog(`🔥 [ออโต้/1 เทิร์น - ไทเท็น] โจมตีทำลายยูนิทสำเร็จ! ฟื้นฟู HP Leader (${oldHp} -> ${contestantA.leader.hp}) และฝ่ายตรงข้ามต้องทิ้งการ์ดบนมือ 1 ใบ!`);
+      if (contestantB.hand && contestantB.hand.length > 0) {
+        promptOpponentDiscard(contestantB, 1, '🔥 ไทเท็น โจมตีทำลายยูนิทสำเร็จ! คุณต้องเลือกทิ้งการ์ดบนมือ 1 ใบ:');
+      }
+    }
+
+    // 🔥 ออโต้ของ "ดราโกนิค โอเวอร์ลอร์ด THE ACE" (BT01_05): เมื่อยูนิทนี้ทำลายยูนิทฝั่งตรงข้ามได้จากการต่อสู้ ทำลายยูนิทฝั่งตรงข้าม 1 ใบ
+    if (monsterA.id === 'BT01_05' && resB.destroyed) {
+      const remainingEnemies = [];
+      contestantB.board.forEach((m, s) => {
+        if (m) remainingEnemies.push({ m, slot: s });
+      });
+      if (remainingEnemies.length > 0) {
+        if (contestantA === gameState.player) {
+          const destroyChoices = remainingEnemies.map(x => ({
+            label: `💥 ทำลาย "${x.m.name}" (พลัง ${getEffectivePower(x.m, contestantB)}) ช่องที่ ${x.slot + 1}`,
+            color: '#ef4444',
+            onSelect: () => {
+              const res = destroyBoardMonster(contestantB, x.slot, false, true);
+              if (res.destroyed) {
+                setLog(`🔥 [ออโต้ THE ACE] ทำลาย "${res.monster.name}" ของอีกฝ่ายสำเร็จ!`);
+                renderGame();
+              }
+            }
+          }));
+          showChoiceModal(
+            '🔥 ออโต้: ดราโกนิค โอเวอร์ลอร์ด THE ACE',
+            'ทำลายยูนิทจากการต่อสู้สำเร็จ! เลือกทำลายยูนิทฝั่งตรงข้ามอีก 1 ใบ:',
+            destroyChoices
+          );
+        } else {
+          remainingEnemies.sort((a, b) => getEffectivePower(b.m, contestantB) - getEffectivePower(a.m, contestantB));
+          const targetSlot = remainingEnemies[0].slot;
+          const res = destroyBoardMonster(contestantB, targetSlot, false, true);
+          if (res.destroyed) {
+            setLog(`🔥 [ออโต้ THE ACE] AI ทำลาย "${res.monster.name}" สำเร็จ!`);
+          }
+        }
+      }
+    }
+
     if (monsterA.isUltimateMadoka && typeof handleUltimateMadokaBattleEnd === 'function') {
       handleUltimateMadokaBattleEnd(contestantA);
     }
@@ -8129,6 +8509,15 @@ function performSingleAIMainAction() {
 
   // ==================== สเต็ปที่ 1: สกิลจากมือ (ไพร่ชาวนาเหนือ / สายลับ / จุติ / ไฮบริดไดโน) ====================
   if (diff !== 'EASY') {
+    // 1.0 สั่งใช้งานโมโมจิตจากนรก (BT01_01)
+    if (!ai.momoGraveUsedThisTurn && ai.hand.length >= 1 && Array.isArray(ai.graveyard)) {
+      const momoGraveCard = ai.graveyard.find(c => c && c.id === 'BT01_01');
+      if (momoGraveCard) {
+        executeMomoCallFromGrave(ai, momoGraveCard);
+        return true;
+      }
+    }
+
     // 1.0 อัญเชิญไฮบริดไดโนจากมือ (DN06 / DN07)
     const emptySlotForHybrid = ai.board.findIndex(m => m === null);
     if (emptySlotForHybrid !== -1) {
@@ -9987,6 +10376,10 @@ function renderDeckBuilder() {
     cardEl.addEventListener('click', () => {
       const limit = cardEl.dataset.allowedMax !== undefined ? Number(cardEl.dataset.allowedMax) : maxAllowed;
       if (countInDeck < limit) {
+        if (card.id === 'BT01_06' && currentDeckConfig.leaderId !== 'L08') {
+          alert('การ์ด "มังกรมารผู้ใช้เวทย์ แรคช่า" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "คาเงโร่" เท่านั้น!');
+          return;
+        }
         if (currentDeckConfig.mainDeck.length >= 20) {
           alert('การ์ดใน Main Deck ครบ 20 ใบแล้ว! กรุณาคลิกเอาใบอื่นออกก่อน');
           return;

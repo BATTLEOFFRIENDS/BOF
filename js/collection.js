@@ -84,14 +84,28 @@
     box.style.setProperty('--accent', accent);
 
     // สรุปการสะสม (ตามสายเด็คที่เลือก)
-    const inDeck = CARD_DATABASE.filter(c => state.deck === 'ALL' || D.deckOfCard(c).key === state.deck);
+    const inDeck = CARD_DATABASE.filter(c => {
+      if (state.deck === 'ALL') return true;
+      if (state.deck === 'BT01') return c.id && c.id.startsWith('BT01');
+      if (state.deck === 'JIT') return D.deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
+      if (state.deck === 'KAGERO') return D.deckOfCard(c).key === 'KAGERO' || c.id === 'BT01_04' || c.id === 'BT01_05' || c.id === 'BT01_06';
+      return D.deckOfCard(c).key === state.deck;
+    });
     const have = inDeck.filter(c => Number(own[c.id] || 0) > 0).length;
     root.querySelector('.col-ring-fg').style.strokeDasharray = `${Math.round((have / Math.max(1, inDeck.length)) * 100)} 100`;
     root.querySelector('.col-ring-n').textContent = have;
     root.querySelector('.col-sub').textContent = `สะสมแล้ว ${have} จาก ${inDeck.length} แบบ · แตะการ์ดเพื่อดูใบใหญ่`;
 
-    const deckCounts = { ALL: CARD_DATABASE.length };
-    CARD_DATABASE.forEach(c => { const k = D.deckOfCard(c).key; deckCounts[k] = (deckCounts[k] || 0) + 1; });
+    const deckCounts = {};
+    D.DECK_FILTERS.forEach(f => {
+      deckCounts[f.key] = CARD_DATABASE.filter(c => {
+        if (f.key === 'ALL') return true;
+        if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
+        if (f.key === 'JIT') return D.deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
+        if (f.key === 'KAGERO') return D.deckOfCard(c).key === 'KAGERO' || c.id === 'BT01_04' || c.id === 'BT01_05' || c.id === 'BT01_06';
+        return D.deckOfCard(c).key === f.key;
+      }).length;
+    });
     root.querySelector('[data-g="deck"]').innerHTML = chips(D.DECK_FILTERS, state.deck, 'data-deck', deckCounts);
     root.querySelector('[data-g="rarity"]').innerHTML = chips(D.RARITY_FILTERS, state.rarity, 'data-rar');
 
@@ -104,7 +118,7 @@
       const max = D.maxKeepOf(c);
       return `
         <button type="button" role="listitem" class="col-card r-${c.rarity} ${n ? 'is-owned' : 'is-locked'}" data-id="${c.id}" style="--c:${D.deckOfCard(c).c}" aria-label="${esc(c.name)} ${c.rarity}${n ? ` มี ${n} ใบ` : ' ยังไม่มี'}">
-          <span class="col-art"><img src="${D.thumbOf(c.image)}" alt="" loading="lazy" draggable="false"><span class="col-shine" aria-hidden="true"></span>
+          <span class="col-art"><img src="${D.thumbOf(c.image)}" alt="" onerror="this.onerror=null;this.src='${c.image}'" loading="lazy" draggable="false"><span class="col-shine" aria-hidden="true"></span>
             ${n ? '' : '<span class="col-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span>'}
           </span>
           <span class="col-name">${esc(c.name)}</span>

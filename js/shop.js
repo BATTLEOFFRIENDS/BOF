@@ -102,6 +102,17 @@
       prefix: 'images/เด็คคาเงโร่/',
       price: PACK_PRICE,
       tenPrice: TEN_PACK_PRICE
+    },
+    {
+      id: 'pack_bt01',
+      name: 'ซองบูสเตอร์01',
+      sub: 'ชุดเสริมเด็คจิต & คาเงโร่ (ลุ้น SR โทโคะยาจิต & ไทเท็น)',
+      color: '#f97316',
+      image: 'images/BT/BT01/2.png',
+      backImage: 'images/BT/BT01/4.png',
+      prefix: 'images/BT/BT01/',
+      price: PACK_PRICE,
+      tenPrice: TEN_PACK_PRICE
     }
   ];
 
@@ -684,6 +695,7 @@
         coins: typeof user.coins === 'number' ? user.coins : STARTING_COINS,
         shards: typeof user.shards === 'number' ? user.shards : 150,
         ownedCards: user.ownedCards && typeof user.ownedCards === 'object' ? { ...user.ownedCards } : {},
+        ownedDecks: user.ownedDecks && typeof user.ownedDecks === 'object' ? { ...user.ownedDecks } : {},
         packsOpened: Number(user.packsOpened || 0),
         pity: user.pity && typeof user.pity === 'object' ? { ...user.pity } : {},
         lastDailyClaimDate: user.lastDailyClaimDate || '',
@@ -707,6 +719,7 @@
     let guestDailyProgress = { date: todayStr, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
     let guestOwnedCosmetics = { ...DEFAULT_OWNED_COSMETICS };
     let guestEquippedCosmetics = { ...DEFAULT_EQUIPPED_COSMETICS };
+    let guestOwnedDecks = {};
     try {
       const savedGuest = JSON.parse(localStorage.getItem(GUEST_ECONOMY_KEY));
       if (savedGuest && typeof savedGuest.coins === 'number') {
@@ -727,6 +740,9 @@
         if (savedGuest.equippedCosmetics) {
           guestEquippedCosmetics = { ...DEFAULT_EQUIPPED_COSMETICS, ...savedGuest.equippedCosmetics };
         }
+        if (savedGuest.ownedDecks && typeof savedGuest.ownedDecks === 'object') {
+          guestOwnedDecks = { ...savedGuest.ownedDecks };
+        }
       }
     } catch (e) {}
 
@@ -734,6 +750,7 @@
       coins: guestCoins,
       shards: guestShards,
       ownedCards: getGuestFullOwned(),
+      ownedDecks: guestOwnedDecks,
       packsOpened: guestPacks,
       pity: guestPity,
       lastDailyClaimDate: guestDaily,
@@ -756,6 +773,7 @@
         localStorage.setItem(GUEST_ECONOMY_KEY, JSON.stringify({
           coins: economy.coins,
           shards: economy.shards,
+          ownedDecks: economy.ownedDecks || {},
           packsOpened: economy.packsOpened,
           pity: economy.pity,
           lastDailyClaimDate: economy.lastDailyClaimDate,
@@ -792,11 +810,12 @@
   function pickCardByRate(pool, forceRarity = null) {
     let chosenRarity = forceRarity;
     if (!chosenRarity) {
-      const totalWeight = Object.values(RARITY_RATES).reduce((a, b) => a + b, 0);
-      const r = Math.random() * totalWeight;
+      const poolRarities = new Set(pool.map(c => c.rarity));
+      const activeRates = Object.entries(RARITY_RATES).filter(([r]) => poolRarities.has(r));
+      const totalWeight = activeRates.reduce((sum, [, w]) => sum + w, 0);
+      const r = Math.random() * (totalWeight || 100);
       let acc = 0;
-      chosenRarity = 'N';
-      for (const [rarity, weight] of Object.entries(RARITY_RATES)) {
+      for (const [rarity, weight] of activeRates) {
         acc += weight;
         if (r <= acc) {
           chosenRarity = rarity;
@@ -865,7 +884,7 @@
   }
 
   /* ---------------- ฉากเปิดซอง: ลากฉีกซองฟอยล์ (js/pack-open.js) ---------------- */
-  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_kagero: ['คาเงโร่', 'KAGERO'] };
+  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_kagero: ['คาเงโร่', 'KAGERO'], pack_bt01: ['BT01', 'BOOSTER 01'] };
   function playPackOpeningAnimation(pack, packCount, highestRarity, onComplete) {
     const stage = document.getElementById('bof-pack-anim-stage');
     const done = () => { if (onComplete) onComplete(); };
@@ -903,16 +922,19 @@
     const pool = CARD_DATABASE.filter(c => c.image && c.image.startsWith(pack.prefix));
     const drawn = [];
 
+    const hasSsrInPool = pool.some(c => c.rarity === 'SSR');
+    const targetPityRarity = hasSsrInPool ? 'SSR' : 'SR';
+
     for (let i = 0; i < totalCards; i++) {
-      // ใบสุดท้าย ถ้าครบการันตี Pity จะบังคับเป็นระดับ SSR แน่นอน!
-      const forceRarity = (isPityTriggered && i === totalCards - 1) ? 'SSR' : null;
+      // ใบสุดท้าย ถ้าครบการันตี Pity จะบังคับเป็นระดับสูงสุดในซอง
+      const forceRarity = (isPityTriggered && i === totalCards - 1) ? targetPityRarity : null;
       const card = pickCardByRate(pool, forceRarity);
-      if (card && card.rarity === 'SSR') {
-        economy.pity[packId] = 0; // รีเซ็ตการันตีเมื่อสุ่มได้ SSR
+      if (card && card.rarity === targetPityRarity) {
+        economy.pity[packId] = 0; // รีเซ็ตการันตีเมื่อสุ่มได้ระดับสูงสุด
       }
       const granted = grantCardToCollection(card);
-      // เกินจำนวนจัดเด็ค (ลีดเดอร์ 1 · การ์ดอื่น 2) → แปลงเป็นชาร์ดทันที ตามค่าเดียวกับปุ่มย่อยการ์ดซ้ำ
-      const maxKeep = card.type === 'Leader' ? 1 : 2;
+      // เกินจำนวนจัดเด็ค (ลีดเดอร์ 1 · การ์ดอื่นตาม maxCopies หรือ 2) → แปลงเป็นชาร์ดทันที
+      const maxKeep = card.type === 'Leader' ? 1 : (card.maxCopies || 2);
       if (economy.ownedCards[card.id] > maxKeep) {
         economy.ownedCards[card.id] = maxKeep;
         granted.shards = DISENCHANT_VALUES[card.rarity] || 10;
@@ -1153,9 +1175,10 @@
   // ค่าใช้จ่ายในการหลอมการ์ดใหม่ (Crafting Cost)
   const CRAFT_COSTS = { N: 50, R: 150, SR: 400, SSR: 1000 };
 
-  // แท็บร้าน (แบบ A): 4 แท็บกว้างเท่ากัน + เส้นทองใต้แท็บที่เลื่อนตามแท็บที่เลือก (--i) · แท็บเควสต์มีจุดบอกรางวัลที่รอรับ
+  // แท็บร้าน: 4 แท็บกว้างเท่ากัน + เส้นทองใต้แท็บที่เลื่อนตามแท็บที่เลือก (--i)
   const SHOP_TABS = [
     { id: 'packs', label: 'สุ่มซอง', icon: '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 8h6M9 12h6"/>' },
+    { id: 'decks', label: 'เด็คสำเร็จรูป', icon: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h5"/>' },
     { id: 'craft', label: 'หลอมการ์ด', icon: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/>' },
     { id: 'cosmetics', label: 'ของตกแต่ง', icon: '<path d="M14 4l6 6-8 8-6-6zM6 12l-2 6 6-2"/>' }
   ];
@@ -1167,6 +1190,7 @@
     if (!viewContainer) return;
     viewContainer.style.setProperty('--accent', '#f3c969'); // หมวดที่มีตัวกรองสีจะตั้งสีของตัวเองทับ
     if (activeShopTab === 'packs') renderPacksView(viewContainer);
+    else if (activeShopTab === 'decks') renderDecksView(viewContainer);
     else if (activeShopTab === 'craft') renderCraftingView(viewContainer);
     else if (activeShopTab === 'cosmetics') renderCosmeticsView(viewContainer);
   }
@@ -1178,7 +1202,7 @@
     const idx = Math.max(0, SHOP_TABS.findIndex(t => t.id === activeShopTab));
 
     body.innerHTML = `
-      <div class="sh-tabs" role="tablist" aria-label="หมวดร้านค้า" style="--i:${idx}">
+      <div class="sh-tabs" role="tablist" aria-label="หมวดร้านค้า" style="--i:${idx}; --tab-count:${SHOP_TABS.length};">
         ${SHOP_TABS.map(t => `
           <button type="button" class="sh-tab" role="tab" id="sh-tab-${t.id}" data-tab="${t.id}" aria-selected="${t.id === activeShopTab}" aria-controls="bof-tab-view-container" tabindex="${t.id === activeShopTab ? 0 : -1}">
             <svg viewBox="0 0 24 24" aria-hidden="true">${t.icon}</svg><span>${t.label}</span>
@@ -1212,12 +1236,188 @@
     renderActiveTabView();
   }
 
-  // --- มุมมองที่ 1: ซองการ์ด 6 สาย (แบบ A): สวิตช์ "เปิดครั้งละ 1 / 10 ซอง" ด้านบน → แต่ละซองเหลือปุ่มเดียว ---
+  // --- เด็คสำเร็จรูป 8 สาย (ขายแยกเด็คละ 2,000 Coins) ---
+  const PREBUILT_DECKS = [
+    {
+      id: 'deck_jit',
+      leaderId: 'L01',
+      name: 'เด็คจิต',
+      sub: 'สายคอมโบฮีโร่ บัฟพลังยูนิทแล้วบุกปิดเกม',
+      color: '#3ee08f',
+      image: 'images/เด็คจิต/1.png',
+      price: 2000
+    },
+    {
+      id: 'deck_nuea',
+      leaderId: 'L02',
+      name: 'เด็คขุนเหนือ',
+      sub: 'ส่งไพร่และทหารลงสนาม ชุบกลับจากสุสานไม่สิ้นสุด',
+      color: '#5eb8ff',
+      image: 'images/เด็คเหนือ/1.png',
+      price: 2000
+    },
+    {
+      id: 'deck_doom',
+      leaderId: 'L03',
+      name: 'เด็ควันสิ้นโลก',
+      sub: 'ปลุกยูนิทจากสุสาน สู่วิวัฒนาการร่างแห่งอนาคต',
+      color: '#ff6470',
+      image: 'images/วันสิ้นโลก/1.png',
+      price: 2000
+    },
+    {
+      id: 'deck_dino',
+      leaderId: 'L04',
+      name: 'เด็คไดโน',
+      sub: 'สะสมเผ่าไดโน ผสานร่างไฮบริดสุดแกร่ง',
+      color: '#a3e635',
+      image: 'images/ไดโน/1.png',
+      price: 2000
+    },
+    {
+      id: 'deck_demon',
+      leaderId: 'L05',
+      name: 'เด็คปีศาจ',
+      sub: 'สะสมการ์ดในมิติมืด ควบคุมพลังบาปทั้ง 7',
+      color: '#c084fc',
+      image: 'images/เด็คปีศาจ/1.png',
+      price: 2000
+    },
+    {
+      id: 'deck_oat',
+      leaderId: 'L06',
+      name: 'เด็คโอ๊ต',
+      sub: 'เปิดท็อปกองคอลพรรคพวกสายบ้า คอมโบปั่นประสาท',
+      color: '#fb923c',
+      image: 'images/เด็คโอ๊ต/1.png',
+      price: 2000
+    },
+    {
+      id: 'deck_madoka',
+      leaderId: 'L07',
+      name: 'เด็คมาโดกะ',
+      sub: 'อัญเชิญสาวน้อยเวทมนตร์ ปลดปล่อยพลังมิติมืด',
+      color: '#f472b6',
+      image: 'images/มาโดกะ/1.png',
+      price: 2000
+    },
+    {
+      id: 'deck_kagero',
+      leaderId: 'L08',
+      name: 'เด็คคาเงโร่',
+      sub: 'มังกรเพลิงทำลายล้างสนาม สแตนด์บุกโจมตีต่อเนื่อง',
+      color: '#ef4444',
+      image: 'images/เด็คคาเงโร่/1.png',
+      price: 2000
+    }
+  ];
+
+  function isDeckOwned(deck) {
+    if (!deck) return false;
+    if (economy.ownedDecks && economy.ownedDecks[deck.id]) return true;
+    if (isLoggedInUser()) {
+      if (economy.ownedCards && Number(economy.ownedCards[deck.leaderId] || 0) > 0) return true;
+      const user = window.BOFAuth && typeof window.BOFAuth.currentUser === 'function' ? window.BOFAuth.currentUser() : null;
+      if (user && (user.starterDeckId === deck.leaderId || user.avatarId === deck.leaderId)) return true;
+    } else {
+      if (deck.leaderId === 'L01') return true;
+    }
+    return false;
+  }
+
+  function buyPrebuiltDeck(deckId) {
+    const deck = PREBUILT_DECKS.find(d => d.id === deckId);
+    if (!deck) return;
+    if (isDeckOwned(deck)) {
+      showShopToast('⚠️ คุณมีเด็คนี้อยู่แล้ว');
+      return;
+    }
+    const cost = deck.price || 2000;
+    if ((economy.coins || 0) < cost) {
+      showShopToast(`⚠️ เหรียญ Coins ไม่พอ! (ต้องการ ${cost.toLocaleString('th-TH')} 🪙)`);
+      return;
+    }
+
+    economy.coins -= cost;
+    if (!economy.ownedDecks) economy.ownedDecks = {};
+    economy.ownedDecks[deck.id] = true;
+
+    if (!economy.ownedCards) economy.ownedCards = {};
+    economy.ownedCards[deck.leaderId] = Math.max(1, Number(economy.ownedCards[deck.leaderId] || 0));
+
+    const mainList = (typeof getDefaultDeckForLeader === 'function')
+      ? getDefaultDeckForLeader(deck.leaderId)
+      : [];
+    const deckCounts = {};
+    mainList.forEach(cid => { deckCounts[cid] = (deckCounts[cid] || 0) + 1; });
+    Object.entries(deckCounts).forEach(([cid, qty]) => {
+      const card = (typeof CARD_DATABASE !== 'undefined') ? CARD_DATABASE.find(c => c.id === cid) : null;
+      const maxKeep = card ? (card.maxCopies || 2) : 2;
+      economy.ownedCards[cid] = Math.min(maxKeep, Math.max(qty, Number(economy.ownedCards[cid] || 0)));
+    });
+
+    saveEconomy();
+    renderShopContent();
+    syncLobbyDecksForOwnership();
+    if (window.BOF_AUDIO) window.BOF_AUDIO.playSsr();
+    showShopToast(`🎉 ปลดล็อก "${deck.name}" สำเร็จ! ได้รับลีดเดอร์และการ์ดครบเด็ค`);
+  }
+
+  function renderDecksView(container) {
+    container.innerHTML = `
+      <div class="sh-packs-bar">
+        <p class="sh-packs-info" style="margin: 0; font-size: 13.5px;">
+          <b>เด็คสำเร็จรูป</b> · ปลดล็อกเด็คเริ่มต้นพร้อมการ์ดครบเซ็ต 21 ใบ (ลีดเดอร์ SSR 1 ใบ + การ์ดในเด็ค 20 ใบ) · เด็คละ <b>2,000</b> Coins (พร้อมเล่นทันที)
+        </p>
+      </div>
+
+      <div class="sh-packs">
+        ${PREBUILT_DECKS.map(d => {
+          const owned = isDeckOwned(d);
+          const leaderCard = (typeof CARD_DATABASE !== 'undefined') ? CARD_DATABASE.find(c => c.id === d.leaderId) : null;
+          const canAfford = (economy.coins || 0) >= d.price;
+          const buyText = owned
+            ? '✅ มีเด็คนี้แล้ว'
+            : `ซื้อเด็ค · <span class="sh-price">${COIN_SVG}${d.price.toLocaleString('th-TH')}</span>`;
+
+          return `
+            <article class="sh-pack" style="--c:${d.color};">
+              <div class="sh-pack-art">
+                <span class="sh-pack-back" aria-hidden="true"></span>
+                <img src="${thumbOf(d.image)}" alt="" onerror="this.onerror=null;this.src='${d.image}'" loading="lazy">
+              </div>
+              <div class="sh-pack-info">
+                <h3>${d.name}</h3>
+                <p>${d.sub}</p>
+              </div>
+              <div class="sh-pity" style="margin-top:auto;">
+                <div><span>ลีดเดอร์ SSR</span><span><b>${leaderCard ? leaderCard.name : ''}</b></span></div>
+                <div><span>การ์ดในเด็ค</span><span>20 ใบ (ครบชุด)</span></div>
+              </div>
+              <button type="button" class="sh-buy ${owned ? 'is-owned' : ''}" data-buy-deck="${d.id}" ${owned || !canAfford ? 'disabled' : ''} ${!owned && !canAfford ? 'title="เหรียญ Coins ไม่พอ"' : ''}>
+                ${buyText}
+              </button>
+            </article>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    container.querySelectorAll('.sh-buy[data-buy-deck]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        buyPrebuiltDeck(btn.dataset.buyDeck);
+      });
+    });
+  }
+
+  // --- มุมมอง: ซองการ์ด (สุ่มซองเสริม) ---
   let packQty = 1;
   const thumbOf = img => String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
   const buyLabel = (p, qty) => `เปิด ${qty} ซอง · <span class="sh-price">${COIN_SVG}${(qty === 10 ? p.tenPrice : p.price).toLocaleString('th-TH')}</span>`;
 
   function renderPacksView(container) {
+    const boosterPacks = FACTION_PACKS.filter(p => p.id.startsWith('pack_bt'));
+    const packsToShow = boosterPacks.length > 0 ? boosterPacks : FACTION_PACKS;
     const totalUnique = typeof CARD_DATABASE !== 'undefined' ? CARD_DATABASE.length : 72;
     const ownedUnique = Object.keys(economy.ownedCards).filter(id => economy.ownedCards[id] > 0).length;
 
@@ -1228,31 +1428,35 @@
           <button type="button" role="radio" data-qty="1" aria-checked="${packQty === 1}">1 ซอง</button>
           <button type="button" role="radio" data-qty="10" aria-checked="${packQty === 10}">10 ซอง <span class="sh-save">−10%</span></button>
         </div>
-        <p class="sh-packs-info">ซองละ 1 ใบ · N 40% · R 30% · SR 20% · SSR 10% · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
+        <p class="sh-packs-info">ซองละ 1 ใบ · R 60% · SR 40% · การันตี SR ทุก 15 ซอง · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
       </div>
-      <p class="sh-dupe-note">${SHARD_SVG}<span>การ์ดที่เกินจำนวนจัดเด็ค (ลีดเดอร์ 1 ใบ · การ์ดอื่น 2 ใบ) จะกลายเป็นชาร์ดให้อัตโนมัติ</span></p>
+      <p class="sh-dupe-note">${SHARD_SVG}<span>การ์ดที่เกินจำนวนจัดเด็ค (การ์ดตามโควตาจัดเด็ค) จะกลายเป็นชาร์ดให้อัตโนมัติ</span></p>
 
-      <div class="sh-packs">
-        ${FACTION_PACKS.map(p => {
+      <div class="sh-packs" ${packsToShow.length <= 2 ? 'style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap;"' : ''}>
+        ${packsToShow.map(p => {
           const deckCards = typeof CARD_DATABASE !== 'undefined'
             ? CARD_DATABASE.filter(c => c.image && c.image.startsWith(p.prefix))
             : [];
           const leader = deckCards.find(c => c.type === 'Leader');
+          const hasSsr = deckCards.some(c => c.rarity === 'SSR');
+          const pityLabelText = hasSsr ? 'การันตี SSR' : 'การันตี SR';
+          const subText = leader ? `ลุ้นลีดเดอร์ SSR ${leader.name}` : (p.sub || 'ชุดเสริมการ์ดใหม่');
+          const backStyle = p.backImage ? `style="background-image: url('${thumbOf(p.backImage)}'), url('${p.backImage}'); background-size: cover; background-position: center; border-color: rgba(249, 115, 22, 0.6);"` : '';
           const ownedInDeck = deckCards.filter(c => economy.ownedCards[c.id] > 0).length;
           const pityCount = (economy.pity && economy.pity[p.id]) || 0;
           const remainingPity = Math.max(0, PITY_THRESHOLD - pityCount);
           const pityPercent = Math.min(100, (pityCount / PITY_THRESHOLD) * 100);
 
           return `
-            <article class="sh-pack" style="--c:${p.color};">
-              <div class="sh-pack-art"><span class="sh-pack-back" aria-hidden="true"></span><img src="${thumbOf(p.image)}" alt="" loading="lazy"></div>
+            <article class="sh-pack" style="--c:${p.color}; max-width: 340px; width: 100%;">
+              <div class="sh-pack-art"><span class="sh-pack-back" ${backStyle} aria-hidden="true"></span><img src="${thumbOf(p.image)}" alt="" onerror="this.onerror=null;this.src='${p.image}'" loading="lazy"></div>
               <div class="sh-pack-info">
                 <h3>${p.name}</h3>
-                <p>ลุ้นลีดเดอร์ SSR ${leader ? leader.name : ''} · สะสม ${ownedInDeck}/${deckCards.length}</p>
+                <p>${subText} · สะสม ${ownedInDeck}/${deckCards.length}</p>
               </div>
               <div class="sh-pity">
-                <div><span>การันตี SSR</span><span>อีก <b>${remainingPity}</b> ซอง</span></div>
-                <div class="sh-meter" role="progressbar" aria-label="ความคืบหน้าการันตี SSR ${p.name}" aria-valuemin="0" aria-valuemax="${PITY_THRESHOLD}" aria-valuenow="${pityCount}"><i style="width:${pityPercent}%"></i></div>
+                <div><span>${pityLabelText}</span><span>อีก <b>${remainingPity}</b> ซอง</span></div>
+                <div class="sh-meter" role="progressbar" aria-label="ความคืบหน้า${pityLabelText} ${p.name}" aria-valuemin="0" aria-valuemax="${PITY_THRESHOLD}" aria-valuenow="${pityCount}"><i style="width:${pityPercent}%"></i></div>
               </div>
               <button type="button" class="sh-buy" data-pack="${p.id}" data-count="${packQty}">${buyLabel(p, packQty)}</button>
             </article>
@@ -1288,6 +1492,7 @@
   // ตัวกรองสายเด็คใช้สีประจำเด็ค: เลือกแล้วทั้งแผงเปลี่ยนสีตาม (--accent ไล่สีด้วย @property)
   const DECK_FILTERS = [
     { key: 'ALL', label: 'ทั้งหมด', c: '#f3c969' },
+    { key: 'BT01', label: 'BT01', dir: 'BT01', c: '#f97316' },
     { key: 'JIT', label: 'จิต', dir: 'เด็คจิต', c: '#3ee08f' },
     { key: 'NUEA', label: 'ขุนเหนือ', dir: 'เด็คเหนือ', c: '#f0a347' },
     { key: 'DOOM', label: 'สิ้นโลก', dir: 'วันสิ้นโลก', c: '#5fd0ff' },
@@ -1304,8 +1509,13 @@
     { key: 'R', label: 'R', c: '#7cc0ff' },
     { key: 'N', label: 'N', c: '#cbd5e1' }
   ];
-  const deckOfCard = card => DECK_FILTERS.find(d => d.dir && String(card.image || '').includes(`/${d.dir}/`)) || DECK_FILTERS[0];
-  const maxKeepOf = card => (card.type === 'Leader' ? 1 : 2);
+  const deckOfCard = card => {
+    if (card.id && card.id.startsWith('BT01')) return DECK_FILTERS.find(d => d.key === 'BT01') || DECK_FILTERS[0];
+    if (card.tribe === 'ฮีโร่') return DECK_FILTERS.find(d => d.key === 'JIT') || DECK_FILTERS[0];
+    if (card.tribe === 'คาเงโร่') return DECK_FILTERS.find(d => d.key === 'KAGERO') || DECK_FILTERS[0];
+    return DECK_FILTERS.find(d => d.dir && String(card.image || '').includes(`/${d.dir}/`)) || DECK_FILTERS[0];
+  };
+  const maxKeepOf = card => (card.type === 'Leader' ? 1 : (card.maxCopies || 2));
   const chipsHTML = (list, active, attr, counts) => list.map(f => `
     <button type="button" class="fx-chip" role="radio" aria-checked="${f.key === active}" ${attr}="${f.key}" style="--chip-c:${f.c}">
       <span>${f.label}</span>${counts ? `<small>${counts[f.key] || 0}</small>` : ''}
@@ -1328,12 +1538,31 @@
 
     const allCards = CARD_DATABASE.filter(c => {
       if (craftFilterRarity !== 'ALL' && c.rarity !== craftFilterRarity) return false;
-      if (craftFilterTribe !== 'ALL' && deckOfCard(c).key !== craftFilterTribe) return false;
+      if (craftFilterTribe !== 'ALL') {
+        const k = deckOfCard(c).key;
+        if (craftFilterTribe === 'BT01') {
+          if (k !== 'BT01' && !(c.id && c.id.startsWith('BT01'))) return false;
+        } else if (craftFilterTribe === 'JIT') {
+          if (k !== 'JIT' && c.id !== 'BT01_01' && c.id !== 'BT01_02' && c.id !== 'BT01_03') return false;
+        } else if (craftFilterTribe === 'KAGERO') {
+          if (k !== 'KAGERO' && c.id !== 'BT01_04' && c.id !== 'BT01_05' && c.id !== 'BT01_06') return false;
+        } else if (k !== craftFilterTribe) {
+          return false;
+        }
+      }
       return true;
     });
     const accent = (DECK_FILTERS.find(d => d.key === craftFilterTribe) || DECK_FILTERS[0]).c;
-    const deckCounts = { ALL: CARD_DATABASE.length };
-    CARD_DATABASE.forEach(c => { const k = deckOfCard(c).key; deckCounts[k] = (deckCounts[k] || 0) + 1; });
+    const deckCounts = {};
+    DECK_FILTERS.forEach(f => {
+      deckCounts[f.key] = CARD_DATABASE.filter(c => {
+        if (f.key === 'ALL') return true;
+        if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
+        if (f.key === 'JIT') return deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
+        if (f.key === 'KAGERO') return deckOfCard(c).key === 'KAGERO' || c.id === 'BT01_04' || c.id === 'BT01_05' || c.id === 'BT01_06';
+        return deckOfCard(c).key === f.key;
+      }).length;
+    });
 
     container.style.setProperty('--accent', accent); // อยู่บนกล่องที่ไม่ถูกวาดใหม่ สีจึงไล่เปลี่ยนได้
     container.innerHTML = `
@@ -1364,7 +1593,7 @@
             const label = full ? 'มีครบแล้ว' : `หลอม ${SHARD_SVG}${cost.toLocaleString('th-TH')}`;
             return `
               <article class="cf-card r-${c.rarity} ${owned ? 'is-owned' : 'is-missing'}" data-craft-tile="${c.id}" style="--c:${deckOfCard(c).c}">
-                <div class="cf-art"><img src="${window.BOFDecks.thumbOf(c.image)}" alt="" loading="lazy"><i class="cf-rar">${c.rarity}</i></div>
+                <div class="cf-art"><img src="${window.BOFDecks.thumbOf(c.image)}" alt="" onerror="this.onerror=null;this.src='${c.image}'" loading="lazy"><i class="cf-rar">${c.rarity}</i></div>
                 <h5 title="${c.name}">${c.name}</h5>
                 <div class="cf-own" aria-label="มี ${owned} จาก ${maxKeep} ใบ">${Array.from({ length: maxKeep }, (_, i) => `<i class="${i < owned ? 'on' : ''}"></i>`).join('')}<span>${Math.min(owned, 99)}/${maxKeep}</span></div>
                 <button type="button" class="cf-craft-btn" data-craft-id="${c.id}" ${full || !canAfford ? 'disabled' : ''} ${!full && !canAfford ? 'title="ชาร์ดไม่พอ"' : ''}>${label}</button>
