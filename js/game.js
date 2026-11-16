@@ -1596,14 +1596,15 @@ function checkTokoyaStandByEffect(unit, owner) {
   }
 }
 
-// 🔮 จิตไนท์อาย รู้อนาคต (BT01_03): เลือกการ์ดในนรกอย่างน้อย 5 ใบกลับเข้ากอง แล้วสับกอง
-function showGraveRecycleModal(contestant, minGrave, onConfirm) {
-  const grave = Array.isArray(contestant.graveyard) ? contestant.graveyard : [];
-  if (grave.length < minGrave) return;
-
-  grave.forEach((c, idx) => {
+// 🔮 จิตไนท์อาย รู้อนาคต (BT01_03): เลือกการ์ดในนรกอย่างน้อย 5 ใบกลับเข้ากอง แล้วสับกอง (ไม่รวมใบที่ร่ายในครั้งนั้น)
+function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = null) {
+  const allGrave = Array.isArray(contestant.graveyard) ? contestant.graveyard : [];
+  allGrave.forEach((c, idx) => {
     if (c && !c.uid) c.uid = `grave_${idx}_${Date.now()}`;
   });
+
+  const grave = excludeUid ? allGrave.filter(c => c && String(c.uid) !== String(excludeUid)) : allGrave;
+  if (grave.length < minGrave) return;
 
   let modal = document.getElementById('bof-recycle-modal');
   if (!modal) {
@@ -1938,10 +1939,12 @@ const EffectEngine = {
         }
         if (step.block === 'RECYCLE_GRAVE_DRAW') {
           const minGrave = step.minGrave || 5;
-          const currentGraveCount = Array.isArray(caster.graveyard) ? caster.graveyard.length : 0;
-          const projectedGrave = currentGraveCount + (effectDef.trigger === 'CAST_SPELL' ? 1 : 0);
-          if (projectedGrave < minGrave) {
-            return { ok: false, reason: `ต้องมีการ์ดในนรกอย่างน้อย ${minGrave} ใบก่อน (ปัจจุบันมี ${currentGraveCount} ใบ)!` };
+          const excludeUid = sourceCard ? sourceCard.uid : null;
+          const currentGraveCount = Array.isArray(caster.graveyard)
+            ? caster.graveyard.filter(c => c && (!excludeUid || String(c.uid) !== String(excludeUid))).length
+            : 0;
+          if (currentGraveCount < minGrave) {
+            return { ok: false, reason: `ต้องมีการ์ดในนรกอย่างน้อย ${minGrave} ใบก่อน (ไม่รวมการ์ดใบนี้ ปัจจุบันมี ${currentGraveCount} ใบ)!` };
           }
         }
       }
@@ -2178,18 +2181,27 @@ const EffectEngine = {
       case 'RECYCLE_GRAVE_DRAW': {
         const minGrave = step.minGrave || 5;
         const drawCount = step.count || 2;
-        if (!Array.isArray(caster.graveyard) || caster.graveyard.length < minGrave) {
-          setLog(`⚠️ ${cardTitle} การ์ดในนรกไม่ถึง ${minGrave} ใบ (มีเพียง ${caster.graveyard ? caster.graveyard.length : 0} ใบ) จึงไม่เกิดผล!`);
+        const excludeUid = sourceCard ? sourceCard.uid : null;
+        const availableGrave = Array.isArray(caster.graveyard)
+          ? caster.graveyard.filter(c => c && (!excludeUid || String(c.uid) !== String(excludeUid)))
+          : [];
+        if (availableGrave.length < minGrave) {
+          setLog(`⚠️ ${cardTitle} การ์ดในนรกไม่รวมใบนี้ไม่ถึง ${minGrave} ใบ (มีเพียง ${availableGrave.length} ใบ) จึงไม่เกิดผล!`);
           next();
           return;
         }
 
         if (isAI) {
-          const recycled = caster.graveyard.splice(0, minGrave);
-          recycled.forEach(c => {
-            resetCardStateForZoneChange(c);
-            caster.deck.push(c);
-          });
+          const recycled = [];
+          for (let i = caster.graveyard.length - 1; i >= 0 && recycled.length < minGrave; i--) {
+            const c = caster.graveyard[i];
+            if (c && (!excludeUid || String(c.uid) !== String(excludeUid))) {
+              caster.graveyard.splice(i, 1);
+              resetCardStateForZoneChange(c);
+              caster.deck.push(c);
+              recycled.push(c);
+            }
+          }
           caster.deck = shuffleDeck(caster.deck);
           setLog(`🔮 ${cardTitle} AI นำการ์ด ${recycled.length} ใบจากนรกกลับเข้ากองและสับกอง!`);
           drawCards(caster, drawCount);
@@ -2202,7 +2214,7 @@ const EffectEngine = {
           const uidSet = new Set(selectedUids.map(String));
           for (let i = caster.graveyard.length - 1; i >= 0; i--) {
             const c = caster.graveyard[i];
-            if (c && uidSet.has(String(c.uid))) {
+            if (c && uidSet.has(String(c.uid)) && (!excludeUid || String(c.uid) !== String(excludeUid))) {
               caster.graveyard.splice(i, 1);
               resetCardStateForZoneChange(c);
               caster.deck.push(c);
@@ -2217,7 +2229,7 @@ const EffectEngine = {
           setLog(`🔮 ${cardTitle} นำการ์ด ${selectedCards.length} ใบจากนรกกลับเข้ากองและสับกองสำเร็จ! (จั่วการ์ด ${drawCount} ใบ)`);
           renderGame();
           next();
-        });
+        }, excludeUid);
         return;
       }
 
