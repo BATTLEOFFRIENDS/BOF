@@ -23,7 +23,7 @@ CARD_DATABASE.push(
   },
   {
     id: 'BT01_02',
-    name: 'โทโคะยาจิต',
+    name: 'โทโคยาจิต',
     type: 'Monster',
     tribe: 'ฮีโร่',
     rarity: 'SR',

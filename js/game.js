@@ -148,6 +148,15 @@ function shuffleDeck(deckArray, contestant = null) {
   return arr;
 }
 
+function shuffleArray(arr) {
+  if (!Array.isArray(arr)) return arr;
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function createCardInstance(template, uid) {
   return {
     ...template,
@@ -1517,14 +1526,17 @@ function executeMomoCallFromGrave(contestant, momoCard) {
       }
       contestant.board[slotIdx] = momo;
       setLog(`⚡ [สั่งใช้งานจากนรก - โมโมจิต] ทิ้ง "${discarded.name}" คอล "${momo.name}" ลงสนามช่องที่ ${slotIdx + 1}!`);
+      if (typeof showCardShowcaseBanner === 'function') {
+        showCardShowcaseBanner(momo, 'สกิลในนรกทำงาน!', `⚡ ทิ้ง "${discarded.name}" คอล "${momo.name}" ลงสนาม!`, '#3ee08f', 1300);
+      }
       if (typeof EffectEngine !== 'undefined') {
-        EffectEngine.runEffectsForTrigger('ON_SUMMON', {
+        EffectEngine.triggerCardEffects(momo, 'ON_SUMMON', {
           caster: contestant,
           opponent: (contestant === gameState.player ? gameState.ai : gameState.player),
           sourceCard: momo,
           sourceSlot: slotIdx,
           isAI: !isPlayer
-        });
+        }, () => renderGame());
       }
       renderGame();
     };
@@ -1566,12 +1578,12 @@ function executeMomoCallFromGrave(contestant, momoCard) {
   }
 }
 
-// ⚡ โทโคะยาจิต (BT01_02): ตรวจสอบเมื่อถูกเลส / สแตร์นด้วยความสามารถการ์ด
+// ⚡ โทโคยาจิต (BT01_02): ตรวจสอบเมื่อถูกเลส / สแตร์นด้วยความสามารถการ์ด
 function checkTokoyaRestByEffect(unit, owner) {
   if (unit && unit.id === 'BT01_02' && !unit.tokoyaRestUsedThisTurn) {
     unit.tokoyaRestUsedThisTurn = true;
     unit.state = 'Stand';
-    setLog(`⚡ [ออโต้/1 เทิร์น - โทโคะยาจิต] ถูกเลสโดยความสามารถการ์ด -> สแตร์นยูนิทนี้!`);
+    setLog(`⚡ [ออโต้/1 เทิร์น - โทโคยาจิต] ถูกเลสโดยความสามารถการ์ด -> สแตร์นยูนิทนี้!`);
     checkTokoyaStandByEffect(unit, owner);
   }
 }
@@ -1580,7 +1592,7 @@ function checkTokoyaStandByEffect(unit, owner) {
   if (unit && unit.id === 'BT01_02' && !unit.tokoyaStandUsedThisTurn) {
     unit.tokoyaStandUsedThisTurn = true;
     unit.tempPowerMod = (unit.tempPowerMod || 0) + 1;
-    setLog(`⚡ [ออโต้/1 เทิร์น - โทโคะยาจิต] สแตร์นด้วยความสามารถการ์ด -> พลังโจมตีเพิ่ม +1 หน่วย จนจบเทิร์น! (พลังรวม ${getEffectivePower(unit, owner)})`);
+    setLog(`⚡ [ออโต้/1 เทิร์น - โทโคยาจิต] สแตร์นด้วยความสามารถการ์ด -> พลังโจมตีเพิ่ม +1 หน่วย จนจบเทิร์น! (พลังรวม ${getEffectivePower(unit, owner)})`);
   }
 }
 
@@ -1588,6 +1600,10 @@ function checkTokoyaStandByEffect(unit, owner) {
 function showGraveRecycleModal(contestant, minGrave, onConfirm) {
   const grave = Array.isArray(contestant.graveyard) ? contestant.graveyard : [];
   if (grave.length < minGrave) return;
+
+  grave.forEach((c, idx) => {
+    if (c && !c.uid) c.uid = `grave_${idx}_${Date.now()}`;
+  });
 
   let modal = document.getElementById('bof-recycle-modal');
   if (!modal) {
@@ -1920,6 +1936,14 @@ const EffectEngine = {
           const hasOatOrBank = [...caster.deck, ...caster.graveyard].some(c => c && (c.id === 'OM01' || c.id === 'OM02'));
           if (!hasOatOrBank) return { ok: false, reason: 'ไม่มี "ไอโอ๊ตบ้าการ์ตูน" หรือ "ไอแบงค์บ้าเกม" อยู่ในกองหรือนรกเลย!' };
         }
+        if (step.block === 'RECYCLE_GRAVE_DRAW') {
+          const minGrave = step.minGrave || 5;
+          const currentGraveCount = Array.isArray(caster.graveyard) ? caster.graveyard.length : 0;
+          const projectedGrave = currentGraveCount + (effectDef.trigger === 'CAST_SPELL' ? 1 : 0);
+          if (projectedGrave < minGrave) {
+            return { ok: false, reason: `ต้องมีการ์ดในนรกอย่างน้อย ${minGrave} ใบก่อน (ปัจจุบันมี ${currentGraveCount} ใบ)!` };
+          }
+        }
       }
     }
 
@@ -1937,6 +1961,15 @@ const EffectEngine = {
       if (filterSpec.filterType === 'MONSTER' && c.type !== 'Monster') return false;
       return true;
     });
+  },
+
+  // เรียกใช้เอฟเฟกต์ตาม Trigger โดยดึง sourceCard จาก context
+  runEffectsForTrigger(triggerType, context, onAllDone = null) {
+    if (context && context.sourceCard) {
+      return this.triggerCardEffects(context.sourceCard, triggerType, context, onAllDone);
+    }
+    if (onAllDone) onAllDone();
+    return false;
   },
 
   // 2. เรียกใช้เอฟเฟกต์ทั้งหมดของการ์ดที่ตรงกับ Trigger (เช่น ON_SUMMON, ON_DESTROY, ON_KILL_UNIT, ON_HIT_LEADER, ON_INTERCEPT)
@@ -2157,7 +2190,7 @@ const EffectEngine = {
             resetCardStateForZoneChange(c);
             caster.deck.push(c);
           });
-          shuffleArray(caster.deck);
+          caster.deck = shuffleDeck(caster.deck);
           setLog(`🔮 ${cardTitle} AI นำการ์ด ${recycled.length} ใบจากนรกกลับเข้ากองและสับกอง!`);
           drawCards(caster, drawCount);
           next();
@@ -2176,12 +2209,12 @@ const EffectEngine = {
               selectedCards.push(c);
             }
           }
-          shuffleArray(caster.deck);
+          caster.deck = shuffleDeck(caster.deck);
+          drawCards(caster, drawCount);
           if (typeof showCardShowcaseBanner === 'function' && sourceCard) {
             showCardShowcaseBanner(sourceCard, 'ร่ายเวทมนตร์สำเร็จ!', `🔮 [${sourceCard.name}] นำการ์ด ${selectedCards.length} ใบจากนรกกลับเข้ากอง แล้วจั่ว ${drawCount} ใบ!`, '#38bdf8', 1300);
           }
           setLog(`🔮 ${cardTitle} นำการ์ด ${selectedCards.length} ใบจากนรกกลับเข้ากองและสับกองสำเร็จ! (จั่วการ์ด ${drawCount} ใบ)`);
-          drawCards(caster, drawCount);
           renderGame();
           next();
         });
