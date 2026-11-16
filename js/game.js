@@ -834,6 +834,7 @@ function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckLis
     hand: [],
     board: [null, null, null],
     graveyard: [],
+    castingZone: [],
     darkDimension: [],
     spellQuota: { normalUsed: 0, reactionUsed: 0 }
   };
@@ -1597,13 +1598,24 @@ function checkTokoyaStandByEffect(unit, owner) {
 }
 
 // 🔮 จิตไนท์อาย รู้อนาคต (BT01_03): เลือกการ์ดในนรกอย่างน้อย 5 ใบกลับเข้ากอง แล้วสับกอง (ไม่รวมใบที่ร่ายในครั้งนั้น)
-function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = null) {
+function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = null, excludeCard = null) {
+  if (!contestant.castingZone) contestant.castingZone = [];
+  const castingUids = new Set(
+    contestant.castingZone.map(c => c && c.uid).filter(Boolean)
+  );
   const allGrave = Array.isArray(contestant.graveyard) ? contestant.graveyard : [];
   allGrave.forEach((c, idx) => {
     if (c && !c.uid) c.uid = `grave_${idx}_${Date.now()}`;
   });
 
-  const grave = excludeUid ? allGrave.filter(c => c && String(c.uid) !== String(excludeUid)) : allGrave;
+  const grave = allGrave.filter(c => {
+    if (!c) return false;
+    if (excludeUid && String(c.uid) === String(excludeUid)) return false;
+    if (excludeCard && c === excludeCard) return false;
+    if (c.uid && castingUids.has(c.uid)) return false;
+    if (contestant.castingZone.includes(c)) return false;
+    return true;
+  });
   if (grave.length < minGrave) return;
 
   let modal = document.getElementById('bof-recycle-modal');
@@ -2019,8 +2031,9 @@ const EffectEngine = {
         }
       }
 
-      let pendingGraveSpell = null;
-      // หากเป็นการร่ายการ์ดเวทมนตร์จากมือ นำการ์ดเวทออกจากมือ แต่ยังไม่ส่งลงนรกจนกว่าเอฟเฟกต์จะร่ายเสร็จสิ้นทั้งหมด
+      if (!caster.castingZone) caster.castingZone = [];
+
+      // หากเป็นการร่ายการ์ดเวทมนตร์จากมือ นำการ์ดเข้าสู่ castingZone (โซนร่ายเวทที่มองไม่เห็นบนสนาม)
       if (effectDef.trigger === 'CAST_SPELL' && spellHandIndex !== undefined && spellHandIndex !== null) {
         let currentSpellIdx = -1;
         if (sourceCard && sourceCard.uid) {
@@ -2033,9 +2046,21 @@ const EffectEngine = {
           currentSpellIdx = spellHandIndex;
         }
         if (currentSpellIdx !== -1) {
-          pendingGraveSpell = caster.hand.splice(currentSpellIdx, 1)[0];
+          const castCard = caster.hand.splice(currentSpellIdx, 1)[0];
           caster.spellQuota.normalUsed += 1;
-          resetCardStateForZoneChange(pendingGraveSpell);
+          resetCardStateForZoneChange(castCard);
+          caster.castingZone.push(castCard);
+        } else if (sourceCard) {
+          resetCardStateForZoneChange(sourceCard);
+          caster.castingZone.push(sourceCard);
+        }
+
+        // ป้องกันการ์ดที่กำลังร่ายตกค้างอยู่ในนรก (Graveyard)
+        if (sourceCard && Array.isArray(caster.graveyard)) {
+          const gIdx = caster.graveyard.findIndex(c => c && (c === sourceCard || (sourceCard.uid && c.uid === sourceCard.uid)));
+          if (gIdx !== -1) {
+            caster.graveyard.splice(gIdx, 1);
+          }
         }
       }
 
@@ -2051,8 +2076,13 @@ const EffectEngine = {
 
       fxSkillActivated(sourceCard, caster);
       this.runStepQueue(stepQueue, context, () => {
-        if (pendingGraveSpell) {
-          caster.graveyard.push(pendingGraveSpell);
+        // เมื่อการร่ายเวทมนตร์เสร็จสิ้นทั้งหมด นำการ์ดทั้งหมดใน castingZone ย้ายลงนรก (Graveyard)
+        if (Array.isArray(caster.castingZone) && caster.castingZone.length > 0) {
+          while (caster.castingZone.length > 0) {
+            const finishedSpell = caster.castingZone.shift();
+            resetCardStateForZoneChange(finishedSpell);
+            caster.graveyard.push(finishedSpell);
+          }
         }
         renderGame();
         if (onComplete) onComplete();
@@ -2194,8 +2224,12 @@ const EffectEngine = {
         const minGrave = step.minGrave || 5;
         const drawCount = step.count || 2;
         const excludeUid = sourceCard ? sourceCard.uid : null;
+        if (!caster.castingZone) caster.castingZone = [];
+        const castingUids = new Set(
+          caster.castingZone.map(c => c && c.uid).filter(Boolean)
+        );
         const availableGrave = Array.isArray(caster.graveyard)
-          ? caster.graveyard.filter(c => c && (!excludeUid || String(c.uid) !== String(excludeUid)))
+          ? caster.graveyard.filter(c => c && (!excludeUid || String(c.uid) !== String(excludeUid)) && !castingUids.has(c.uid) && c !== sourceCard)
           : [];
         if (availableGrave.length < minGrave) {
           setLog(`⚠️ ${cardTitle} การ์ดในนรกไม่ถึง ${minGrave} ใบ (มีเพียง ${availableGrave.length} ใบ) จึงไม่เกิดผล!`);
@@ -2207,7 +2241,7 @@ const EffectEngine = {
           const recycled = [];
           for (let i = caster.graveyard.length - 1; i >= 0 && recycled.length < minGrave; i--) {
             const c = caster.graveyard[i];
-            if (c && (!excludeUid || String(c.uid) !== String(excludeUid))) {
+            if (c && (!excludeUid || String(c.uid) !== String(excludeUid)) && !castingUids.has(c.uid) && c !== sourceCard) {
               caster.graveyard.splice(i, 1);
               resetCardStateForZoneChange(c);
               caster.deck.push(c);
@@ -2226,7 +2260,7 @@ const EffectEngine = {
           const uidSet = new Set(selectedUids.map(String));
           for (let i = caster.graveyard.length - 1; i >= 0; i--) {
             const c = caster.graveyard[i];
-            if (c && uidSet.has(String(c.uid)) && (!excludeUid || String(c.uid) !== String(excludeUid))) {
+            if (c && uidSet.has(String(c.uid)) && (!excludeUid || String(c.uid) !== String(excludeUid)) && !castingUids.has(c.uid) && c !== sourceCard) {
               caster.graveyard.splice(i, 1);
               resetCardStateForZoneChange(c);
               caster.deck.push(c);
@@ -2241,7 +2275,7 @@ const EffectEngine = {
           setLog(`🔮 ${cardTitle} นำการ์ด ${selectedCards.length} ใบจากนรกกลับเข้ากองและสับกองสำเร็จ! (จั่วการ์ด ${drawCount} ใบ)`);
           renderGame();
           next();
-        }, excludeUid);
+        }, excludeUid, sourceCard);
         return;
       }
 
@@ -4081,6 +4115,10 @@ function initiatePlayerSpell(handIndex) {
 
   const spellEffect = (spell.effects || []).find(e => e.trigger === 'CAST_SPELL');
   if (!spellEffect) return;
+
+  if (!spell.uid) {
+    spell.uid = `spell_${spell.id || 'card'}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  }
 
   const ctx = {
     caster: player,
