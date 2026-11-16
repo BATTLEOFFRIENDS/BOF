@@ -667,12 +667,13 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     }
   }
 
-  // คาเงโร่: ดราโกนิค โอเวอร์ลอร์ด THE ACE (BT01_05) ในนรก: เมื่อยูนิทเราถูกทำลาย สามารถอัญเชิญ THE ACE ลงสนาม (1 ครั้งต่อเทิร์น)
-  if (!boardOwner.aceRevivedThisTurn && Array.isArray(boardOwner.graveyard)) {
-    const aceIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'BT01_05');
-    if (aceIdx !== -1) {
-      triggerAceGraveSummon(boardOwner, slotIndex);
-    }
+  // คาเงโร่: ดราโกนิค โอเวอร์ลอร์ด THE ACE (BT01_05) ในนรก: เมื่อยูนิทเราถูกทำลาย สามารถอัญเชิญ THE ACE ลงสนาม (1 ครั้งต่อเทิร์น - ต้องอยู่ในนรกมาก่อนแล้ว)
+  const aceWasInGraveBefore = !boardOwner.aceRevivedThisTurn
+    && Array.isArray(boardOwner.graveyard)
+    && boardOwner.graveyard.some(c => c && c.id === 'BT01_05' && c.uid !== monster.uid);
+
+  if (aceWasInGraveBefore) {
+    triggerAceGraveSummon(boardOwner, slotIndex, monster.uid);
   }
 
   // รันบล็อกความสามารถเมื่อถูกทำลาย (ON_DESTROY)
@@ -1602,21 +1603,24 @@ function showGraveRecycleModal(contestant, minGrave, onConfirm) {
     modal.innerHTML = `
       <div class="modal-box" style="max-width: 650px; max-height: 85vh; overflow-y: auto; text-align: center;">
         <h2 style="color: #38bdf8; margin-bottom: 8px;">🔮 จิตไนท์อาย รู้อนาคต</h2>
-        <p style="color: #cbd5e1; margin-bottom: 14px;">เลือกการ์ดจากนรกของคุณ <b>อย่างน้อย ${minGrave} ใบขึ้นไป</b> เพื่อนำกลับเข้ากอง (เลือกแล้ว <b style="color:#38bdf8;">${selectedUids.size}</b> / อย่างน้อย ${minGrave} ใบ):</p>
+        <p style="color: #cbd5e1; margin-bottom: 14px;">เลือกการ์ดจากนรกของคุณ <b>อย่างน้อย ${minGrave} ใบขึ้นไป</b> เพื่อนำกลับเข้ากอง (เลือกแล้ว <b style="color:${selectedUids.size >= minGrave ? '#4ade80' : '#f87171'}; font-size: 16px;">${selectedUids.size}</b> / อย่างน้อย ${minGrave} ใบ):</p>
         <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-height: 50vh; overflow-y: auto; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 8px;">
           ${grave.map((c) => {
-            const isSel = selectedUids.has(c.uid);
+            const isSel = selectedUids.has(String(c.uid));
             return `
               <button type="button" class="card-recycle-item" data-uid="${c.uid}" style="display: flex; flex-direction: column; align-items: center; width: 85px; padding: 4px; border-radius: 6px; cursor: pointer; border: 2px solid ${isSel ? '#38bdf8' : 'rgba(255,255,255,0.1)'}; background: ${isSel ? 'rgba(56,189,248,0.25)' : 'rgba(15,23,42,0.8)'};">
                 <img src="${c.image}" style="width: 75px; height: 105px; object-fit: cover; border-radius: 4px; pointer-events: none;">
                 <span style="font-size: 11px; color: #fff; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${c.name}</span>
+                <span style="font-size: 10px; color: ${isSel ? '#38bdf8' : '#64748b'}; font-weight: bold;">${isSel ? '✓ เลือกแล้ว' : '+ คลิกเลือก'}</span>
               </button>
             `;
           }).join('')}
         </div>
         <div style="display: flex; justify-content: center; gap: 12px; margin-top: 16px;">
-          <button type="button" id="btn-recycle-select-all" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #475569; background: #334155; color: #fff; cursor: pointer;">เลือกทั้งหมด (${grave.length} ใบ)</button>
-          <button type="button" id="btn-recycle-confirm" ${selectedUids.size < minGrave ? 'disabled' : ''} style="padding: 8px 20px; border-radius: 8px; border: none; background: ${selectedUids.size >= minGrave ? '#0284c7' : '#475569'}; color: #fff; font-weight: bold; cursor: ${selectedUids.size >= minGrave ? 'pointer' : 'not-allowed'};">✅ ยืนยันนำกลับเข้ากอง (${selectedUids.size} ใบ)</button>
+          <button type="button" id="btn-recycle-select-all" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #475569; background: #334155; color: #fff; cursor: pointer;">${selectedUids.size === grave.length ? 'ยกเลิกเลือกทั้งหมด' : `เลือกทั้งหมด (${grave.length} ใบ)`}</button>
+          <button type="button" id="btn-recycle-confirm" ${selectedUids.size < minGrave ? 'disabled' : ''} style="padding: 8px 20px; border-radius: 8px; border: none; background: ${selectedUids.size >= minGrave ? '#0284c7' : '#475569'}; color: #fff; font-weight: bold; cursor: ${selectedUids.size >= minGrave ? 'pointer' : 'not-allowed'}; opacity: ${selectedUids.size >= minGrave ? '1' : '0.55'};">
+            ${selectedUids.size >= minGrave ? `✅ ยืนยันนำกลับเข้ากอง (${selectedUids.size} ใบ)` : `⚠️ เลือกอย่างน้อย ${minGrave} ใบ (เลือกแล้ว ${selectedUids.size} ใบ)`}
+          </button>
         </div>
       </div>
     `;
@@ -1624,7 +1628,7 @@ function showGraveRecycleModal(contestant, minGrave, onConfirm) {
 
     modal.querySelectorAll('.card-recycle-item').forEach(btn => {
       btn.onclick = () => {
-        const uid = Number(btn.dataset.uid);
+        const uid = String(btn.dataset.uid);
         if (selectedUids.has(uid)) selectedUids.delete(uid);
         else selectedUids.add(uid);
         updateUI();
@@ -1635,7 +1639,7 @@ function showGraveRecycleModal(contestant, minGrave, onConfirm) {
     if (selectAllBtn) {
       selectAllBtn.onclick = () => {
         if (selectedUids.size === grave.length) selectedUids.clear();
-        else grave.forEach(c => selectedUids.add(c.uid));
+        else grave.forEach(c => selectedUids.add(String(c.uid)));
         updateUI();
       };
     }
@@ -1653,15 +1657,15 @@ function showGraveRecycleModal(contestant, minGrave, onConfirm) {
   updateUI();
 }
 
-// 🔥 ดราโกนิค โอเวอร์ลอร์ด THE ACE (BT01_05): สั่งใช้งานในนรกเมื่อยูนิทเราถูกทำลาย
-function triggerAceGraveSummon(boardOwner, slotIndex) {
+// 🔥 ดราโกนิค โอเวอร์ลอร์ด THE ACE (BT01_05): สั่งใช้งานในนรกเมื่อยูนิทเราถูกทำลาย (ต้องอยู่ในนรกมาก่อนแล้ว)
+function triggerAceGraveSummon(boardOwner, slotIndex, excludeUid = null) {
   if (boardOwner.aceRevivedThisTurn || !Array.isArray(boardOwner.graveyard)) return;
-  const aceIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'BT01_05');
+  const aceIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'BT01_05' && (!excludeUid || c.uid !== excludeUid));
   if (aceIdx === -1) return;
 
   const isPlayer = (boardOwner === gameState.player);
   const doSummonAce = () => {
-    const curAceIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'BT01_05');
+    const curAceIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'BT01_05' && (!excludeUid || c.uid !== excludeUid));
     if (curAceIdx === -1 || boardOwner.aceRevivedThisTurn) return;
     boardOwner.aceRevivedThisTurn = true;
     const ace = boardOwner.graveyard.splice(curAceIdx, 1)[0];
@@ -1673,6 +1677,9 @@ function triggerAceGraveSummon(boardOwner, slotIndex) {
       sendOverwrittenMonsterToGrave(boardOwner, finalSlot);
     }
     boardOwner.board[finalSlot] = ace;
+    if (typeof showCardShowcaseBanner === 'function') {
+      showCardShowcaseBanner(ace, 'สกิลในนรกทำงาน!', '🔥 [THE ACE] ยูนิทเราถูกทำลาย -> อัญเชิญ THE ACE จากนรกลงสนาม!', '#ef4444', 1300);
+    }
     setLog(`🔥 [สกิลในนรก - THE ACE] อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด THE ACE" ลงสนามช่องที่ ${finalSlot + 1} สำเร็จ!`);
     renderGame();
   };
@@ -1702,11 +1709,34 @@ function triggerAceGraveSummon(boardOwner, slotIndex) {
 // 🔥 บังคับผู้เล่นหรือ AI เลือกทิ้งการ์ดบนมือ
 function promptOpponentDiscard(contestant, count, titleText) {
   if (!contestant || !Array.isArray(contestant.hand) || contestant.hand.length === 0) return;
+  const isPvpRemote = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && contestant !== gameState.player);
+  if (isPvpRemote) {
+    const handOpts = contestant.hand.map(c => ({
+      label: `🗑️ ทิ้ง "${c.name}"`,
+      color: '#dc2626'
+    }));
+    requestPvpChoice(
+      titleText || '🍬 ฝ่ายตรงข้ามบังคับทิ้งการ์ดบนมือ',
+      'ฝ่ายตรงข้ามบังคับให้คุณเลือกทิ้งการ์ดบนมือ 1 ใบ:\nเลือกการ์ดที่จะทิ้งลงนรก:',
+      handOpts,
+      (optIdx) => {
+        const idx = (optIdx >= 0 && optIdx < contestant.hand.length) ? optIdx : 0;
+        const oppD = contestant.hand.splice(idx, 1)[0];
+        resetCardStateForZoneChange(oppD);
+        contestant.graveyard.push(oppD);
+        setLog(`🍬 [ออโต้ซึรุรุ] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${oppD.name}" 1 ใบลงนรก!`);
+        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, oppD);
+        renderGame();
+      }
+    );
+    return;
+  }
+
   if (contestant !== gameState.player) {
     const discarded = contestant.hand.pop();
     resetCardStateForZoneChange(discarded);
     contestant.graveyard.push(discarded);
-    setLog(`🔥 ${contestant.name} เลือกทิ้ง "${discarded.name}" 1 ใบลงนรก!`);
+    setLog(`🍬 [ออโต้ซึรุรุ] ${contestant.name} เลือกทิ้ง "${discarded.name}" 1 ใบลงนรก!`);
     if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
     renderGame();
     return;
@@ -1719,14 +1749,14 @@ function promptOpponentDiscard(contestant, count, titleText) {
       const discarded = contestant.hand.splice(idx, 1)[0];
       resetCardStateForZoneChange(discarded);
       contestant.graveyard.push(discarded);
-      setLog(`🔥 คุณเลือกทิ้ง "${discarded.name}" ลงนรก!`);
+      setLog(`🍬 [ออโต้ซึรุรุ] คุณเลือกทิ้ง "${discarded.name}" ลงนรก!`);
       if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
       renderGame();
     }
   }));
 
   showChoiceModal(
-    titleText || '🔥 ฝ่ายตรงข้ามบังคับทิ้งการ์ดบนมือ',
+    titleText || '🍬 ฝ่ายตรงข้ามบังคับทิ้งการ์ดบนมือ (ผลของซึรุรุ)',
     'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:',
     handOpts
   );
@@ -1964,6 +1994,16 @@ const EffectEngine = {
         }
       }
 
+      if (sourceCard && (effectDef.trigger === 'CAST_SPELL' || sourceCard.type === 'NSpell' || sourceCard.type === 'NormalSpell' || sourceCard.type === 'RSpell' || sourceCard.type === 'ReactionSpell')) {
+        const isR = sourceCard.type === 'RSpell' || sourceCard.type === 'ReactionSpell' || effectDef.isReaction;
+        const bannerTitle = isR ? `⚡ ${caster.name} ใช้เวทรีแอค!` : `✨ ${caster.name} ร่ายเวทมนตร์!`;
+        const bannerDesc = `[${sourceCard.name}] ${effectDef.label || sourceCard.desc || ''}`.trim();
+        if (typeof showCardShowcaseBanner === 'function') {
+          showCardShowcaseBanner(sourceCard, bannerTitle, bannerDesc, isR ? '#ec4899' : '#38bdf8', 1300);
+        }
+        setLog(`✨ [${bannerTitle}] ${sourceCard.name}: ${effectDef.label || sourceCard.desc || ''}`);
+      }
+
       fxSkillActivated(sourceCard, caster);
       this.runStepQueue(stepQueue, context, () => {
         renderGame();
@@ -2000,15 +2040,17 @@ const EffectEngine = {
 
     if (cost.type === 'DISCARD_HAND') {
       const count = cost.count || 1;
+      const isFromOnami = (sourceCard && sourceCard.id === 'DM01') || !!cost.triggerDiscardSkill;
       if (isAI) {
         for (let i = 0; i < count && caster.hand.length > 0; i++) {
           const d = caster.hand.pop();
           resetCardStateForZoneChange(d);
           caster.graveyard.push(d);
-          if (cost.triggerDiscardSkill && d.id === 'DM05' && opponent.hand.length > 0) {
-            const oppD = opponent.hand.pop();
-            resetCardStateForZoneChange(oppD);
-            opponent.graveyard.push(oppD);
+          if (isFromOnami && d.id === 'DM05' && opponent.hand.length > 0) {
+            if (typeof showCardShowcaseBanner === 'function') {
+              showCardShowcaseBanner(d, 'สกิลซึรุรุทำงาน!', '🍬 ถูกทิ้งจากสกิลโอนามิ -> บังคับอีกฝ่ายเลือกทิ้งมือ 1 ใบ!', '#a855f7', 1300);
+            }
+            promptOpponentDiscard(opponent, 1, '🍬 ซึรุรุถูกทิ้งจากสกิลโอนามิ: เลือกทิ้งการ์ดบนมือ 1 ใบ');
           }
         }
         this.runCostQueue(costQueue, context, onCostsPaid);
@@ -2027,11 +2069,11 @@ const EffectEngine = {
           caster.graveyard.push(discarded);
           setLog(`🗑️ ทิ้ง "${discarded.name}" จากมือลงนรก`);
 
-          if (cost.triggerDiscardSkill && discarded.id === 'DM05' && opponent.hand.length > 0) {
-            const aiDiscarded = opponent.hand.pop();
-            resetCardStateForZoneChange(aiDiscarded);
-            opponent.graveyard.push(aiDiscarded);
-            setLog(`🍬 [ออโต้ซึรุรุ] ถูกทิ้งจากสกิลโอนามิ -> ฝ่ายตรงข้ามต้องทิ้ง "${aiDiscarded.name}" 1 ใบ!`);
+          if (isFromOnami && discarded.id === 'DM05' && opponent.hand.length > 0) {
+            if (typeof showCardShowcaseBanner === 'function') {
+              showCardShowcaseBanner(discarded, 'สกิลซึรุรุทำงาน!', '🍬 ถูกทิ้งจากสกิลโอนามิ -> บังคับอีกฝ่ายเลือกทิ้งมือ 1 ใบ!', '#a855f7', 1300);
+            }
+            promptOpponentDiscard(opponent, 1, '🍬 ซึรุรุถูกทิ้งจากสกิลโอนามิ: เลือกทิ้งการ์ดบนมือ 1 ใบ');
           }
         },
         onAllSelected: () => this.runCostQueue(costQueue, context, onCostsPaid)
@@ -2124,9 +2166,10 @@ const EffectEngine = {
 
         showGraveRecycleModal(caster, minGrave, (selectedUids) => {
           const selectedCards = [];
+          const uidSet = new Set(selectedUids.map(String));
           for (let i = caster.graveyard.length - 1; i >= 0; i--) {
             const c = caster.graveyard[i];
-            if (c && selectedUids.includes(c.uid)) {
+            if (c && uidSet.has(String(c.uid))) {
               caster.graveyard.splice(i, 1);
               resetCardStateForZoneChange(c);
               caster.deck.push(c);
@@ -2134,7 +2177,10 @@ const EffectEngine = {
             }
           }
           shuffleArray(caster.deck);
-          setLog(`🔮 ${cardTitle} นำการ์ด ${selectedCards.length} ใบจากนรกกลับเข้ากองและสับกองสำเร็จ!`);
+          if (typeof showCardShowcaseBanner === 'function' && sourceCard) {
+            showCardShowcaseBanner(sourceCard, 'ร่ายเวทมนตร์สำเร็จ!', `🔮 [${sourceCard.name}] นำการ์ด ${selectedCards.length} ใบจากนรกกลับเข้ากอง แล้วจั่ว ${drawCount} ใบ!`, '#38bdf8', 1300);
+          }
+          setLog(`🔮 ${cardTitle} นำการ์ด ${selectedCards.length} ใบจากนรกกลับเข้ากองและสับกองสำเร็จ! (จั่วการ์ด ${drawCount} ใบ)`);
           drawCards(caster, drawCount);
           renderGame();
           next();
@@ -5125,19 +5171,12 @@ function triggerOatLeaderStartTurn(contestant, onComplete) {
   );
 }
 
-// ตรวจสอบความสามารถเมื่อการ์ดถูกทิ้งลงนรก (เช่น DM05, KG01, KG06)
+// ตรวจสอบความสามารถเมื่อการ์ดถูกทิ้งลงนรก (เช่น KG01, KG06)
 function checkDiscardTriggers(contestant, card) {
   if (!card) return;
   const other = (contestant === gameState.player) ? gameState.ai : gameState.player;
 
-  // DM05 (ซึรุรุ)
-  if (card.id === 'DM05' && other.hand.length > 0) {
-    const oppD = other.hand.pop();
-    resetCardStateForZoneChange(oppD);
-    other.graveyard.push(oppD);
-    setLog(`🍬 [ออโต้ซึรุรุ] ถูกทิ้งลงนรก -> ฝ่ายตรงข้ามต้องทิ้ง "${oppD.name}" 1 ใบ!`);
-    checkDiscardTriggers(other, oppD);
-  }
+  // DM05 (ซึรุรุ): ทำงานเฉพาะเมื่อถูกทิ้งจากสกิลของ "โอนามิ ผู้ทำลายโลก" (DM01) เท่านั้น (จัดการใน EffectEngine / AI Onami)
 
   // KG01 (ดราโกนิค โอเวอร์ลอร์ด): เมื่อถูกทิ้ง สามารถอัญเชิญลงสนาม
   if (card.id === 'KG01') {
@@ -6659,6 +6698,9 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
                 attacker.spellQuota.reactionUsed += 1;
                 resetCardStateForZoneChange(spell);
                 attacker.graveyard.push(spell);
+                if (typeof showCardShowcaseBanner === 'function') {
+                  showCardShowcaseBanner(spell, 'ร่ายเวทรีแอค เร็วขึ้นอีก!!!!!!', '⚔️ การโจมตีของ "ไอแบงค์บ้าเกม" ไม่สามารถนำยูนิทมาป้องกันได้!', '#38bdf8', 1300);
+                }
                 setLog('⚡ [เร็วขึ้นอีก!!!!!!] ร่ายเวทรีแอคสำเร็จ — ฝ่ายตรงข้ามไม่สามารถนำยูนิทมาป้องกันการโจมตีของ "ไอแบงค์บ้าเกม" ได้!');
               }
               proceedWithAttackExecution(true);
@@ -7031,6 +7073,9 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           const spellCard = defender.hand.splice(dms02InHandIdx, 1)[0];
           defender.spellQuota.reactionUsed += 1;
           defender.graveyard.push(spellCard);
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(spellCard, 'ร่ายเวทรีแอค คำเตือนต้องห้าม!', '🌌 ทั้งสองฝ่ายนำการ์ดบนมือตนเอง 1 ใบเข้ามิติมืด และยกเลิกการโจมตี!', '#7c3aed', 1300);
+          }
 
           if (attackingMonster.id === 'DM06') {
             const atkRoll = Math.floor(Math.random() * 6) + 1;
@@ -7090,6 +7135,9 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           const spellCard = defender.hand.splice(dns03InHandIdx, 1)[0];
           defender.spellQuota.reactionUsed += 1;
           defender.graveyard.push(spellCard);
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(spellCard, 'ร่ายเวทรีแอค เมเทโอ!', '☄️ ทำลายการ์ดทั้งหมดบนสนามทั้ง 2 ฝั่ง!', '#dc2626', 1300);
+          }
 
           if (attackingMonster.id === 'DM06') {
             const atkRoll = Math.floor(Math.random() * 6) + 1;
@@ -7144,6 +7192,9 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         onSelect: () => {
           const spellCard = defender.hand.splice(ds02InHandIdx, 1)[0];
           defender.spellQuota.reactionUsed += 1;
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(spellCard, 'ร่ายเวทรีแอค พวกเราจะช่วยเอง!', '🛡️ นำยูนิต 5 ใบในนรกกลับเข้ากอง แล้วยกเลิกการโจมตี!', '#0284c7', 1300);
+          }
 
           let returnedCount = 0;
           for (let i = defender.graveyard.length - 1; i >= 0 && returnedCount < 5; i--) {
@@ -7244,6 +7295,9 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
             nCard.state = 'Stand';
             defender.board[emptySlot] = nCard;
             attacker.board.forEach(m => { if (m && m.state === 'Stand') m.state = 'Rest'; });
+            if (typeof showCardShowcaseBanner === 'function') {
+              showCardShowcaseBanner(nCard, 'สั่งใช้นางิสะจากบนมือ!', '🧀 อัญเชิญลงสนาม และเรสยูนิททั้งหมดของฝ่ายตรงข้าม!', '#f472b6', 1300);
+            }
             setLog(`🧀 [โมโมเอะ นางิสะ] อัญเชิญลงสนามช่องที่ ${emptySlot + 1} และเปลี่ยนยูนิทของอีกฝ่ายที่ Stand ทั้งหมดเป็น Rest!`);
             renderGame();
             continueNormalAttackFlow();
@@ -7286,6 +7340,9 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           defender.spellQuota.reactionUsed += 1;
           resetCardStateForZoneChange(spellCard);
           defender.graveyard.push(spellCard);
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(spellCard, 'ร่ายเวทรีแอค กฎแห่งวัฏจักร!', '🛡️ สแตร์นยูนิทเรา 1 ใบ ได้รับเกราะไม่ออกจากสนาม 1 ครั้ง!', '#ec4899', 1300);
+          }
 
           const allyChoices = [];
           defender.board.forEach((m, s) => {
@@ -7317,6 +7374,9 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           defender.spellQuota.reactionUsed += 1;
           resetCardStateForZoneChange(spellCard);
           defender.graveyard.push(spellCard);
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(spellCard, 'ร่ายเวทมนตร์ ไวเวอร์นการ์ด บาร์รี่!', '🐉 เปลี่ยนเป้าหมายการโจมตีไปที่ฝ่ายตรงข้าม!', '#ef4444', 1300);
+          }
 
           const retargetChoices = [];
           attacker.board.forEach((m, s) => {
@@ -8794,10 +8854,10 @@ function performSingleAIMainAction() {
         ai.graveyard.push(discarded);
 
         if (discarded.id === 'DM05' && player.hand.length > 0) {
-          const pDiscarded = player.hand.pop();
-          resetCardStateForZoneChange(pDiscarded);
-          player.graveyard.push(pDiscarded);
-          setLog(`🍬 [AI ออโต้ซึรุรุ] ถูกทิ้งโดยโอนามิ -> บังคับทิ้ง "${pDiscarded.name}" บนมือคุณ!`);
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(discarded, 'สกิลซึรุรุทำงาน!', '🍬 ถูกทิ้งจากสกิลโอนามิ -> บังคับคุณเลือกทิ้งการ์ดบนมือ 1 ใบ!', '#a855f7', 1300);
+          }
+          promptOpponentDiscard(player, 1, '🍬 ซึรุรุของฝ่ายตรงข้ามทำงาน: เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก');
         }
 
         const roselia = roseliaInGrave !== -1
