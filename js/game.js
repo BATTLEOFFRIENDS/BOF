@@ -1944,7 +1944,7 @@ const EffectEngine = {
             ? caster.graveyard.filter(c => c && (!excludeUid || String(c.uid) !== String(excludeUid))).length
             : 0;
           if (currentGraveCount < minGrave) {
-            return { ok: false, reason: `ต้องมีการ์ดในนรกอย่างน้อย ${minGrave} ใบก่อน (ไม่รวมการ์ดใบนี้ ปัจจุบันมี ${currentGraveCount} ใบ)!` };
+            return { ok: false, reason: `ต้องมีการ์ดในนรกอย่างน้อย ${minGrave} ใบก่อน (ปัจจุบันมี ${currentGraveCount} ใบ)!` };
           }
         }
       }
@@ -2019,14 +2019,23 @@ const EffectEngine = {
         }
       }
 
-      // หากเป็นการร่ายการ์ดเวทมนตร์จากมือ ให้นำการ์ดเวทออกจากมือลงนรกเมื่อจ่าย Cost เสร็จ
+      let pendingGraveSpell = null;
+      // หากเป็นการร่ายการ์ดเวทมนตร์จากมือ นำการ์ดเวทออกจากมือ แต่ยังไม่ส่งลงนรกจนกว่าเอฟเฟกต์จะร่ายเสร็จสิ้นทั้งหมด
       if (effectDef.trigger === 'CAST_SPELL' && spellHandIndex !== undefined && spellHandIndex !== null) {
-        const currentSpellIdx = caster.hand.findIndex(c => c.uid === sourceCard.uid);
+        let currentSpellIdx = -1;
+        if (sourceCard && sourceCard.uid) {
+          currentSpellIdx = caster.hand.findIndex(c => c && c.uid === sourceCard.uid);
+        }
+        if (currentSpellIdx === -1 && sourceCard) {
+          currentSpellIdx = caster.hand.indexOf(sourceCard);
+        }
+        if (currentSpellIdx === -1 && typeof spellHandIndex === 'number' && spellHandIndex >= 0 && spellHandIndex < caster.hand.length) {
+          currentSpellIdx = spellHandIndex;
+        }
         if (currentSpellIdx !== -1) {
-          const usedSpell = caster.hand.splice(currentSpellIdx, 1)[0];
+          pendingGraveSpell = caster.hand.splice(currentSpellIdx, 1)[0];
           caster.spellQuota.normalUsed += 1;
-          resetCardStateForZoneChange(usedSpell);
-          caster.graveyard.push(usedSpell);
+          resetCardStateForZoneChange(pendingGraveSpell);
         }
       }
 
@@ -2042,6 +2051,9 @@ const EffectEngine = {
 
       fxSkillActivated(sourceCard, caster);
       this.runStepQueue(stepQueue, context, () => {
+        if (pendingGraveSpell) {
+          caster.graveyard.push(pendingGraveSpell);
+        }
         renderGame();
         if (onComplete) onComplete();
       });
@@ -2186,7 +2198,7 @@ const EffectEngine = {
           ? caster.graveyard.filter(c => c && (!excludeUid || String(c.uid) !== String(excludeUid)))
           : [];
         if (availableGrave.length < minGrave) {
-          setLog(`⚠️ ${cardTitle} การ์ดในนรกไม่รวมใบนี้ไม่ถึง ${minGrave} ใบ (มีเพียง ${availableGrave.length} ใบ) จึงไม่เกิดผล!`);
+          setLog(`⚠️ ${cardTitle} การ์ดในนรกไม่ถึง ${minGrave} ใบ (มีเพียง ${availableGrave.length} ใบ) จึงไม่เกิดผล!`);
           next();
           return;
         }
