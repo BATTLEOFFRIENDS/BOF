@@ -1597,6 +1597,25 @@ function checkTokoyaStandByEffect(unit, owner) {
   }
 }
 
+// เคลียร์การ์ดใน castingZone ลงนรก (ใช้เมื่อสกิลเสร็จสิ้น, ถูกยกเลิก, ถูกเคาน์เตอร์ หรือเกิดข้อผิดพลาด)
+function flushCastingZone(contestant) {
+  if (!contestant || !Array.isArray(contestant.castingZone) || contestant.castingZone.length === 0) return;
+  while (contestant.castingZone.length > 0) {
+    const spell = contestant.castingZone.shift();
+    if (spell) {
+      resetCardStateForZoneChange(spell);
+      contestant.graveyard.push(spell);
+    }
+  }
+}
+
+function flushAllCastingZones() {
+  if (typeof gameState !== 'undefined') {
+    if (gameState.player) flushCastingZone(gameState.player);
+    if (gameState.ai) flushCastingZone(gameState.ai);
+  }
+}
+
 // 🔮 จิตไนท์อาย รู้อนาคต (BT01_03): เลือกการ์ดในนรกอย่างน้อย 5 ใบกลับเข้ากอง แล้วสับกอง (ไม่รวมใบที่ร่ายในครั้งนั้น)
 function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = null, excludeCard = null) {
   if (!contestant.castingZone) contestant.castingZone = [];
@@ -2077,13 +2096,7 @@ const EffectEngine = {
       fxSkillActivated(sourceCard, caster);
       this.runStepQueue(stepQueue, context, () => {
         // เมื่อการร่ายเวทมนตร์เสร็จสิ้นทั้งหมด นำการ์ดทั้งหมดใน castingZone ย้ายลงนรก (Graveyard)
-        if (Array.isArray(caster.castingZone) && caster.castingZone.length > 0) {
-          while (caster.castingZone.length > 0) {
-            const finishedSpell = caster.castingZone.shift();
-            resetCardStateForZoneChange(finishedSpell);
-            caster.graveyard.push(finishedSpell);
-          }
-        }
+        flushCastingZone(caster);
         renderGame();
         if (onComplete) onComplete();
       });
@@ -2202,16 +2215,32 @@ const EffectEngine = {
     this.runCostQueue(costQueue, context, onCostsPaid);
   },
 
+  // ยกเลิกหรือขัดขวางเอฟเฟกต์กลางคัน (เช่น โดนเคาน์เตอร์, ลบล้างผล หรือยกเลิก) เคลียร์ castingZone ลงนรกทันที
+  abortEffect(context) {
+    if (context && context.caster) {
+      flushCastingZone(context.caster);
+    }
+    renderGame();
+  },
+
   // 5. ประมวลผลคิวบล็อกความสามารถทีละลำดับ (Sequential Step Pipeline)
   runStepQueue(stepQueue, context, onAllStepsComplete) {
     if (!stepQueue || stepQueue.length === 0) {
-      onAllStepsComplete();
+      if (typeof onAllStepsComplete === 'function') onAllStepsComplete();
       return;
     }
     const step = stepQueue.shift();
-    this.executeSingleStep(step, context, () => {
+    try {
+      this.executeSingleStep(step, context, () => {
+        this.runStepQueue(stepQueue, context, onAllStepsComplete);
+      });
+    } catch (err) {
+      console.error('[EffectEngine] Error executing step:', err);
+      if (context && context.caster) {
+        flushCastingZone(context.caster);
+      }
       this.runStepQueue(stepQueue, context, onAllStepsComplete);
-    });
+    }
   },
 
   executeSingleStep(step, context, next) {
@@ -5721,6 +5750,9 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
 }
 
 function executeEndPhaseCleanup(activeContestant) {
+  // เคลียร์การ์ดใน castingZone ที่อาจตกค้างให้ลงนรกเสมอ
+  flushCastingZone(activeContestant);
+
   // แลนด์สเปล "สัญญาปีศาจ" (DMS01) ในมิติมืด: เมื่อจบเทิร์น เลือกการ์ดจากดรอป 1 ใบขึ้นมือ
   if (
     Array.isArray(activeContestant.darkDimension) &&
@@ -8597,6 +8629,7 @@ function aiTurnAborted() {
 
 function startAITurn() {
   if (gameState.gameOver) return;
+  flushAllCastingZones();
   if (isInteractionBlocked()) {
     setTimeout(startAITurn, 400);
     return;
@@ -9892,6 +9925,7 @@ function isChoiceModalOpen() {
 
 function startPlayerTurn() {
   if (gameState.gameOver) return;
+  flushAllCastingZones();
   gameState.isAttacking = false;
   if (gameState._attackingTimeout) {
     clearTimeout(gameState._attackingTimeout);
