@@ -825,8 +825,21 @@
         </div>
       </div>
 
+      <!-- แท็บสลับมุมมองบนมือถือ (Mobile Segmented Tabs: คลังการ์ด / ตัวเด็ค) -->
+      <div class="deck-mobile-nav-tabs" id="deck-mobile-nav-tabs">
+        <button type="button" class="deck-mobile-tab-btn active" data-tab="collection" id="btn-mobile-tab-collection">
+          <span class="dmt-icon">🗃️</span>
+          <span>คลังการ์ด</span>
+        </button>
+        <button type="button" class="deck-mobile-tab-btn" data-tab="deck" id="btn-mobile-tab-deck">
+          <span class="dmt-icon">📋</span>
+          <span>การ์ดในเด็ค</span>
+          <span class="dmt-badge" id="dmt-deck-count-badge">20/20</span>
+        </button>
+      </div>
+
       <!-- โครงสร้าง 2 ฝั่ง (2-Column Layout): ซ้าย = ตัวเด็ค (Deck), ขวา = คลังการ์ด (Card Collection) -->
-      <div class="deck-builder-split-layout">
+      <div class="deck-builder-split-layout" data-mobile-tab="collection">
         <!-- ฝั่งซ้าย: ตัวเด็ค (Current Deck Side) -->
         <div class="deck-builder-left-col">
           <!-- กล่อง Leader -->
@@ -859,11 +872,24 @@
               💡 คลิกที่การ์ดเพื่อนำออกจากเด็ค 1 ใบ
             </div>
             <div id="deck-current-tray-list" class="deck-current-list-items"></div>
+            <button type="button" class="btn deck-mobile-go-collection-btn" id="btn-mobile-go-collection">
+              ➕ เลือกการ์ดเพิ่มจากคลัง
+            </button>
           </div>
         </div>
 
         <!-- ฝั่งขวา: คลังการ์ด (Card Pool / Collection Side) -->
         <div class="deck-builder-right-col">
+          <!-- แถบลีดเดอร์แบบกะทัดรัดบนมือถือ (Mobile Leader Bar) -->
+          <div class="mobile-current-leader-bar" id="mobile-current-leader-bar">
+            <div class="mclb-info">
+              <span class="mclb-label">👑 ลีดเดอร์:</span>
+              <img src="" alt="" class="mclb-thumb" id="mclb-thumb">
+              <span class="mclb-name" id="mclb-name"></span>
+            </div>
+            <button type="button" class="btn mclb-change-btn" id="btn-mclb-change">เปลี่ยนลีดเดอร์ ▾</button>
+          </div>
+
           <!-- แผงหมวดหมู่และตัวกรองการ์ด -->
           <div class="deck-filter-panel" id="deck-filter-panel">
             <!-- แถวที่ 1: หมวดหมู่ตามสังกัด / เด็ค (Deck Themes) -->
@@ -936,6 +962,18 @@
           <div class="card-pool-scroll-area">
             <div class="card-pool-grid" id="main-pool-list"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- แถบลอยล่างจอสำหรับมือถือ (Mobile Sticky Bottom Bar) -->
+      <div class="deck-mobile-bottom-bar" id="deck-mobile-bottom-bar">
+        <div class="dmbb-left">
+          <span class="dmbb-count" id="dmbb-count">🃏 20/20 ใบ</span>
+          <span class="dmbb-hint" id="dmbb-hint">พร้อมบันทึก</span>
+        </div>
+        <div class="dmbb-right">
+          <button type="button" class="btn dmbb-btn-view" id="dmbb-btn-view-deck">📋 ดูเด็ค</button>
+          <button type="button" class="btn dmbb-btn-save" id="dmbb-btn-save-deck">✅ บันทึก</button>
         </div>
       </div>
     </div>

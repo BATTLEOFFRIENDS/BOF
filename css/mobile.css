@@ -241,59 +241,518 @@ html.is-mobile #custom-choice-modal:not(.um-end) #choice-modal-buttons:has(> .bt
 html.is-mobile #custom-choice-modal:not(.um-end) #choice-modal-buttons:has(> .btn:nth-child(2):last-child) > .btn:last-child { flex: 1 1 0; }
 
 /* =============================================================================
-   5. หน้าจัดเด็ค: หัวติดจอ (นับใบ + บันทึก) · การ์ด 4 คอลัมน์
+   5. หน้าจัดเด็ค: เลย์เอาต์มือถือแบบแท็บสลับมุมมอง (Segmented Tabs) · หัวกะทัดรัด · แถบสรุปด่วนลอยล่าง
    ============================================================================= */
-html.is-mobile #deck-builder-modal .deck-builder-box { padding: 0 10px 12px !important; max-height: 92dvh; }
-html.is-mobile #deck-builder-modal .deck-builder-header {
-  position: sticky; top: 0; z-index: 30;
-  margin: 0 -10px 10px; padding: 10px 10px 8px;
-  background: rgba(22, 24, 36, .97); box-shadow: 0 6px 14px rgba(0, 0, 0, .45);
-  gap: 6px; text-align: left;
+html.is-mobile #deck-builder-modal .deck-builder-box {
+  padding: 0 10px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+  max-height: 94dvh;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  border-radius: 16px 16px 0 0 !important;
+  margin-top: auto !important;
+  overflow-y: auto !important;
 }
-html.is-mobile #deck-builder-modal .deck-builder-header h2 { font-size: 16px; line-height: 1.25; margin: 0; }
-html.is-mobile #deck-builder-modal .deck-builder-header p { display: none; }
-/* แถว 1: สถานะนับใบ (2 ช่อง) + บันทึก · แถว 2: ล้าง / อัตโนมัติ / ปิด */
-html.is-mobile #deck-builder-modal .deck-builder-header > div:last-child { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px !important; }
-html.is-mobile #deck-builder-modal #deck-status-text { grid-column: span 2; order: -2; margin: 0 !important; padding: 0 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1.2; text-align: center; }
-html.is-mobile #deck-builder-modal #btn-save-start { order: -1; }
-html.is-mobile #deck-builder-modal .deck-builder-header .btn { min-height: 40px; margin: 0 !important; padding: 0 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-html.is-mobile #deck-builder-modal .dbt-hint { display: none; }
-html.is-mobile #deck-builder-modal .deck-section-title { font-size: var(--m-fs-sm); line-height: 1.35; margin: 14px 0 8px; }
-html.is-mobile #deck-builder-modal #deck-status-text { font-size: var(--m-fs-md) !important; font-weight: 800; }
 
-/* แถบสล็อต/ชื่อ/โค้ด: เหลือ 2 แถว · แถว 1 ชื่อเด็ค + เปลี่ยนสล็อต · แถว 2 โค้ด + ปุ่มไอคอน (ตัวเลือกสล็อตซ้ำกับปุ่มเปลี่ยนสล็อต จึงซ่อน) */
-html.is-mobile #bof-deck-slots-toolbar { padding: 10px !important; margin-bottom: 4px; }
-html.is-mobile #bof-deck-slots-toolbar .deck-code-actions-row { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; gap: 8px !important; padding: 0 !important; border: 0 !important; background: none !important; }
+html.is-mobile #deck-builder-modal .deck-builder-header {
+  position: sticky; top: 0; z-index: 35;
+  margin: 0 -10px 8px; padding: 10px 12px 8px;
+  background: rgba(17, 20, 32, 0.98);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px; text-align: left;
+}
+
+html.is-mobile #deck-builder-modal .deck-builder-header > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+html.is-mobile #deck-builder-modal .deck-builder-header h2 {
+  font-size: 16px;
+  line-height: 1.25;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+html.is-mobile #deck-builder-modal .deck-builder-header p { display: none; }
+html.is-mobile #deck-builder-modal .dbt-hint { display: none; }
+
+/* แถวปุ่มใน Header: สถานะ 20/20 + จัดอัตโนมัติ + บันทึก + ปิด */
+html.is-mobile #deck-builder-modal .deck-builder-header > div:last-child {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto !important;
+  gap: 6px !important;
+  width: 100%;
+}
+
+html.is-mobile #deck-builder-modal #deck-status-text {
+  font-size: 13px !important;
+  font-weight: 800;
+  margin: 0 !important;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+html.is-mobile #deck-builder-modal #btn-reset-deck { display: none; } /* ซ่อนปุ่มล้างในหัวเพื่อประหยัดที่ */
+html.is-mobile #deck-builder-modal #btn-default-deck {
+  min-height: 38px;
+  font-size: 11.5px !important;
+  padding: 0 6px !important;
+  white-space: nowrap;
+  border-radius: 8px;
+}
+
+html.is-mobile #deck-builder-modal #btn-save-start {
+  min-height: 38px;
+  font-size: 12px !important;
+  font-weight: 700;
+  padding: 0 10px !important;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+html.is-mobile #deck-builder-modal #btn-close-deck-builder {
+  min-height: 38px;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+  border-radius: 8px;
+}
+
+/* แถบสลับมุมมองบนมือถือ (Mobile Segmented Nav Tabs) */
+html.is-mobile .deck-mobile-nav-tabs {
+  display: flex !important;
+  background: #090c14;
+  border: 1.5px solid #1e293b;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+
+html.is-mobile .deck-mobile-tab-btn {
+  flex: 1;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all 0.15s ease;
+  font-family: 'Kanit', sans-serif;
+}
+
+html.is-mobile .deck-mobile-tab-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.45);
+}
+
+html.is-mobile .dmt-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #cbd5e1;
+}
+
+html.is-mobile .dmt-badge.is-complete {
+  background: #10b981;
+  color: #ffffff;
+}
+
+html.is-mobile .dmt-badge.is-incomplete {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* แถบสล็อต/ชื่อ/โค้ดบนมือถือ */
+html.is-mobile #bof-deck-slots-toolbar { padding: 8px 10px !important; margin-bottom: 6px; border-radius: 10px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-actions-row { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; gap: 6px !important; padding: 0 !important; border: 0 !important; background: none !important; }
 html.is-mobile #bof-deck-slots-toolbar .deck-slot-choice-group { display: contents !important; }
 html.is-mobile #bof-deck-slots-toolbar .deck-slot-choice-group label,
 html.is-mobile #bof-deck-slots-toolbar #select-builder-deck-slot,
 html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group label { display: none !important; }
-html.is-mobile #bof-deck-slots-toolbar #btn-reopen-slot-picker { grid-column: 2; grid-row: 1; height: 44px; margin: 0 !important; padding: 0 12px; font-size: var(--m-fs-sm); white-space: nowrap; }
+html.is-mobile #bof-deck-slots-toolbar #btn-reopen-slot-picker { grid-column: 2; grid-row: 1; height: 40px; margin: 0 !important; padding: 0 10px; font-size: 12px; white-space: nowrap; border-radius: 8px; }
 html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group { grid-column: 1; grid-row: 1; margin: 0 !important; padding: 0 !important; min-width: 0; }
-html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group input { width: 100%; height: 44px; padding: 0 12px; border-radius: 12px; }
-html.is-mobile #bof-deck-slots-toolbar .deck-code-share-group { grid-column: 1 / -1; display: grid !important; grid-template-columns: minmax(0, 1fr) 44px 44px; gap: 8px; margin: 0 !important; }
-html.is-mobile #bof-deck-slots-toolbar .deck-code-share-group input { width: 100%; min-width: 0; height: 44px; font-size: 13px !important; border-radius: 12px; }
-html.is-mobile #bof-deck-slots-toolbar .deck-code-btn { width: 44px; height: 44px; padding: 0 !important; margin: 0 !important; font-size: 0 !important; border-radius: 12px; }
-html.is-mobile #bof-deck-slots-toolbar .deck-code-btn.is-copy::before { content: '📋'; font-size: 18px; }
-html.is-mobile #bof-deck-slots-toolbar .deck-code-btn.is-import::before { content: '📥'; font-size: 18px; }
-html.is-mobile #deck-builder-modal .card-pool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px 6px; padding: 8px; }
-html.is-mobile #deck-builder-modal .pool-item { min-width: 0; }
-html.is-mobile #deck-builder-modal .card-pool-grid .card { width: 100% !important; height: auto !important; aspect-ratio: 750 / 1050; }
-html.is-mobile #deck-builder-modal .card-pool-grid .card .card-name { font-size: 9px !important; }
-html.is-mobile #deck-builder-modal .count-badge { width: 100%; font-size: 12px; font-weight: 800; line-height: 1.2; padding: 4px 2px; text-align: center; border-radius: 999px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group input { width: 100%; height: 40px; padding: 0 10px; border-radius: 8px; font-size: 13.5px !important; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-share-group { grid-column: 1 / -1; display: grid !important; grid-template-columns: minmax(0, 1fr) 40px 40px; gap: 6px; margin: 0 !important; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-share-group input { width: 100%; min-width: 0; height: 40px; font-size: 12.5px !important; border-radius: 8px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-btn { width: 40px; height: 40px; padding: 0 !important; margin: 0 !important; font-size: 0 !important; border-radius: 8px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-btn.is-copy::before { content: '📋'; font-size: 16px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-btn.is-import::before { content: '📥'; font-size: 16px; }
 
-html.is-mobile #deck-builder-modal .deck-builder-split-layout { display: flex !important; flex-direction: column !important; gap: 12px; }
-html.is-mobile #deck-builder-modal .deck-builder-left-col { width: 100%; }
-html.is-mobile #deck-builder-modal .deck-builder-right-col { width: 100%; }
-html.is-mobile #deck-builder-modal .card-pool-scroll-area { max-height: none; overflow: visible; }
-html.is-mobile #deck-builder-modal .deck-current-list-items { max-height: 240px; }
-html.is-mobile #deck-builder-modal .deck-filter-panel { padding: 8px; margin-bottom: 10px; }
-html.is-mobile #deck-builder-modal .deck-filter-themes-row { gap: 5px; -webkit-overflow-scrolling: touch; }
-html.is-mobile #deck-builder-modal .deck-theme-btn { padding: 4px 10px; font-size: 11px; }
-html.is-mobile #deck-builder-modal .deck-filter-sub-row { flex-direction: column; align-items: stretch; gap: 8px; }
-html.is-mobile #deck-builder-modal .deck-filter-sub-row .filter-pill-group { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-html.is-mobile #deck-builder-modal .deck-search-wrap { min-width: 100%; }
-html.is-mobile #deck-builder-modal .deck-search-input { height: 38px; font-size: 12.5px; }
+/* โครงสร้างแยกมุมมองตามแท็บบนมือถือ */
+html.is-mobile #deck-builder-modal .deck-builder-split-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0;
+}
+
+/* เมื่อเลือกแท็บ "คลังการ์ด": ซ่อนฝั่งตัวเด็ค แสดงฝั่งคลังการ์ด */
+html.is-mobile #deck-builder-modal .deck-builder-split-layout[data-mobile-tab="collection"] .deck-builder-left-col {
+  display: none !important;
+}
+
+html.is-mobile #deck-builder-modal .deck-builder-split-layout[data-mobile-tab="collection"] .deck-builder-right-col {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+}
+
+/* เมื่อเลือกแท็บ "การ์ดในเด็ค": แสดงฝั่งตัวเด็ค ซ่อนฝั่งคลังการ์ด */
+html.is-mobile #deck-builder-modal .deck-builder-split-layout[data-mobile-tab="deck"] .deck-builder-left-col {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+}
+
+html.is-mobile #deck-builder-modal .deck-builder-split-layout[data-mobile-tab="deck"] .deck-builder-right-col {
+  display: none !important;
+}
+
+/* แถบลีดเดอร์แบบกะทัดรัด (แสดงเฉพาะในแท็บคลังการ์ดบนมือถือ) */
+html.is-mobile .mobile-current-leader-bar {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(37,99,235,0.18) 0%, rgba(15,23,42,0.92) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.4);
+  border-radius: 10px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+html.is-mobile .mclb-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+html.is-mobile .mclb-label {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+html.is-mobile .mclb-thumb {
+  width: 28px;
+  height: 38px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.25);
+  flex-shrink: 0;
+}
+
+html.is-mobile .mclb-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.is-mobile .mclb-change-btn {
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* ฝั่งซ้าย (ตัวเด็ค) บนมือถือ */
+html.is-mobile #deck-builder-modal .deck-left-panel {
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+}
+
+html.is-mobile #deck-builder-modal .active-leader-preview-box {
+  padding: 8px 10px;
+  gap: 10px;
+}
+
+html.is-mobile #deck-builder-modal .alp-thumb {
+  width: 48px;
+  height: 66px;
+}
+
+html.is-mobile #deck-builder-modal .alp-name {
+  font-size: 14px;
+}
+
+html.is-mobile #deck-builder-modal .leader-picker-dropdown {
+  max-height: 240px;
+  padding: 6px;
+}
+
+html.is-mobile #deck-builder-modal .leader-picker-dropdown .card-pool-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+}
+
+html.is-mobile #deck-builder-modal .deck-current-list-items {
+  max-height: calc(100dvh - 330px);
+  min-height: 160px;
+  gap: 4px;
+}
+
+html.is-mobile #deck-builder-modal .deck-list-row-item {
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+
+html.is-mobile #deck-builder-modal .dlr-thumb {
+  width: 32px;
+  height: 44px;
+}
+
+html.is-mobile #deck-builder-modal .dlr-name {
+  font-size: 12px;
+}
+
+html.is-mobile #deck-builder-modal .dlr-count-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+html.is-mobile #deck-builder-modal .dlr-remove-icon {
+  font-size: 15px;
+  padding: 4px;
+}
+
+html.is-mobile .deck-mobile-go-collection-btn {
+  display: block !important;
+  width: 100%;
+  margin-top: 10px;
+  height: 44px;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* ฝั่งขวา (คลังการ์ด) บนมือถือ */
+html.is-mobile #deck-builder-modal .deck-filter-panel {
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+}
+
+html.is-mobile #deck-builder-modal .deck-filter-themes-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  gap: 5px;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+html.is-mobile #deck-builder-modal .deck-filter-themes-row::-webkit-scrollbar {
+  display: none;
+}
+
+html.is-mobile #deck-builder-modal .deck-theme-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  border-radius: 8px;
+}
+
+html.is-mobile #deck-builder-modal .deck-filter-sub-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+html.is-mobile #deck-builder-modal .filter-pill-group {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 4px;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+html.is-mobile #deck-builder-modal .filter-pill-group::-webkit-scrollbar {
+  display: none;
+}
+
+html.is-mobile #deck-builder-modal .deck-sub-pill {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+html.is-mobile #deck-builder-modal .deck-search-wrap {
+  width: 100%;
+}
+
+html.is-mobile #deck-builder-modal .deck-search-input {
+  height: 38px;
+  font-size: 13.5px !important;
+  border-radius: 8px;
+}
+
+html.is-mobile #deck-builder-modal .deck-filter-stats {
+  font-size: 11px;
+  text-align: right;
+  padding: 0 4px;
+}
+
+/* กริดแสดงการ์ดในคลังบนมือถือ */
+html.is-mobile #deck-builder-modal .card-pool-scroll-area {
+  max-height: none;
+  overflow: visible;
+  padding-bottom: 50px; /* เว้นที่ให้แถบลอยด้านล่าง */
+}
+
+html.is-mobile #deck-builder-modal .card-pool-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)) !important;
+  gap: 8px 5px !important;
+  padding: 4px 0 !important;
+}
+
+html.is-mobile #deck-builder-modal .pool-item {
+  min-width: 0;
+  gap: 3px;
+}
+
+html.is-mobile #deck-builder-modal .card-pool-grid .card {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 750 / 1050;
+  border-radius: 6px;
+}
+
+html.is-mobile #deck-builder-modal .card-pool-grid .card .card-name {
+  font-size: 8px !important;
+  padding: 1px 2px;
+}
+
+html.is-mobile #deck-builder-modal .count-badge {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  padding: 3px 0;
+  text-align: center;
+  border-radius: 999px;
+}
+
+html.is-mobile #deck-builder-modal .restricted-badge {
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 4px;
+  max-width: 100%;
+  text-align: center;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* แถบลอยล่างจอสำหรับมือถือ (Mobile Floating Bottom Bar) */
+html.is-mobile .deck-mobile-bottom-bar {
+  display: flex !important;
+  position: sticky;
+  bottom: -12px;
+  z-index: 50;
+  margin: 8px -10px -12px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(11, 13, 24, 0.96);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.55);
+}
+
+html.is-mobile .dmbb-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+html.is-mobile .dmbb-count {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #4ade80;
+}
+
+html.is-mobile .dmbb-hint {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+html.is-mobile .dmbb-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+html.is-mobile .dmbb-btn-view {
+  min-height: 38px;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-radius: 8px;
+  border: 1px solid #475569;
+}
+
+html.is-mobile .dmbb-btn-save {
+  min-height: 38px;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 700;
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border-radius: 8px;
+}
+
+html.is-mobile .dmbb-btn-save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #475569 !important;
+}
 
 /* =============================================================================
    6. ร้านค้า: เต็มจอแบบแอป · หัวกะทัดรัด · แท็บติดบนเมื่อเลื่อน

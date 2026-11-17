@@ -12444,6 +12444,7 @@ function openDeckBuilderEditorForSlot(slotIdx) {
   const pickerModal = document.getElementById('deck-slot-picker-modal');
   if (pickerModal) pickerModal.style.display = 'none';
   document.getElementById('deck-builder-modal').style.display = 'flex';
+  if (typeof switchDeckBuilderMobileTab === 'function') switchDeckBuilderMobileTab('collection');
   window.renderDeckBuilder();
 }
 
@@ -12617,9 +12618,59 @@ function cardMatchesDeckTheme(card, themeKey, currentLeaderId) {
   return true;
 }
 
+let deckBuilderMobileTab = 'collection';
+
+function switchDeckBuilderMobileTab(tab) {
+  deckBuilderMobileTab = tab;
+  const splitLayout = document.querySelector('.deck-builder-split-layout');
+  const btnCol = document.getElementById('btn-mobile-tab-collection');
+  const btnDeck = document.getElementById('btn-mobile-tab-deck');
+  const bottomBar = document.getElementById('deck-mobile-bottom-bar');
+
+  if (splitLayout) {
+    splitLayout.setAttribute('data-mobile-tab', tab);
+  }
+  if (btnCol) btnCol.classList.toggle('active', tab === 'collection');
+  if (btnDeck) btnDeck.classList.toggle('active', tab === 'deck');
+
+  if (bottomBar) {
+    if (window.isMobileUI && window.isMobileUI()) {
+      bottomBar.style.display = (tab === 'collection') ? 'flex' : 'none';
+    } else {
+      bottomBar.style.display = 'none';
+    }
+  }
+}
+
 function ensureDeckBuilderFilterControls() {
   if (isDeckBuilderControlsBound) return;
   isDeckBuilderControlsBound = true;
+
+  // Mobile nav tabs
+  const tabColBtn = document.getElementById('btn-mobile-tab-collection');
+  const tabDeckBtn = document.getElementById('btn-mobile-tab-deck');
+  const goColBtn = document.getElementById('btn-mobile-go-collection');
+  const bottomViewBtn = document.getElementById('dmbb-btn-view-deck');
+  const bottomSaveBtn = document.getElementById('dmbb-btn-save-deck');
+  const mobileLeaderBar = document.getElementById('mobile-current-leader-bar');
+
+  if (tabColBtn) tabColBtn.onclick = () => switchDeckBuilderMobileTab('collection');
+  if (tabDeckBtn) tabDeckBtn.onclick = () => switchDeckBuilderMobileTab('deck');
+  if (goColBtn) goColBtn.onclick = () => switchDeckBuilderMobileTab('collection');
+  if (bottomViewBtn) bottomViewBtn.onclick = () => switchDeckBuilderMobileTab('deck');
+  if (bottomSaveBtn) {
+    bottomSaveBtn.onclick = () => {
+      const mainSaveBtn = document.getElementById('btn-save-start');
+      if (mainSaveBtn) mainSaveBtn.click();
+    };
+  }
+  if (mobileLeaderBar) {
+    mobileLeaderBar.onclick = () => {
+      switchDeckBuilderMobileTab('deck');
+      const dropdown = document.getElementById('leader-picker-dropdown');
+      if (dropdown) dropdown.style.display = 'block';
+    };
+  }
 
   // Theme buttons
   const themeContainer = document.getElementById('deck-filter-themes-row');
@@ -12743,11 +12794,47 @@ function renderDeckCurrentTray() {
     activeLeaderBox.title = 'คลิกเพื่อเลือก Leader อื่น';
   }
 
+  // อัปเดตแถบลีดเดอร์บนมือถือ (Mobile Leader Bar)
+  const mclbThumb = document.getElementById('mclb-thumb');
+  const mclbName = document.getElementById('mclb-name');
+  if (mclbThumb && currentLeader) mclbThumb.src = currentLeader.image;
+  if (mclbName && currentLeader) mclbName.textContent = currentLeader.name;
+
   // 2. Render Deck Cards List (Left Column)
   const trayList = document.getElementById('deck-current-tray-list');
   const countSummary = document.getElementById('deck-tray-count-summary');
   const typeBreakdown = document.getElementById('deck-tray-type-breakdown');
   const badgeInDeck = document.getElementById('badge-in-deck-count');
+  if (!trayList) return;
+
+  trayList.innerHTML = '';
+  const mainDeck = currentDeckConfig.mainDeck || [];
+  const count = mainDeck.length;
+
+  if (countSummary) {
+    countSummary.textContent = `${count}/20 ใบ`;
+    countSummary.className = `deck-tray-count-badge ${count === 20 ? '' : 'is-incomplete'}`;
+  }
+
+  // อัปเดตตัวนับบนแท็บมือถือและแถบลอยล่างจอ
+  const mobileTabBadge = document.getElementById('dmt-deck-count-badge');
+  if (mobileTabBadge) {
+    mobileTabBadge.textContent = `${count}/20`;
+    mobileTabBadge.className = `dmt-badge ${count === 20 ? 'is-complete' : 'is-incomplete'}`;
+  }
+  const mobileBottomCount = document.getElementById('dmbb-count');
+  const mobileBottomHint = document.getElementById('dmbb-hint');
+  const mobileBottomSave = document.getElementById('dmbb-btn-save-deck');
+  if (mobileBottomCount) {
+    mobileBottomCount.textContent = `🃏 ${count}/20 ใบ`;
+    mobileBottomCount.style.color = (count === 20) ? '#4ade80' : '#f87171';
+  }
+  if (mobileBottomHint) {
+    mobileBottomHint.textContent = (count === 20) ? 'เด็คครบพร้อมดวล' : `(ต้องการอีก ${20 - count} ใบ)`;
+  }
+  if (mobileBottomSave) {
+    mobileBottomSave.disabled = (count !== 20);
+  }
   if (!trayList) return;
 
   trayList.innerHTML = '';
@@ -12845,6 +12932,7 @@ function renderDeckBuilder() {
   ensureDeckSlotsToolbar();
   ensureDeckBuilderFilterControls();
   syncFilterControlsUI();
+  switchDeckBuilderMobileTab(deckBuilderMobileTab);
 
   const leaderContainer = document.getElementById('leader-pool-list');
   const mainContainer = document.getElementById('main-pool-list');
