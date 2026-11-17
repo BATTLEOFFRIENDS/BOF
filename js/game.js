@@ -1288,6 +1288,8 @@ function showChoiceModal(title, description, options, extra = null) {
     btn.disabled = !!opt.disabled;
     if (opt.cardId) btn.dataset.cardId = opt.cardId;
     else if (opt.card && opt.card.id) btn.dataset.cardId = opt.card.id;
+    if (opt.card) btn._card = opt.card;
+    btn._opt = opt;
     btn.onclick = () => {
       modal.classList.remove('is-peeking-field');
       const b = document.getElementById('bof-peek-floating-bar');
@@ -6363,7 +6365,7 @@ function triggerRoyalPaladinLeaderStartTurn(contestant, onComplete) {
     if (onComplete) onComplete();
     return;
   }
-  const rpCardsInDeck = (contestant.deck || []).filter(c => c && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP'))));
+  const rpCardsInDeck = (contestant.deck || []).filter(c => c && c.type === 'Monster' && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP'))));
   if (rpCardsInDeck.length === 0) {
     if (onComplete) onComplete();
     return;
@@ -6373,8 +6375,8 @@ function triggerRoyalPaladinLeaderStartTurn(contestant, onComplete) {
     // AI: เลือกยูนิทที่มีพลังสูงสุด หรือการ์ดใบแรก
     let bestIdx = -1, maxP = -1;
     contestant.deck.forEach((c, idx) => {
-      if (c && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP')))) {
-        const p = c.type === 'Monster' ? (c.power || 0) : 1;
+      if (c && c.type === 'Monster' && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP')))) {
+        const p = c.power || 0;
         if (p > maxP) {
           maxP = p;
           bestIdx = idx;
@@ -6386,7 +6388,7 @@ function triggerRoyalPaladinLeaderStartTurn(contestant, onComplete) {
       resetCardStateForZoneChange(picked);
       contestant.hand.push(picked);
       contestant.deck = shuffleDeck(contestant.deck);
-      showCardShowcaseBanner(picked, 'AI สกิลลีดเดอร์ รอยัล พาลาดิน!', '👑 นำการ์ดรอยัล พาลาดินจากกองขึ้นมือ 1 ใบ', '#2563eb', 1200);
+      showCardShowcaseBanner(picked, 'AI สกิลลีดเดอร์ รอยัล พาลาดิน!', '👑 นำการ์ดยูนิทรอยัล พาลาดินจากกองขึ้นมือ 1 ใบ', '#2563eb', 1200);
       setLog(`👑 [AI รอยัล พาลาดิน] บนสนามมีมอนสเตอร์ไม่ถึง 3 ใบ -> นำ "${picked.name}" 1 ใบจากกองขึ้นมือ! (สับกองเรียบร้อย)`);
     }
     renderGame();
@@ -6394,10 +6396,10 @@ function triggerRoyalPaladinLeaderStartTurn(contestant, onComplete) {
     return;
   }
 
-  // Player: ให้เลือกการ์ดเผ่ารอยัล พาลาดิน 1 ใบจากกองขึ้นมือ
+  // Player: ให้เลือกการ์ดยูนิทเผ่ารอยัล พาลาดิน 1 ใบจากกองขึ้นมือ
   const uniqueCards = new Map();
   contestant.deck.forEach(c => {
-    if (c && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP'))) && !uniqueCards.has(c.id)) {
+    if (c && c.type === 'Monster' && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP'))) && !uniqueCards.has(c.id)) {
       uniqueCards.set(c.id, c);
     }
   });
@@ -6405,6 +6407,8 @@ function triggerRoyalPaladinLeaderStartTurn(contestant, onComplete) {
   const options = Array.from(uniqueCards.values()).map(targetCard => ({
     label: `นำ "${targetCard.name}" (${targetCard.type}${targetCard.power !== undefined ? ' Power ' + targetCard.power : ''}) ขึ้นมือ`,
     color: '#2563eb',
+    card: targetCard,
+    cardId: targetCard.id,
     onSelect: () => {
       const dIdx = contestant.deck.findIndex(c => c && c.id === targetCard.id);
       if (dIdx !== -1) {
@@ -6578,6 +6582,7 @@ function triggerBlasterBladeDestroyUnit(caster, opponent, isAI, onDone) {
     if (m !== null) targetIndices.push(idx);
   });
   if (targetIndices.length === 0) {
+    setLog('⚔️ [บลาสเตอร์ เบลด] ฝ่ายตรงข้ามไม่มีมอนสเตอร์บนสนามให้ทำลาย');
     if (onDone) onDone();
     return;
   }
@@ -6600,6 +6605,8 @@ function triggerBlasterBladeDestroyUnit(caster, opponent, isAI, onDone) {
   const choices = targetIndices.map(s => ({
     label: `💥 ทำลาย "${opponent.board[s].name}" (ช่อง ${s + 1})`,
     color: '#dc2626',
+    card: opponent.board[s],
+    cardId: opponent.board[s].id,
     onSelect: () => {
       const target = opponent.board[s];
       destroyBoardMonster(opponent, s, false, true);
@@ -6608,6 +6615,15 @@ function triggerBlasterBladeDestroyUnit(caster, opponent, isAI, onDone) {
       if (onDone) onDone();
     }
   }));
+
+  choices.push({
+    label: '⏩ ข้าม (ไม่ทำลายยูนิท)',
+    color: '#475569',
+    onSelect: () => {
+      setLog('⚔️ [บลาสเตอร์ เบลด] ข้ามการทำลายยูนิท');
+      if (onDone) onDone();
+    }
+  });
 
   showChoiceModal('⚔️ บลาสเตอร์ เบลด: สกิลเมื่อลงสนาม', 'เลือกยูนิทของฝ่ายตรงข้าม 1 ใบเพื่อทำลาย:', choices);
 }
@@ -7049,8 +7065,7 @@ function executeElenHandSkill(caster, spellCard, handIndex) {
       showChoiceModal(
         '🌿 มิโกะต้นไม้แห่งชีวิต เอเลน: เลือกการ์ดที่จะทิ้ง',
         'หลังจากจั่วการ์ด 2 ใบแล้ว คุณต้องเลือกทิ้งการ์ดบนมือ 1 ใบลงสู่สุสาน:',
-        discardChoices,
-        { previewCards: caster.hand.slice() }
+        discardChoices
       );
     } else {
       renderGame();
@@ -10393,7 +10408,7 @@ function openAISetupModal() {
             </button>
             ${AI_DECK_CATALOG.map(d => `
               <button type="button" class="ai-deck-card ai-deck-btn" data-deck="${d.id}" style="--ai-deck-accent:${d.color};">
-                <img class="ai-deck-thumb" src="${d.img}" alt="${d.name}">
+                <img class="ai-deck-thumb" src="${d.img}" alt="${d.name}" onerror="this.onerror=null;if(this.src.includes('/thumbs/')){this.src=this.src.replace('/thumbs/','/').replace('.webp','.png');}">
                 <div class="ai-deck-meta">
                   <strong>${d.name}</strong>
                   <small>👑 ${d.leader}</small>
@@ -10953,7 +10968,7 @@ function performSingleAIMainAction() {
           setLog(`💥 [AI บาคุจิต] อัญเชิญลงสนามและทำลายมอนสเตอร์ช่องที่ ${bestTarget + 1} ของคุณ!`);
           playSlotAnimation(true, bestTarget, 'fx-target-hit');
         }
-      } else if (summoned.id !== 'NM04' && Array.isArray(summoned.effects) && summoned.effects.some(e => e.trigger === 'ON_SUMMON')) {
+      } else if (summoned.id !== 'NM04' && ((summoned.id && summoned.id.startsWith('RP')) || (Array.isArray(summoned.effects) && summoned.effects.some(e => e.trigger === 'ON_SUMMON')))) {
         EffectEngine.triggerCardEffects(summoned, 'ON_SUMMON', {
           caster: ai,
           opponent: player,

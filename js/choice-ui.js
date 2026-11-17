@@ -145,6 +145,7 @@
   }
 
   function findCardInButtonLabel(label, btn = null) {
+    if (btn && btn._card) return btn._card;
     if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE)) return null;
 
     // หากปุ่มมี data-card-id ระบุตรงๆ ให้ใช้ก่อนเสมอ 100% ถูกต้องแน่นอน
@@ -192,7 +193,7 @@
     const container = modal.querySelector('#choice-modal-buttons');
     if (!container) return;
     const buttons = [...container.querySelectorAll('.btn')];
-    const matched = buttons.map(btn => ({ btn, card: findCardInButtonLabel(btn.textContent || '', btn) }));
+    const matched = buttons.map(btn => ({ btn, card: (btn._card || findCardInButtonLabel(btn.textContent || '', btn)) }));
     const cardEntries = matched.filter(x => x.card);
     if (cardEntries.length === 0) return;
 
@@ -200,6 +201,27 @@
     const grid = document.createElement('div');
     grid.className = 'um-card-pick-grid um-x';
     container.parentNode.insertBefore(grid, container);
+
+    const titleEl = modal.querySelector('#choice-modal-title');
+    const modalTitle = titleEl ? (titleEl.textContent || '') : '';
+    const isDiscard = /ทิ้ง/.test(modalTitle);
+
+    let selectedEntry = null;
+
+    // ปุ่มยืนยัน (Confirm Button) ด้านล่าง
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = `btn um-x ${isDiscard ? 'um-btn-danger' : 'um-btn-primary'}`;
+    confirmBtn.id = 'um-card-confirm-btn';
+    confirmBtn.textContent = isDiscard ? '✅ ยืนยันการทิ้ง' : '✅ ยืนยัน';
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.45';
+    confirmBtn.style.cursor = 'not-allowed';
+    confirmBtn.onclick = () => {
+      if (selectedEntry && !selectedEntry.btn.disabled) {
+        selectedEntry.btn.click();
+      }
+    };
 
     const owner = (typeof gameState !== 'undefined' && gameState) ? gameState.player : null;
     cardEntries.forEach(({ btn, card }, idx) => {
@@ -239,7 +261,23 @@
         item.addEventListener('click', (e) => {
           if (e.target.closest('.holo-info-btn')) return;
           if (typeof hideCardTooltip === 'function') hideCardTooltip();
-          btn.click();
+
+          // สลับเลือกการ์ดนี้
+          grid.querySelectorAll('.um-card-pick-item.is-selected').forEach(el => el.classList.remove('is-selected'));
+          item.classList.add('is-selected');
+          selectedEntry = { btn, card };
+
+          // เปิดการใช้งานปุ่มยืนยัน
+          confirmBtn.disabled = false;
+          confirmBtn.style.opacity = '1';
+          confirmBtn.style.cursor = 'pointer';
+          confirmBtn.textContent = isDiscard ? `✅ ยืนยันการทิ้ง "${card.name}"` : `✅ ยืนยัน "${card.name}"`;
+        });
+
+        item.addEventListener('dblclick', (e) => {
+          if (e.target.closest('.holo-info-btn')) return;
+          if (typeof hideCardTooltip === 'function') hideCardTooltip();
+          if (!btn.disabled) btn.click();
         });
       }
 
@@ -259,6 +297,34 @@
         }));
       }
     });
+
+    // เพิ่มปุ่มยืนยันไว้ที่ปุ่มแรกของกล่องตัวเลือก
+    container.prepend(confirmBtn);
+
+    // ตรวจสอบว่ามีปุ่มยกเลิก/ข้าม อยู่แล้วหรือไม่ ถ้าไม่มีให้สร้างปุ่มยกเลิก
+    const otherEntries = matched.filter(x => !x.card);
+    if (otherEntries.length === 0) {
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'btn um-btn-ghost um-x';
+      cancelBtn.textContent = '❌ ยกเลิก';
+      cancelBtn.onclick = () => {
+        if (selectedEntry) {
+          grid.querySelectorAll('.um-card-pick-item.is-selected').forEach(el => el.classList.remove('is-selected'));
+          selectedEntry = null;
+          confirmBtn.disabled = true;
+          confirmBtn.style.opacity = '0.45';
+          confirmBtn.style.cursor = 'not-allowed';
+          confirmBtn.textContent = isDiscard ? '✅ ยืนยันการทิ้ง' : '✅ ยืนยัน';
+        } else {
+          modal.style.display = 'none';
+          modal.classList.remove('is-peeking-field');
+          const b = document.getElementById('bof-peek-floating-bar');
+          if (b) b.style.display = 'none';
+        }
+      };
+      container.appendChild(cancelBtn);
+    }
 
     if (typeof window.HoloTilt !== 'undefined' && window.HoloTilt && typeof window.HoloTilt.bind === 'function') {
       window.HoloTilt.bind(grid, 10);
@@ -296,7 +362,11 @@
     }
 
     modal.classList.add('um-choice');
-    const card = findCard(title);
+    const container = modal.querySelector('#choice-modal-buttons');
+    const buttons = container ? [...container.querySelectorAll('.btn')] : [];
+    const hasCardButtons = buttons.some(btn => btn._card || findCardInButtonLabel(btn.textContent || '', btn));
+    const isSelectionModal = hasCardButtons || /เลือกการ์ด|เลือกยูนิท|เลือกเป้าหมาย|ทิ้ง/.test(title + ' ' + description);
+    const card = isSelectionModal ? null : findCard(title);
     if (/ยอมแพ้|ทำลาย|ทิ้ง/.test(title)) modal.classList.add('um-tone-danger');
     else if (/⚡|สกิล|ความสามารถ/.test(title)) modal.classList.add('um-tone-arcane');
     h2.textContent = text;
@@ -401,6 +471,7 @@
   function renderPreviewCards(cards) {
     if (!Array.isArray(cards) || cards.length === 0) return;
     const modal = document.getElementById('custom-choice-modal'); if (!modal) return;
+    if (modal.classList.contains('um-has-card-grid')) return;
     const buttons = modal.querySelector('#choice-modal-buttons'); if (!buttons) return;
     // game.js วาดพรีวิวของตัวเองไว้ใน #choice-modal-preview ด้วย: ซ่อนไว้ ไม่งั้นการ์ดขึ้นซ้ำ 2 ชุด
     const gamePreview = modal.querySelector('#choice-modal-preview');
