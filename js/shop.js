@@ -1546,6 +1546,10 @@
           if (k !== 'JIT' && c.id !== 'BT01_01' && c.id !== 'BT01_02' && c.id !== 'BT01_03') return false;
         } else if (craftFilterTribe === 'KAGERO') {
           if (k !== 'KAGERO' && c.id !== 'BT01_04' && c.id !== 'BT01_05' && c.id !== 'BT01_06') return false;
+        } else if (craftFilterTribe === 'DOOM') {
+          if (k !== 'DOOM' && c.id !== 'BT01_07' && c.id !== 'BT01_08' && c.id !== 'BT01_09') return false;
+        } else if (craftFilterTribe === 'MADOKA') {
+          if (k !== 'MADOKA' && c.id !== 'BT01_10' && c.id !== 'BT01_11' && c.id !== 'BT01_12') return false;
         } else if (k !== craftFilterTribe) {
           return false;
         }
@@ -1560,6 +1564,8 @@
         if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
         if (f.key === 'JIT') return deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
         if (f.key === 'KAGERO') return deckOfCard(c).key === 'KAGERO' || c.id === 'BT01_04' || c.id === 'BT01_05' || c.id === 'BT01_06';
+        if (f.key === 'DOOM') return deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
+        if (f.key === 'MADOKA') return deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
         return deckOfCard(c).key === f.key;
       }).length;
     });

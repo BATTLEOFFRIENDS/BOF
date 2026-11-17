@@ -89,6 +89,8 @@
       if (state.deck === 'BT01') return c.id && c.id.startsWith('BT01');
       if (state.deck === 'JIT') return D.deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
       if (state.deck === 'KAGERO') return D.deckOfCard(c).key === 'KAGERO' || c.id === 'BT01_04' || c.id === 'BT01_05' || c.id === 'BT01_06';
+      if (state.deck === 'DOOM') return D.deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
+      if (state.deck === 'MADOKA') return D.deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
       return D.deckOfCard(c).key === state.deck;
     });
     const have = inDeck.filter(c => Number(own[c.id] || 0) > 0).length;
@@ -103,6 +105,8 @@
         if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
         if (f.key === 'JIT') return D.deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
         if (f.key === 'KAGERO') return D.deckOfCard(c).key === 'KAGERO' || c.id === 'BT01_04' || c.id === 'BT01_05' || c.id === 'BT01_06';
+        if (f.key === 'DOOM') return D.deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
+        if (f.key === 'MADOKA') return D.deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
         return D.deckOfCard(c).key === f.key;
       }).length;
     });

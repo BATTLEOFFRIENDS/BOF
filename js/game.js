@@ -234,8 +234,20 @@ function getEffectivePower(card, ownerContestant) {
       }
     }
 
+    // 0.4 ผู้บัญชาการ เอล่า (BT01_08): ถ้าอีกฝ่ายมีเอล่าบนสนาม ความสามารถของการ์ดบนสนามเราจะไม่ทำงาน
+    const oppContestant = (owner === gameState.player) ? gameState.ai : gameState.player;
+    const isSilencedByEla = oppContestant && Array.isArray(oppContestant.board) && oppContestant.board.some(m => m && m.id === 'BT01_08');
+
+    // 0.5 เพื่อนร่วมเดินทาง มิวเท็น (BT01_09): มีโอนามิบนสนามเรา -> ยูนิทเราทุกใบพลัง +1
+    if (!isSilencedByEla && owner.board.some(m => m && m.id === 'BT01_09')) {
+      const hasOnami = owner.board.some(m => m && (m.id === 'DM01' || (m.name && m.name.includes('โอนามิ'))));
+      if (hasOnami) {
+        total += 1;
+      }
+    }
+
     // 0.1 ดราโกนิค โอเวอร์ลอร์ด (KG01): เมื่อมือเราน้อยกว่าอีกฝ่าย พลัง +1
-    if (card.id === 'KG01' && typeof gameState !== 'undefined') {
+    if (!isSilencedByEla && card.id === 'KG01' && typeof gameState !== 'undefined') {
       const opp = (owner === gameState.player) ? gameState.ai : gameState.player;
       if (opp && Array.isArray(opp.hand) && Array.isArray(owner.hand) && owner.hand.length < opp.hand.length) {
         total += 1;
@@ -243,7 +255,7 @@ function getEffectivePower(card, ownerContestant) {
     }
 
     // 0.2 ดราโกนิค โอเวอร์ลอร์ด The Rebirth (KG03): พลัง +1 ตามการ์ด "ดราโกนิค โอเวอร์ลอร์ด" ที่ชื่อไม่ซ้ำกันในนรก
-    if (card.id === 'KG03' && Array.isArray(owner.graveyard)) {
+    if (!isSilencedByEla && card.id === 'KG03' && Array.isArray(owner.graveyard)) {
       const uniqueOverlords = new Set();
       owner.graveyard.forEach(c => {
         if (c && c.name && c.name.includes('ดราโกนิค โอเวอร์ลอร์ด')) {
@@ -254,7 +266,7 @@ function getEffectivePower(card, ownerContestant) {
     }
 
     // 0.3 ดราโกนิค เบิร์นเอาท์ (KG07): เมื่อมียูนิทในนรก >= 3 ใบ พลัง +2
-    if (card.id === 'KG07' && Array.isArray(owner.graveyard)) {
+    if (!isSilencedByEla && card.id === 'KG07' && Array.isArray(owner.graveyard)) {
       const monsterGraveCount = owner.graveyard.filter(c => c && c.type === 'Monster').length;
       if (monsterGraveCount >= 3) {
         total += 2;
@@ -262,7 +274,7 @@ function getEffectivePower(card, ownerContestant) {
     }
 
     // 1. บล็อก CONTINUOUS_POWER ของตัวการ์ดเอง
-    if (Array.isArray(card.effects)) {
+    if (!isSilencedByEla && Array.isArray(card.effects)) {
       card.effects.filter(e => e.trigger === 'CONTINUOUS_POWER').forEach(eff => {
         const cond = eff.condition;
         if (!cond) {
@@ -446,6 +458,21 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     monster.oatShieldUsedThisTurn = true;
     setLog(`🛡️ [ออโต้/1 เทิร์น - ${monster.name}] การ์ดใบนี้ไม่ถูกทำลายหรือนำลงนรก!`);
     return { destroyed: false, reason: 'oat_shield', monster };
+  }
+
+  // เพื่อนร่วมเดินทาง มิวเท็น (BT01_09): ยูนิทฝั่งเราทุกใบจะไม่ถูกทำลายจากความสามารถ
+  const oppOfBoardOwner = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
+  const isOwnerSilencedByEla = oppOfBoardOwner && Array.isArray(oppOfBoardOwner.board) && oppOfBoardOwner.board.some(m => m && m.id === 'BT01_08');
+  if (!isOwnerSilencedByEla && !isFromBattle && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT01_09')) {
+    setLog(`🛡️ [ต่อเนื่อง - มิวเท็น] ยูนิทฝั่งเราไม่ถูกทำลายจากความสามารถ!`);
+    return { destroyed: false, reason: 'muten_protection', monster };
+  }
+
+  // ความรักที่แท้จริง (BT01_12): ยูนิทบนสนามเราจะไม่ถูกทำลายจากความสามารถของอีกฝั่งจนจบเกม
+  const isEnemyEffect = isByEnemyEffect || (!isFromBattle && typeof gameState !== 'undefined' && gameState.activeTurn !== (boardOwner === gameState.player ? 'player' : 'ai'));
+  if (isEnemyEffect && Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(c => c && c.id === 'BT01_12')) {
+    setLog(`🌌 [ความรักที่แท้จริง] ยูนิทบนสนามได้รับการปกป้องจากมิติมืด ไม่ถูกทำลายจากความสามารถของอีกฝ่าย!`);
+    return { destroyed: false, reason: 'true_love_protection', monster };
   }
 
   // ดราโกนิค โอเวอร์ลอร์ด (KG01): ไม่ถูกทำลายจากความสามารถของการ์ด
@@ -825,6 +852,7 @@ function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckLis
     attacksThisTurn: 0,
     unitsDestroyedThisTurn: 0,
     futureUsedThisTurn: false,
+    lapineUsedThisTurn: false,
     allForJitUsed: false,
     mayaOncePerGameUsed: false,
     satanOncePerGameUsed: false,
@@ -1513,6 +1541,9 @@ function executeMomoCallFromGrave(contestant, momoCard) {
     const discarded = contestant.hand.splice(handIdx, 1)[0];
     resetCardStateForZoneChange(discarded);
     contestant.graveyard.push(discarded);
+    if (typeof checkDiscardTriggers === 'function') {
+      checkDiscardTriggers(contestant, discarded);
+    }
 
     const mIdx = contestant.graveyard.findIndex(c => c && (c.uid === momoCard.uid || c.id === 'BT01_01'));
     if (mIdx === -1) return;
@@ -1529,6 +1560,9 @@ function executeMomoCallFromGrave(contestant, momoCard) {
       setLog(`⚡ [สั่งใช้งานจากนรก - โมโมจิต] ทิ้ง "${discarded.name}" คอล "${momo.name}" ลงสนามช่องที่ ${slotIdx + 1}!`);
       if (typeof showCardShowcaseBanner === 'function') {
         showCardShowcaseBanner(momo, 'สกิลในนรกทำงาน!', `⚡ ทิ้ง "${discarded.name}" คอล "${momo.name}" ลงสนาม!`, '#3ee08f', 1300);
+      }
+      if (typeof notifyUnitCalledFromGrave === 'function') {
+        notifyUnitCalledFromGrave(momo, contestant);
       }
       if (typeof EffectEngine !== 'undefined') {
         EffectEngine.triggerCardEffects(momo, 'ON_SUMMON', {
@@ -1729,6 +1763,9 @@ function triggerAceGraveSummon(boardOwner, slotIndex, excludeUid = null) {
       showCardShowcaseBanner(ace, 'สกิลในนรกทำงาน!', '🔥 [THE ACE] ยูนิทเราถูกทำลาย -> อัญเชิญ THE ACE จากนรกลงสนาม!', '#ef4444', 1300);
     }
     setLog(`🔥 [สกิลในนรก - THE ACE] อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด THE ACE" ลงสนามช่องที่ ${finalSlot + 1} สำเร็จ!`);
+    if (typeof notifyUnitCalledFromGrave === 'function') {
+      notifyUnitCalledFromGrave(ace, boardOwner);
+    }
     renderGame();
   };
 
@@ -1755,8 +1792,9 @@ function triggerAceGraveSummon(boardOwner, slotIndex, excludeUid = null) {
 }
 
 // 🔥 บังคับผู้เล่นหรือ AI เลือกทิ้งการ์ดบนมือ
-function promptOpponentDiscard(contestant, count, titleText) {
+function promptOpponentDiscard(contestant, count, titleText, logPrefix = null) {
   if (!contestant || !Array.isArray(contestant.hand) || contestant.hand.length === 0) return;
+  const prefix = logPrefix || '🍬 [ออโต้ซึรุรุ]';
   const isPvpRemote = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && contestant !== gameState.player);
   if (isPvpRemote) {
     const handOpts = contestant.hand.map(c => ({
@@ -1772,7 +1810,7 @@ function promptOpponentDiscard(contestant, count, titleText) {
         const oppD = contestant.hand.splice(idx, 1)[0];
         resetCardStateForZoneChange(oppD);
         contestant.graveyard.push(oppD);
-        setLog(`🍬 [ออโต้ซึรุรุ] ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${oppD.name}" 1 ใบลงนรก!`);
+        setLog(`${prefix} ฝ่ายตรงข้ามเลือกทิ้งการ์ด "${oppD.name}" 1 ใบลงนรก!`);
         if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, oppD);
         renderGame();
       }
@@ -1784,7 +1822,7 @@ function promptOpponentDiscard(contestant, count, titleText) {
     const discarded = contestant.hand.pop();
     resetCardStateForZoneChange(discarded);
     contestant.graveyard.push(discarded);
-    setLog(`🍬 [ออโต้ซึรุรุ] ${contestant.name} เลือกทิ้ง "${discarded.name}" 1 ใบลงนรก!`);
+    setLog(`${prefix} ${contestant.name} เลือกทิ้ง "${discarded.name}" 1 ใบลงนรก!`);
     if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
     renderGame();
     return;
@@ -1797,7 +1835,7 @@ function promptOpponentDiscard(contestant, count, titleText) {
       const discarded = contestant.hand.splice(idx, 1)[0];
       resetCardStateForZoneChange(discarded);
       contestant.graveyard.push(discarded);
-      setLog(`🍬 [ออโต้ซึรุรุ] คุณเลือกทิ้ง "${discarded.name}" ลงนรก!`);
+      setLog(`${prefix} คุณเลือกทิ้ง "${discarded.name}" ลงนรก!`);
       if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
       renderGame();
     }
@@ -1810,6 +1848,33 @@ function promptOpponentDiscard(contestant, count, titleText) {
   );
 }
 
+// ⚡ ผู้บัญชาการ เอล่า (BT01_08): เมื่อมีการคอลยูนิตจากนรก ฝั่งตรงข้ามทิ้งการ์ดบนมือ 1 ใบ
+function notifyUnitCalledFromGrave(calledUnit, ownerOfGrave) {
+  if (!calledUnit || typeof gameState === 'undefined' || !gameState.player || !gameState.ai) return;
+
+  const player = gameState.player;
+  const ai = gameState.ai;
+
+  const playerHasEla = Array.isArray(player.board) && player.board.some(m => m && m.id === 'BT01_08');
+  const aiHasEla = Array.isArray(ai.board) && ai.board.some(m => m && m.id === 'BT01_08');
+
+  if (playerHasEla) {
+    if (ai.hand.length > 0) {
+      promptOpponentDiscard(ai, 1, '⚡ ผู้บัญชาการ เอล่า', '💥 [ผู้บัญชาการ เอล่า]');
+    } else {
+      setLog('ℹ️ [ผู้บัญชาการ เอล่า] มีการคอลยูนิตจากนรก แต่ AI ไม่มีการ์ดบนมือให้ทิ้ง');
+    }
+  }
+
+  if (aiHasEla) {
+    if (player.hand.length > 0) {
+      promptOpponentDiscard(player, 1, '⚡ ผู้บัญชาการ เอล่า', '💥 [ผู้บัญชาการ เอล่า]');
+    } else {
+      setLog('ℹ️ [ผู้บัญชาการ เอล่า] มีการคอลยูนิตจากนรก แต่คุณไม่มีการ์ดบนมือให้ทิ้ง');
+    }
+  }
+}
+
 
 /* ============================================================================
    หมวดที่ 4: ระบบประมวลผลความสามารถแบบบล็อก (MODULAR CARD EFFECT ENGINE)
@@ -1819,6 +1884,13 @@ const EffectEngine = {
   // 1. ตรวจสอบเงื่อนไขและคอสต์ก่อนเริ่มใช้งานความสามารถ
   canActivateEffect(effectDef, context) {
     const { caster, opponent, sourceCard } = context;
+
+    // ตรวจสอบการถูกใบ้โดย "ผู้บัญชาการ เอล่า" (BT01_08)
+    if (sourceCard && sourceCard.type === 'Monster' && opponent && Array.isArray(opponent.board) && opponent.board.some(m => m && m.id === 'BT01_08')) {
+      if (Array.isArray(caster.board) && caster.board.some(m => m && m.uid === sourceCard.uid)) {
+        return { ok: false, reason: `ความสามารถของการ์ดบนสนามไม่ทำงาน เนื่องจากอีกฝ่ายมี "ผู้บัญชาการ เอล่า" บนสนาม!` };
+      }
+    }
 
     if (effectDef.oncePerTurn && sourceCard) {
       if (sourceCard.type === 'Leader' && sourceCard.abilityUsedThisTurn) {
@@ -2011,6 +2083,13 @@ const EffectEngine = {
     if (!card || !Array.isArray(card.effects)) {
       if (onAllDone) onAllDone();
       return false;
+    }
+    const opp = context && context.opponent;
+    if (card.type === 'Monster' && opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT01_08')) {
+      if (['ON_SUMMON', 'ON_KILL_UNIT', 'ON_HIT_LEADER', 'ON_INTERCEPT'].includes(triggerType)) {
+        if (onAllDone) onAllDone();
+        return false;
+      }
     }
     const matchingEffects = card.effects.filter(e => {
       if (e.trigger !== triggerType) return false;
@@ -2806,6 +2885,9 @@ const EffectEngine = {
             if (emptySlot !== -1) {
               caster.board[emptySlot] = foundCard;
               setLog(`🌊 ${cardTitle} อัญเชิญ "${foundCard.name}" ลงสนามสำเร็จ!`);
+              if (fromZone === 'grave' && typeof notifyUnitCalledFromGrave === 'function') {
+                notifyUnitCalledFromGrave(foundCard, caster);
+              }
               if (foundCard.id === 'MD06') {
                 drawCards(caster, 1);
                 setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
@@ -2819,6 +2901,9 @@ const EffectEngine = {
               const overwritten = sendOverwrittenMonsterToGrave(caster, overwriteSlot);
               caster.board[overwriteSlot] = foundCard;
               setLog(`🌊 ${cardTitle} สนามเต็ม 3 ช่อง — AI วาง "${foundCard.name}" ทับ "${overwritten.name}" บนสนาม AI!`);
+              if (fromZone === 'grave' && typeof notifyUnitCalledFromGrave === 'function') {
+                notifyUnitCalledFromGrave(foundCard, caster);
+              }
               if (foundCard.id === 'MD06') {
                 drawCards(caster, 1);
                 setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
@@ -2832,6 +2917,9 @@ const EffectEngine = {
                 targetContestant: caster,
                 cardToPlace: foundCard,
                 onAfterPlace: () => {
+                  if (fromZone === 'grave' && typeof notifyUnitCalledFromGrave === 'function') {
+                    notifyUnitCalledFromGrave(foundCard, caster);
+                  }
                   if (foundCard.id === 'MD06') {
                     drawCards(caster, 1);
                     setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
@@ -3928,6 +4016,23 @@ function initiatePlayerSpell(handIndex) {
       } else {
         setLog(`✨ [Soul Gem] ส่ง "Soul Gem" เข้าสู่มิติมืดเรียบร้อย!`);
       }
+      renderGame();
+    });
+    return;
+  }
+
+  // 💖 ความรักที่แท้จริง (BT01_12): นำการ์ดใบนี้เข้าสู่มิติมืด ยูนิทบนสนามเราจะไม่ถูกทำลายจากความสามารถของอีกฝั่งจนจบเกม
+  if (spell.id === 'BT01_12') {
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "ความรักที่แท้จริง"', () => {
+      gameState.selectedHandIndex = null;
+      const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
+      if (curIdx === -1) return;
+      const usedSpell = player.hand.splice(curIdx, 1)[0];
+      player.spellQuota.normalUsed += 1;
+      resetCardStateForZoneChange(usedSpell);
+      if (!player.darkDimension) player.darkDimension = [];
+      player.darkDimension.push(usedSpell);
+      setLog(`💖 [ความรักที่แท้จริง] นำ "${usedSpell.name}" เข้าสู่มิติมืด! ยูนิทบนสนามเราจะไม่ถูกทำลายจากความสามารถของอีกฝ่ายจนจบเกม!`);
       renderGame();
     });
     return;
@@ -5313,6 +5418,9 @@ function checkDiscardTriggers(contestant, card) {
         summoned.state = 'Stand';
         contestant.board[emptySlot] = summoned;
         setLog(`🐉 [ออโต้ - ดราโกนิค โอเวอร์ลอร์ด] ถูกทิ้ง -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`);
+        if (typeof notifyUnitCalledFromGrave === 'function') {
+          notifyUnitCalledFromGrave(summoned, contestant);
+        }
         renderGame();
       }
     }
@@ -5433,6 +5541,59 @@ function checkDiscardTriggers(contestant, card) {
           'การ์ดใบนี้ถูกทิ้งลงนรก! เลือกผลความสามารถ 1 อย่าง:',
           options
         );
+      }
+    }
+  }
+
+  // BT01_10 (นักเรียนใหม่ โฮมุระ): ออโต้ : เมื่อมีการทิ้งการ์ดบนมือ ทำลายยูนิทฝั่งตรงข้าม 1 ใบ
+  const pContestant = gameState.player;
+  const aiContestant = gameState.ai;
+  if (pContestant && aiContestant) {
+    const playerSilenced = Array.isArray(aiContestant.board) && aiContestant.board.some(m => m && m.id === 'BT01_08');
+    const aiSilenced = Array.isArray(pContestant.board) && pContestant.board.some(m => m && m.id === 'BT01_08');
+
+    // ตรวจสอบฝั่ง Player
+    if (!playerSilenced && Array.isArray(pContestant.board)) {
+      const homuraCount = pContestant.board.filter(m => m && m.id === 'BT01_10').length;
+      for (let h = 0; h < homuraCount; h++) {
+        const enemyUnits = aiContestant.board.map((m, idx) => ({ m, idx })).filter(item => item.m !== null);
+        if (enemyUnits.length > 0) {
+          const targetOptions = enemyUnits.map(item => ({
+            label: `ทำลาย "${item.m.name}" (ช่อง ${item.idx + 1}, Power ${getEffectivePower(item.m, aiContestant)})`,
+            color: '#dc2626',
+            onSelect: () => {
+              setLog(`🔫 [ออโต้ - นักเรียนใหม่ โฮมุระ] มีการทิ้งการ์ดบนมือ -> ทำลายยูนิท "${item.m.name}" ของฝ่ายตรงข้าม!`);
+              destroyBoardMonster(aiContestant, item.idx, false, true);
+              renderGame();
+            }
+          }));
+          showChoiceModal(
+            '🔫 นักเรียนใหม่ โฮมุระ',
+            'มีการทิ้งการ์ดบนมือ! สกิลของ "นักเรียนใหม่ โฮมุระ" ทำงาน:\nเลือกยูนิทของฝ่ายตรงข้ามเพื่อทำลาย:',
+            targetOptions
+          );
+        }
+      }
+    }
+
+    // ตรวจสอบฝั่ง AI
+    if (!aiSilenced && Array.isArray(aiContestant.board)) {
+      const homuraCount = aiContestant.board.filter(m => m && m.id === 'BT01_10').length;
+      for (let h = 0; h < homuraCount; h++) {
+        const playerUnits = pContestant.board.map((m, idx) => ({ m, idx })).filter(item => item.m !== null);
+        if (playerUnits.length > 0) {
+          let bestSlot = -1, maxP = -1;
+          playerUnits.forEach(item => {
+            const p = getEffectivePower(item.m, pContestant);
+            if (p > maxP) { maxP = p; bestSlot = item.idx; }
+          });
+          if (bestSlot !== -1) {
+            const target = pContestant.board[bestSlot];
+            setLog(`🔫 [AI ออโต้ - นักเรียนใหม่ โฮมุระ] มีการทิ้งการ์ดบนมือ -> ทำลายยูนิท "${target.name}" ของคุณ!`);
+            destroyBoardMonster(pContestant, bestSlot, false, true);
+            renderGame();
+          }
+        }
       }
     }
   }
@@ -5696,6 +5857,7 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.attacksThisTurn = 0;
   contestant.unitsDestroyedThisTurn = 0;
   contestant.futureUsedThisTurn = false;
+  contestant.lapineUsedThisTurn = false;
   contestant.leader.abilityUsedThisTurn = false;
   contestant.spellQuota.normalUsed = 0;
   contestant.spellQuota.reactionUsed = 0;
@@ -5845,6 +6007,88 @@ function executeEndPhaseCleanup(activeContestant) {
   });
 }
 
+// 🪄 คิวเบย์ (BT01_11): สั่งใช้งานจากบนมือ : ทิ้งการ์ดใบนี้ ค้นหาการ์ดยูนิทเผ่า “สาวน้อยเวทมนตร์” จากกอง 2 ใบ ขึ้นมือ
+function activateKyubeyHandSkill(contestant, handIndex) {
+  if (!contestant || !Array.isArray(contestant.hand) || handIndex < 0 || handIndex >= contestant.hand.length) return;
+  const kyubey = contestant.hand.splice(handIndex, 1)[0];
+  resetCardStateForZoneChange(kyubey);
+  contestant.graveyard.push(kyubey);
+  setLog(`🪄 [สั่งใช้งานจากบนมือ] ทิ้ง "${kyubey.name}" ลงนรก`);
+  if (typeof checkDiscardTriggers === 'function') {
+    checkDiscardTriggers(contestant, kyubey);
+  }
+
+  const isAI = (contestant !== gameState.player);
+  const filterStep = { targetType: 'Monster', targetTribe: 'สาวน้อยเวทมนตร์' };
+  const maxPick = 2;
+  const pickedNames = [];
+
+  const finishSearch = () => {
+    contestant.deck = shuffleDeck(contestant.deck);
+    if (pickedNames.length > 0) {
+      setLog(`🪄 [คิวเบย์] ค้นหายูนิทเผ่า "สาวน้อยเวทมนตร์" ("${pickedNames.join(', ')}") จากกองการ์ดขึ้นมือ พร้อมสับกอง!`);
+    } else {
+      setLog(`🪄 [คิวเบย์] ไม่พบยูนิทเผ่า "สาวน้อยเวทมนตร์" ในกองการ์ด (สับกองเรียบร้อย)`);
+    }
+    renderGame();
+  };
+
+  if (isAI) {
+    for (let i = 0; i < maxPick; i++) {
+      const matches = EffectEngine.filterCards(contestant.deck, filterStep);
+      if (matches.length === 0) break;
+      const dIdx = contestant.deck.findIndex(c => c.uid === matches[0].uid);
+      if (dIdx !== -1) {
+        const picked = contestant.deck.splice(dIdx, 1)[0];
+        resetCardStateForZoneChange(picked);
+        contestant.hand.push(picked);
+        pickedNames.push(picked.name);
+      }
+    }
+    finishSearch();
+    return;
+  }
+
+  const promptNextPick = (pickNumber) => {
+    const matches = EffectEngine.filterCards(contestant.deck, filterStep);
+    if (matches.length === 0 || pickNumber > maxPick) {
+      finishSearch();
+      return;
+    }
+
+    const uniqueMap = new Map();
+    matches.forEach(c => { if (!uniqueMap.has(c.id)) uniqueMap.set(c.id, c); });
+    const options = Array.from(uniqueMap.values()).map(targetCard => ({
+      label: `นำ "${targetCard.name}" (Power ${targetCard.power}) ขึ้นมือ [ใบที่ ${pickNumber}/${maxPick}]`,
+      color: '#16a34a',
+      onSelect: () => {
+        const dIdx = contestant.deck.findIndex(c => c.id === targetCard.id);
+        if (dIdx !== -1) {
+          const picked = contestant.deck.splice(dIdx, 1)[0];
+          resetCardStateForZoneChange(picked);
+          contestant.hand.push(picked);
+          pickedNames.push(picked.name);
+        }
+        promptNextPick(pickNumber + 1);
+      }
+    }));
+
+    options.push({
+      label: pickNumber === 1 ? '❌ ไม่ค้นหา (สับกองการ์ด)' : `✅ พอแล้ว (นำขึ้นมือ ${pickedNames.length} ใบ)`,
+      color: '#475569',
+      onSelect: () => finishSearch()
+    });
+
+    showChoiceModal(
+      '🪄 คิวเบย์ - ค้นหากองการ์ด',
+      `เลือกการ์ดยูนิทเผ่า "สาวน้อยเวทมนตร์" จากกองการ์ดขึ้นมือ (เลือกได้สูงสุด 2 ใบ):\nกำลังเลือกใบที่ ${pickNumber}/${maxPick}`,
+      options
+    );
+  };
+
+  promptNextPick(1);
+}
+
 // เมื่อผู้เล่นคลิกที่การ์ดบนมือตัวเอง
 function handleHandCardClick(handIndex) {
   const player = gameState.player;
@@ -5949,6 +6193,35 @@ function handleHandCardClick(handIndex) {
         );
         return;
       }
+    }
+
+    // 3.5 คิวเบย์ (BT01_11)
+    if (clickedCard.id === 'BT01_11') {
+      showChoiceModal(
+        '🪄 คิวเบย์',
+        'เลือกรูปแบบการใช้งาน "คิวเบย์":',
+        [
+          {
+            label: '✨ สั่งใช้งานจากบนมือ (ทิ้งการ์ดใบนี้ ค้นหาการ์ดยูนิทเผ่า "สาวน้อยเวทมนตร์" จากกอง 2 ใบ ขึ้นมือ)',
+            color: '#7c3aed',
+            onSelect: () => activateKyubeyHandSkill(player, handIndex)
+          },
+          {
+            label: '👤 อัญเชิญแบบปกติ (วางลงช่องสนามตามปกติ)',
+            color: '#16a34a',
+            onSelect: () => {
+              askCardUseConfirmation(clickedCard, 'อัญเชิญยูนิตใบนี้ลงสู่สนามของคุณ', () => {
+                gameState.selectedAttackerSlot = null;
+                gameState.selectedHandIndex = handIndex;
+                setLog(`เลือก "${clickedCard.name}" แล้ว — คลิกที่ช่องบนสนามของคุณเพื่อวาง Monster`);
+                renderGame();
+              });
+            }
+          },
+          { label: '❌ ยกเลิก', color: '#475569', onSelect: () => renderGame() }
+        ]
+      );
+      return;
     }
 
     // 4. เด็คขุนเหนือ (NM01, NM02, NM03)
@@ -6286,12 +6559,15 @@ function handleAISlotClick(aiSlotIndex) {
   executeAttack(player, ai, gameState.selectedAttackerSlot, 'monster', aiSlotIndex);
 }
 
-document.getElementById('ai-leader-box').addEventListener('click', () => {
-  if (gameState.gameOver || gameState.activeTurn !== 'player' || gameState.phase !== 'Battle Phase') return;
-  if (gameState.pendingAction || gameState.selectedAttackerSlot === null) return;
+const aiLeaderBoxEl = document.getElementById('ai-leader-box');
+if (aiLeaderBoxEl) {
+  aiLeaderBoxEl.addEventListener('click', () => {
+    if (gameState.gameOver || gameState.activeTurn !== 'player' || gameState.phase !== 'Battle Phase') return;
+    if (gameState.pendingAction || gameState.selectedAttackerSlot === null) return;
 
-  executeAttack(gameState.player, gameState.ai, gameState.selectedAttackerSlot, 'leader', null);
-});
+    executeAttack(gameState.player, gameState.ai, gameState.selectedAttackerSlot, 'leader', null);
+  });
+}
 
 /* ============================================================================
    หมวดที่ 7: ระบบเอฟเฟกต์แอนิเมชัน (Visual FX) และระบบการต่อสู้ / INTERCEPT
@@ -6713,6 +6989,211 @@ function checkAkumaHomuraHandTrigger(contestant, onDone = null) {
   );
 }
 
+// ⏳ ผู้หวนคืน ลาพิเน่ (BT01_07): ออโต้ / 1 เทิร์น : หลังจากจบโจมตีครั้งที่ 3 ในเทิร์นนี้ ทิ้งการ์ดบนมือ 1 ใบใช้ความสามารถ “อนาคต” จากนรกหรือกองได้
+function checkLapineAttackTrigger(attacker, onDone = null) {
+  const finish = () => {
+    if (onDone) onDone();
+  };
+
+  if (!attacker || gameState.gameOver || attacker.attacksThisTurn !== 3 || attacker.lapineUsedThisTurn) {
+    finish();
+    return;
+  }
+
+  const hasLapine = Array.isArray(attacker.board) && attacker.board.some(m => m && m.id === 'BT01_07');
+  if (!hasLapine) {
+    finish();
+    return;
+  }
+
+  const opp = (attacker === gameState.player) ? gameState.ai : gameState.player;
+  const isSilenced = opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT01_08');
+  if (isSilenced) {
+    setLog('⚠️ [ผู้หวนคืน ลาพิเน่] สกิลไม่ทำงาน เนื่องจากอีกฝ่ายมี "ผู้บัญชาการ เอล่า" บนสนาม!');
+    finish();
+    return;
+  }
+
+  if (!Array.isArray(attacker.hand) || attacker.hand.length === 0) {
+    setLog('ℹ️ [ผู้หวนคืน ลาพิเน่] โจมตีครั้งที่ 3 ในเทิร์นนี้ แต่ไม่มีการ์ดบนมือสำหรับทิ้ง');
+    finish();
+    return;
+  }
+
+  // ค้นหาการ์ดอนาคตในนรกและกองที่มียูนิตร่างต้นบนสนาม
+  const graveCandidates = Array.isArray(attacker.graveyard)
+    ? attacker.graveyard.filter(c => c && c.futureBaseId && attacker.board.some(m => m && m.id === c.futureBaseId))
+    : [];
+  const deckCandidates = Array.isArray(attacker.deck)
+    ? attacker.deck.filter(c => c && c.futureBaseId && attacker.board.some(m => m && m.id === c.futureBaseId))
+    : [];
+
+  if (graveCandidates.length === 0 && deckCandidates.length === 0) {
+    setLog('ℹ️ [ผู้หวนคืน ลาพิเน่] โจมตีครั้งที่ 3 ในเทิร์นนี้ แต่ไม่มียูนิตร่างต้นบนสนามที่ตรงกับการ์ดอนาคตในนรกหรือกอง');
+    finish();
+    return;
+  }
+
+  const isPlayer = (attacker === gameState.player);
+
+  const executeFutureSummonFromSource = (chosenCard, sourceZone, chosenHandIdx) => {
+    // 1. ทิ้งการ์ดบนมือ
+    const discarded = attacker.hand.splice(chosenHandIdx, 1)[0];
+    resetCardStateForZoneChange(discarded);
+    attacker.graveyard.push(discarded);
+    attacker.lapineUsedThisTurn = true;
+    setLog(`⏳ [ผู้หวนคืน ลาพิเน่] ทิ้ง "${discarded.name}" ลงนรก เพื่อใช้ความสามารถ "อนาคต"!`);
+    if (typeof checkDiscardTriggers === 'function') {
+      checkDiscardTriggers(attacker, discarded);
+    }
+
+    // 2. ดึง chosenCard จาก sourceZone
+    let futureCard = null;
+    if (sourceZone === 'graveyard') {
+      const gIdx = attacker.graveyard.findIndex(c => c.uid === chosenCard.uid);
+      if (gIdx !== -1) futureCard = attacker.graveyard.splice(gIdx, 1)[0];
+    } else if (sourceZone === 'deck') {
+      const dIdx = attacker.deck.findIndex(c => c.uid === chosenCard.uid);
+      if (dIdx !== -1) {
+        futureCard = attacker.deck.splice(dIdx, 1)[0];
+        attacker.deck = shuffleDeck(attacker.deck);
+      }
+    }
+
+    if (!futureCard) {
+      renderGame();
+      finish();
+      return;
+    }
+
+    // 3. วางลงสนามทับร่างต้น แล้วส่งร่างต้นไปมิติมืด
+    const baseSlotIdx = attacker.board.findIndex(m => m && m.id === futureCard.futureBaseId);
+    if (baseSlotIdx === -1) {
+      attacker.graveyard.push(futureCard);
+      renderGame();
+      finish();
+      return;
+    }
+
+    const baseUnit = attacker.board[baseSlotIdx];
+    resetCardStateForZoneChange(baseUnit);
+    attacker.darkDimension.push(baseUnit);
+
+    resetCardStateForZoneChange(futureCard);
+    futureCard.state = 'Stand';
+    futureCard.returnFromDarkDimensionId = baseUnit.id;
+    attacker.board[baseSlotIdx] = futureCard;
+
+    setLog(`🌌 [ผู้หวนคืน ลาพิเน่] ส่ง "${baseUnit.name}" เข้ามิติมืด และใช้ความสามารถอนาคตเรียก "${futureCard.name}" จาก${sourceZone === 'graveyard' ? 'นรก' : 'กองการ์ด'} ลงสนาม!`);
+
+    if (sourceZone === 'graveyard' && typeof notifyUnitCalledFromGrave === 'function') {
+      notifyUnitCalledFromGrave(futureCard, attacker);
+    }
+
+    if (Array.isArray(futureCard.effects) && futureCard.effects.some(e => e.trigger === 'ON_SUMMON')) {
+      EffectEngine.triggerCardEffects(futureCard, 'ON_SUMMON', {
+        caster: attacker, opponent: opp, sourceCard: futureCard, sourceSlot: baseSlotIdx, isAI: !isPlayer
+      }, () => {
+        renderGame();
+        finish();
+      });
+    } else {
+      renderGame();
+      finish();
+    }
+  };
+
+  if (!isPlayer) {
+    let bestHandIdx = 0, minP = 999;
+    attacker.hand.forEach((c, i) => {
+      const p = (c.type === 'Monster') ? (c.power || 0) : 1;
+      if (p < minP) { minP = p; bestHandIdx = i; }
+    });
+    const allCandidates = [
+      ...graveCandidates.map(c => ({ card: c, source: 'graveyard' })),
+      ...deckCandidates.map(c => ({ card: c, source: 'deck' }))
+    ];
+    let bestCandidate = allCandidates[0];
+    let maxPower = -1;
+    allCandidates.forEach(cand => {
+      const p = cand.card.power || 0;
+      if (p > maxPower) { maxPower = p; bestCandidate = cand; }
+    });
+    executeFutureSummonFromSource(bestCandidate.card, bestCandidate.source, bestHandIdx);
+    return;
+  }
+
+  showChoiceModal(
+    '⏳ ผู้หวนคืน ลาพิเน่',
+    'หลังจากจบการโจมตีครั้งที่ 3 ในเทิร์นนี้!\nต้องการทิ้งการ์ดบนมือ 1 ใบเพื่อใช้ความสามารถ "อนาคต" จากนรกหรือกองหรือไม่?',
+    [
+      {
+        label: '✅ ใช้งานสกิล: เลือกการ์ดบนมือที่จะทิ้ง',
+        color: '#7c3aed',
+        onSelect: () => {
+          const discardOptions = attacker.hand.map((c, hIdx) => ({
+            label: `ทิ้ง "${c.name}"`,
+            color: '#dc2626',
+            onSelect: () => {
+              const candidateOptions = [];
+              const addedGraveIds = new Set();
+              graveCandidates.forEach(cand => {
+                if (!addedGraveIds.has(cand.id)) {
+                  addedGraveIds.add(cand.id);
+                  candidateOptions.push({
+                    label: `💀 [จากนรก] "${cand.name}" (ทับ "${cand.futureBaseName}")`,
+                    color: '#dc2626',
+                    onSelect: () => executeFutureSummonFromSource(cand, 'graveyard', hIdx)
+                  });
+                }
+              });
+              const addedDeckIds = new Set();
+              deckCandidates.forEach(cand => {
+                if (!addedDeckIds.has(cand.id)) {
+                  addedDeckIds.add(cand.id);
+                  candidateOptions.push({
+                    label: `📦 [จากกอง] "${cand.name}" (ทับ "${cand.futureBaseName}")`,
+                    color: '#2563eb',
+                    onSelect: () => executeFutureSummonFromSource(cand, 'deck', hIdx)
+                  });
+                }
+              });
+              candidateOptions.push({
+                label: '❌ ยกเลิก',
+                color: '#475569',
+                onSelect: () => { renderGame(); finish(); }
+              });
+
+              showChoiceModal(
+                '🌌 เลือกการ์ดอนาคตที่จะอัญเชิญ',
+                'เลือกการ์ดอนาคตจากนรกหรือกองการ์ดเพื่อนำมาคอลทับร่างต้นบนสนาม:',
+                candidateOptions
+              );
+            }
+          }));
+
+          discardOptions.push({
+            label: '❌ ยกเลิก',
+            color: '#475569',
+            onSelect: () => { renderGame(); finish(); }
+          });
+
+          showChoiceModal(
+            '🗑️ เลือกการ์ดบนมือเพื่อทิ้ง',
+            'เลือกการ์ดบนมือ 1 ใบที่จะทิ้งลงนรก เพื่อใช้งานความสามารถของลาพิเน่:',
+            discardOptions
+          );
+        }
+      },
+      {
+        label: '❌ ไม่ใช้',
+        color: '#475569',
+        onSelect: () => { renderGame(); finish(); }
+      }
+    ]
+  );
+}
+
 // ฟังก์ชันหลักเมื่อสั่งโจมตี (เพิ่มแอนิเมชันพุ่งโจมตีก่อนประมวลผล)
 function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback = null) {
   if (gameState.isAttacking) {
@@ -6743,12 +7224,19 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
       gameState._attackingTimeout = null;
     }
     renderGame();
-    if (!gameState.gameOver && typeof checkAkumaHomuraHandTrigger === 'function') {
-      checkAkumaHomuraHandTrigger(attacker, () => {
+    const afterLapine = () => {
+      if (!gameState.gameOver && typeof checkLapineAttackTrigger === 'function') {
+        checkLapineAttackTrigger(attacker, () => {
+          if (onCompleteCallback) onCompleteCallback();
+        });
+      } else {
         if (onCompleteCallback) onCompleteCallback();
-      });
+      }
+    };
+    if (!gameState.gameOver && typeof checkAkumaHomuraHandTrigger === 'function') {
+      checkAkumaHomuraHandTrigger(attacker, afterLapine);
     } else {
-      if (onCompleteCallback) onCompleteCallback();
+      afterLapine();
     }
   };
 
@@ -8231,9 +8719,12 @@ function resolvePlayerIntercept(chosenSlotIndex) {
   }
 }
 
-document.getElementById('btn-skip-intercept').addEventListener('click', () => {
-  resolvePlayerIntercept(null);
-});
+const btnSkipInterceptEl = document.getElementById('btn-skip-intercept');
+if (btnSkipInterceptEl) {
+  btnSkipInterceptEl.addEventListener('click', () => {
+    resolvePlayerIntercept(null);
+  });
+}
 
 
 /* ============================================================================
@@ -8704,6 +9195,13 @@ function performSingleAIMainAction() {
         executeMomoCallFromGrave(ai, momoGraveCard);
         return true;
       }
+    }
+
+    // 1.05 สั่งใช้งานคิวเบย์จากมือ (BT01_11)
+    const kyubeyHandIdx = ai.hand.findIndex(c => c && c.id === 'BT01_11');
+    if (kyubeyHandIdx !== -1 && Array.isArray(ai.deck) && ai.deck.some(c => c && c.type === 'Monster' && hasCardTribe(c, 'สาวน้อยเวทมนตร์'))) {
+      activateKyubeyHandSkill(ai, kyubeyHandIdx);
+      return true;
     }
 
     // 1.0 อัญเชิญไฮบริดไดโนจากมือ (DN06 / DN07)
@@ -9312,6 +9810,22 @@ function aiCastBestNormalSpell(ai, player, diff) {
     return true;
   }
 
+  // 8.1 เวทเด็คมาโดกะ: ความรักที่แท้จริง (BT01_12)
+  const bt12Idx = ai.hand.findIndex(c => c && c.id === 'BT01_12');
+  if (bt12Idx !== -1) {
+    const spell = ai.hand.splice(bt12Idx, 1)[0];
+    ai.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    if (!ai.darkDimension) ai.darkDimension = [];
+    ai.darkDimension.push(spell);
+    setLog('💖 [AI ความรักที่แท้จริง] นำเข้าสู่มิติมืด! ยูนิท AI ไม่ถูกทำลายจากความสามารถของอีกฝ่าย!');
+    if (typeof showCardShowcaseBanner === 'function') {
+      showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', '💖 ความรักที่แท้จริง เข้าสู่มิติมืด!', '#ec4899');
+    }
+    renderGame();
+    return true;
+  }
+
   // 9. เวทเด็คมาโดกะ: หัวใจของสาวน้อยเวทมนตร์ (MD10)
   const md10Idx = ai.hand.findIndex(c => c.id === 'MD10');
   if (md10Idx !== -1 && ai.deck.length > 0) {
@@ -9904,18 +10418,22 @@ function startAIFirstTurn() {
   });
 }
 
-document.getElementById('btn-confirm-mulligan').addEventListener('click', () => {
-  performMulligan(gameState.player, gameState.mulliganSelected);
-  applyStartOfGameLeaderEffects(gameState.player);
-  applyStartOfGameLeaderEffects(gameState.ai);
-  document.getElementById('mulligan-modal').style.display = 'none';
+const btnConfirmMulliganEl = document.getElementById('btn-confirm-mulligan');
+if (btnConfirmMulliganEl) {
+  btnConfirmMulliganEl.addEventListener('click', () => {
+    performMulligan(gameState.player, gameState.mulliganSelected);
+    applyStartOfGameLeaderEffects(gameState.player);
+    applyStartOfGameLeaderEffects(gameState.ai);
+    const mulliganModalEl = document.getElementById('mulligan-modal');
+    if (mulliganModalEl) mulliganModalEl.style.display = 'none';
 
-  if (gameState.activeTurn === 'ai') {
-    startAIFirstTurn();
-  } else {
-    startPlayerTurn();
-  }
-});
+    if (gameState.activeTurn === 'ai') {
+      startAIFirstTurn();
+    } else {
+      startPlayerTurn();
+    }
+  });
+}
 
 // หน้าต่างเลือก (เช่น ขุนเหนือ) เปิดค้างโดยไม่ตั้ง pendingAction → ห้ามสับไพ่ใต้หน้าต่างนั้น
 function isChoiceModalOpen() {

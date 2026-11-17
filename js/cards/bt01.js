@@ -114,5 +114,75 @@ CARD_DATABASE.push(
         ]
       }
     ]
+  },
+  {
+    id: 'BT01_07',
+    name: 'ผู้หวนคืน ลาพิเน่',
+    type: 'Monster',
+    tribe: 'วันสิ้นโลก',
+    rarity: 'R',
+    maxCopies: 2,
+    power: 2,
+    image: 'images/BT/BT01/7.png',
+    ability: 'LAPINE_FUTURE_CALL',
+    desc: 'ออโต้ / 1 เทิร์น : หลังจากจบโจมตีครั้งที่ 3 ในเทิร์นนี้ ทิ้งการ์ดบนมือ 1 ใบใช้ความสามารถ “อนาคต” จากนรกหรือกองได้'
+  },
+  {
+    id: 'BT01_08',
+    name: 'ผู้บัญชาการ เอล่า',
+    type: 'Monster',
+    tribe: 'วันสิ้นโลก',
+    rarity: 'SR',
+    maxCopies: 2,
+    power: 2,
+    image: 'images/BT/BT01/8.png',
+    ability: 'COMMANDER_ELA',
+    desc: 'ต่อเนื่อง : ถ้ายูนิทนี้อยู่บนสนามความสามารถของการ์ดบนสนามฝั่งตรงข้ามจะไม่ทำงาน และ เมื่อมีการคอลยูนิตจากนรก ฝั่งตรงข้ามทิ้งการ์ดบนมือ 1 ใบ'
+  },
+  {
+    id: 'BT01_09',
+    name: 'เพื่อนร่วมเดินทาง มิวเท็น',
+    type: 'Monster',
+    tribe: 'วันสิ้นโลก',
+    rarity: 'R',
+    maxCopies: 2,
+    power: 2,
+    image: 'images/BT/BT01/9.png',
+    ability: 'MUTEN_PROTECTION',
+    desc: 'ต่อเนื่อง : เมื่อยูนิทนี้อยู่บนสนามยูนิทฝั่งเราทุกใบจะไม่ถูกทำลายจากความสามารถ และ เมื่อมี “โอนามิ ผู้ทำลายโลก” อยู่บนสนามฝั่งเรายูนิททุกใบฝั่งเราได้รับพลังโจมตีเพิ่ม 1 หน่วย'
+  },
+  {
+    id: 'BT01_10',
+    name: 'นักเรียนใหม่ โฮมุระ',
+    type: 'Monster',
+    tribe: 'สาวน้อยเวทมนตร์',
+    rarity: 'R',
+    maxCopies: 2,
+    power: 2,
+    image: 'images/BT/BT01/10.png',
+    ability: 'NEW_STUDENT_HOMURA',
+    desc: 'ออโต้ : เมื่อมีการทิ้งการ์ดบนมือ ทำลายยูนิทฝั่งตรงข้าม 1 ใบ'
+  },
+  {
+    id: 'BT01_11',
+    name: 'คิวเบย์',
+    type: 'Monster',
+    tribe: 'สาวน้อยเวทมนตร์',
+    rarity: 'R',
+    maxCopies: 2,
+    power: 1,
+    image: 'images/BT/BT01/11.png',
+    ability: 'KYUBEY_SEARCH',
+    desc: 'สั่งใช้งานจากบนมือ : ทิ้งการ์ดใบนี้ ค้นหาการ์ดยูนิทเผ่า “สาวน้อยเวทมนตร์” จากกอง 2 ใบ ขึ้นมือ'
+  },
+  {
+    id: 'BT01_12',
+    name: 'ความรักที่แท้จริง',
+    type: 'NormalSpell',
+    rarity: 'SR',
+    maxCopies: 2,
+    image: 'images/BT/BT01/12.png',
+    ability: 'TRUE_LOVE_SPELL',
+    desc: 'นำการ์ดใบนี้เข้าสู่มิติมืด\nยูนิทบนสนามเราจะไม่ถูกทำลายจากความสามารถของอีกฝั่งจนจบเกม'
   }
 );
