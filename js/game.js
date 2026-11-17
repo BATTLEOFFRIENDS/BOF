@@ -2908,7 +2908,7 @@ const EffectEngine = {
       case 'BOUNCE_UNIT': {
         const targetOwner = step.target === 'SELF' ? caster : opponent;
         const validSlots = targetOwner.board
-          .map((m, idx) => (m !== null && !m.immuneToEnemyEffectsUntilEndOfTurn ? idx : null))
+          .map((m, idx) => (m !== null && !m.immuneToEnemyEffectsUntilEndOfTurn && !m.isUltimateMadoka && m.id !== 'MD09' ? idx : null))
           .filter(idx => idx !== null);
 
         if (validSlots.length === 0) {
@@ -2936,6 +2936,10 @@ const EffectEngine = {
           onSelectSlot: (slotIdx) => {
             const targetMonster = targetOwner.board[slotIdx];
             if (!targetMonster) return false;
+            if (targetMonster.isUltimateMadoka || targetMonster.id === 'MD09') {
+              setLog(`✨ "${targetMonster.name}" ไม่สามารถถูกส่งกลับขึ้นมือได้!`);
+              return false;
+            }
             if (targetOwner !== caster && targetMonster.immuneToEnemyEffectsUntilEndOfTurn) {
               setLog(`🛡️ "${targetMonster.name}" ป้องกันความสามารถการ์ดฝ่ายตรงข้ามในเทิร์นนี้!`);
               return false;
@@ -9464,6 +9468,12 @@ function performSingleAIMainAction() {
 
   // ==================== สเต็ปที่ 1: สกิลจากมือ (ไพร่ชาวนาเหนือ / สายลับ / จุติ / ไฮบริดไดโน) ====================
   if (diff !== 'EASY') {
+    // 0.9 สั่งใช้งาน Ultimate Madoka จากมิติมืด (MD09)
+    if (typeof canActivateUltimateMadoka === 'function' && canActivateUltimateMadoka(ai)) {
+      executeSummonUltimateMadoka(ai);
+      return true;
+    }
+
     // 1.0 สั่งใช้งานโมโมจิตจากนรก (BT01_01)
     if (!ai.momoGraveUsedThisTurn && ai.hand.length >= 1 && Array.isArray(ai.graveyard)) {
       const momoGraveCard = ai.graveyard.find(c => c && c.id === 'BT01_01');
@@ -10491,6 +10501,33 @@ function renderGame() {
   document.getElementById('player-grave-count').textContent = player.graveyard.length;
   const playerDarkCountEl = document.getElementById('player-dark-count');
   if (playerDarkCountEl) playerDarkCountEl.textContent = player.darkDimension.length;
+
+  const playerDarkBox = document.getElementById('player-dark-box');
+  if (playerDarkBox) {
+    if (typeof canActivateUltimateMadoka === 'function' && canActivateUltimateMadoka(player) && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player') {
+      playerDarkBox.style.boxShadow = '0 0 16px #ec4899';
+      playerDarkBox.style.borderColor = '#ec4899';
+      playerDarkBox.title = '✨ มิติมืด: มี "Ultimate Madoka" พร้อมสั่งใช้งานอัญเชิญลงสนาม! คลิกเพื่อเปิด';
+    } else {
+      playerDarkBox.style.boxShadow = '';
+      playerDarkBox.style.borderColor = '';
+      playerDarkBox.title = 'คลิกดูการ์ดในมิติมืดของคุณ';
+    }
+  }
+
+  const playerGraveBox = document.getElementById('player-grave-box');
+  if (playerGraveBox) {
+    const canMomo = player.graveyard && player.graveyard.some(c => c && c.id === 'BT01_01') && !player.momoGraveUsedThisTurn && player.hand.length >= 1 && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player';
+    if (canMomo) {
+      playerGraveBox.style.boxShadow = '0 0 16px #3ee08f';
+      playerGraveBox.style.borderColor = '#3ee08f';
+      playerGraveBox.title = '⚡ ดรอปโซน: มี "โมโมจิต" พร้อมสั่งใช้งานจากนรก! คลิกเพื่อเปิด';
+    } else {
+      playerGraveBox.style.boxShadow = '';
+      playerGraveBox.style.borderColor = '';
+      playerGraveBox.title = 'คลิกดูการ์ดในดรอปโซนของคุณ';
+    }
+  }
 
   // แสดงตัวการ์ดลีดเดอร์ของผู้เล่นเต็มใบ พร้อมหลอดเลือด ❤️ มุมซ้ายบน
   const playerLeaderBox = document.getElementById('player-leader-box');
