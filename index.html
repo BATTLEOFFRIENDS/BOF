@@ -828,9 +828,95 @@
       <div class="deck-section-title">👑 1. คลิกเลือก Leader (1 ใบ):</div>
       <div class="card-pool-grid" id="leader-pool-list"></div>
 
-      <div class="deck-section-title">
-        ⚔️ 2. คลิกการ์ดเพื่อเพิ่ม/ลดใน Main Deck <span class="dbt-hint">(คลิกเพื่อเพิ่ม 1 -> 2 ใบ, คลิกซ้ำเมื่อเต็ม 2 ใบเพื่อเอาออก)</span>:
+      <!-- ถาดดูการ์ด 20 ใบในเด็คปัจจุบันแบบด่วน (Quick Deck Tray) -->
+      <div id="deck-current-tray-container" class="deck-current-tray-container">
+        <div class="deck-tray-header" id="deck-tray-toggle-header">
+          <div class="deck-tray-title">
+            <span class="deck-tray-icon">📋</span>
+            <strong>การ์ดในเด็คปัจจุบัน</strong>
+            <span id="deck-tray-count-summary" class="deck-tray-count-badge">20/20 ใบ</span>
+            <span id="deck-tray-type-breakdown" class="deck-tray-type-breakdown">(มอนสเตอร์: 0 · เวทมนตร์: 0)</span>
+          </div>
+          <button type="button" class="deck-tray-collapse-btn" id="btn-toggle-deck-tray" title="คลิกเพื่อพับหรือขยายถาดการ์ดในเด็ค">
+            <span id="deck-tray-arrow">▼</span> พับ/ขยายถาด
+          </button>
+        </div>
+        <div id="deck-current-tray-list" class="deck-current-tray-list"></div>
       </div>
+
+      <!-- แผงหมวดหมู่และตัวกรองการ์ด (Deck Categories & Filters) -->
+      <div class="deck-section-header-row">
+        <div class="deck-section-title" style="margin: 0;">
+          ⚔️ 2. คลิกการ์ดเพื่อเพิ่ม/ลดใน Main Deck <span class="dbt-hint">(คลิกเพื่อเพิ่ม 1 -> 2 ใบ, คลิกซ้ำเมื่อเต็ม 2 ใบเพื่อเอาออก)</span>:
+        </div>
+        <div class="deck-filter-stats" id="deck-filter-stats">
+          แสดง <b id="deck-cards-visible-count">0</b> / <span id="deck-cards-total-count">0</span> ใบ
+        </div>
+      </div>
+
+      <div class="deck-filter-panel" id="deck-filter-panel">
+        <!-- แถวที่ 1: หมวดหมู่ตามสังกัด / เด็ค (Deck Themes) -->
+        <div class="deck-filter-themes-row" id="deck-filter-themes-row">
+          <button type="button" class="deck-theme-btn active" data-theme="ALL">
+            <span class="dtb-icon">🌟</span> ทั้งหมด
+          </button>
+          <button type="button" class="deck-theme-btn dtb-leader" data-theme="MATCH_LEADER" id="btn-filter-match-leader">
+            <span class="dtb-icon">👑</span> ตรงกับลีดเดอร์
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="royal_paladin">
+            <span class="dtb-icon">🛡️</span> รอยัล พาลาดิน
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="kagero">
+            <span class="dtb-icon">🔥</span> คาเงโร่
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="madoka">
+            <span class="dtb-icon">🌸</span> สาวน้อยเวทมนตร์
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="dino">
+            <span class="dtb-icon">🦖</span> ไดโน
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="doom">
+            <span class="dtb-icon">💀</span> วันสิ้นโลก
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="demon">
+            <span class="dtb-icon">😈</span> ปีศาจ
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="nuea">
+            <span class="dtb-icon">🌾</span> ขุนเหนือ
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="jit">
+            <span class="dtb-icon">⚡</span> ฮีโร่ เดจิต
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="oat">
+            <span class="dtb-icon">🤪</span> ไอโอ๊ต
+          </button>
+          <button type="button" class="deck-theme-btn" data-theme="bt01">
+            <span class="dtb-icon">📦</span> บูสเตอร์ BT01
+          </button>
+        </div>
+
+        <!-- แถวที่ 2: ประเภทการ์ด, ในเด็ค, และช่องค้นหา -->
+        <div class="deck-filter-sub-row">
+          <div class="filter-pill-group" id="deck-filter-type-group">
+            <span class="filter-group-label">ประเภท:</span>
+            <button type="button" class="deck-sub-pill active" data-type="ALL">ทั้งหมด</button>
+            <button type="button" class="deck-sub-pill" data-type="Monster">⚔️ มอนสเตอร์</button>
+            <button type="button" class="deck-sub-pill" data-type="Spell">📜 เวทมนตร์</button>
+          </div>
+
+          <div class="filter-pill-group" id="deck-filter-status-group">
+            <span class="filter-group-label">สถานะ:</span>
+            <button type="button" class="deck-sub-pill active" data-status="ALL">ทั้งหมด</button>
+            <button type="button" class="deck-sub-pill" data-status="IN_DECK">🃏 อยู่ในเด็ค (<span id="badge-in-deck-count">0</span>)</button>
+          </div>
+
+          <div class="deck-search-wrap">
+            <input type="text" id="input-deck-search" class="deck-search-input" placeholder="🔍 ค้นหาชื่อ / พลัง / ข้อความ..." autocomplete="off">
+            <button type="button" id="btn-clear-deck-search" class="deck-search-clear" style="display: none;">✕</button>
+          </div>
+        </div>
+      </div>
+
       <div class="card-pool-grid" id="main-pool-list"></div>
     </div>
   </div>

@@ -282,6 +282,18 @@ html.is-mobile #deck-builder-modal .card-pool-grid .card { width: 100% !importan
 html.is-mobile #deck-builder-modal .card-pool-grid .card .card-name { font-size: 9px !important; }
 html.is-mobile #deck-builder-modal .count-badge { width: 100%; font-size: 12px; font-weight: 800; line-height: 1.2; padding: 4px 2px; text-align: center; border-radius: 999px; }
 
+html.is-mobile #deck-builder-modal .deck-current-tray-container { padding: 8px 10px; margin: 10px 0; }
+html.is-mobile #deck-builder-modal .deck-current-tray-list { min-height: 84px; gap: 6px; }
+html.is-mobile #deck-builder-modal .deck-tray-chip { width: 56px; height: 80px; }
+html.is-mobile #deck-builder-modal .deck-tray-chip .dtc-name { font-size: 7.5px; }
+html.is-mobile #deck-builder-modal .deck-filter-panel { padding: 8px; margin-bottom: 10px; }
+html.is-mobile #deck-builder-modal .deck-filter-themes-row { gap: 5px; -webkit-overflow-scrolling: touch; }
+html.is-mobile #deck-builder-modal .deck-theme-btn { padding: 4px 10px; font-size: 11px; }
+html.is-mobile #deck-builder-modal .deck-filter-sub-row { flex-direction: column; align-items: stretch; gap: 8px; }
+html.is-mobile #deck-builder-modal .deck-filter-sub-row .filter-pill-group { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+html.is-mobile #deck-builder-modal .deck-search-wrap { min-width: 100%; }
+html.is-mobile #deck-builder-modal .deck-search-input { height: 38px; font-size: 12.5px; }
+
 /* =============================================================================
    6. ร้านค้า: เต็มจอแบบแอป · หัวกะทัดรัด · แท็บติดบนเมื่อเลื่อน
    ============================================================================= */
