@@ -899,13 +899,22 @@ function updateLastPlayedCardWidget(info) {
   const thumb = btn.querySelector('.last-card-pill-img');
   const nameEl = btn.querySelector('.last-card-pill-name');
   const sideEl = btn.querySelector('.last-card-pill-side');
-  if (thumb) thumb.src = c.image || '';
+  if (thumb) {
+    if (c.image) {
+      thumb.src = c.image;
+      thumb.style.display = 'block';
+      thumb.onerror = () => { thumb.style.display = 'none'; };
+    } else {
+      thumb.style.display = 'none';
+    }
+  }
   if (nameEl) nameEl.textContent = c.name || 'การ์ดล่าสุด';
   if (sideEl) {
-    sideEl.textContent = info.isAI ? '🤖 คู่แข่งใช้' : '👤 เราใช้';
+    sideEl.textContent = info.isAI ? '🤖 คู่แข่ง' : '👤 ฝั่งเรา';
     sideEl.style.color = info.isAI ? '#fca5a5' : '#86efac';
   }
-  btn.style.borderColor = info.isAI ? '#ef4444' : '#22c55e';
+  btn.style.borderColor = info.isAI ? 'rgba(244, 63, 94, 0.45)' : 'rgba(56, 189, 248, 0.45)';
+  btn.style.background = info.isAI ? 'rgba(244, 63, 94, 0.1)' : 'rgba(56, 189, 248, 0.1)';
   btn.style.display = 'inline-flex';
 }
 
@@ -9061,6 +9070,19 @@ function setupInGameControlBar() {
   const parentGroup = document.getElementById('btn-open-deck')?.parentElement;
   if (!parentGroup) return;
 
+  // 1. ปุ่มยอมแพ้ (ฝั่งซ้าย ข้างปุ่มเสียง)
+  if (!document.getElementById('btn-surrender-match')) {
+    const surrenderBtn = document.createElement('button');
+    surrenderBtn.id = 'btn-surrender-match';
+    surrenderBtn.className = 'btn';
+    surrenderBtn.title = 'ยอมแพ้';
+    surrenderBtn.setAttribute('aria-label', 'ยอมแพ้');
+    surrenderBtn.innerHTML = `${hudIcon('flag')}<span class="sr-label">ยอมแพ้</span>`;
+    surrenderBtn.onclick = () => handlePlayerSurrender();
+    parentGroup.appendChild(surrenderBtn);
+  }
+
+  // 2. ป้ายการ์ดล่าสุดที่ทำงาน (คลิกเพื่อเปิดประวัติ)
   if (!document.getElementById('btn-last-card-pill')) {
     const lastCardBtn = document.createElement('button');
     lastCardBtn.type = 'button';
@@ -9069,7 +9091,7 @@ function setupInGameControlBar() {
     lastCardBtn.title = 'คลิกดูการ์ดและสกิลใบล่าสุดที่เพิ่งทำงาน';
     lastCardBtn.style.display = 'none';
     lastCardBtn.innerHTML = `
-      <img class="last-card-pill-img" src="" alt="">
+      <img class="last-card-pill-img" src="" alt="" style="display:none;">
       <span class="last-card-pill-meta">
         <small class="last-card-pill-side">⚡ ล่าสุด</small>
         <b class="last-card-pill-name">-</b>
@@ -9088,38 +9110,31 @@ function setupInGameControlBar() {
     parentGroup.appendChild(lastCardBtn);
   }
 
-  if (!document.getElementById('btn-surrender-match')) {
+  // 3. ปุ่มทดสอบสกิล (แอดมิน/Sandbox)
+  if (!document.getElementById('btn-open-sandbox')) {
     const sandboxBtn = document.createElement('button');
     sandboxBtn.type = 'button';
     sandboxBtn.id = 'btn-open-sandbox';
     sandboxBtn.className = 'btn';
-    sandboxBtn.style.background = '#7c3aed';
-    sandboxBtn.style.marginRight = '6px';
     sandboxBtn.title = 'เปิดห้องทดลองสกิลการ์ด & ตรวจเช็กการ์ด 72 ใบ';
     sandboxBtn.textContent = '🧪 ทดสอบสกิล';
+    sandboxBtn.style.display = 'none';
     sandboxBtn.onclick = () => {
       if (window.BOFSandbox && typeof window.BOFSandbox.openModal === 'function') {
         window.BOFSandbox.openModal();
       }
     };
     parentGroup.appendChild(sandboxBtn);
+  }
 
+  // 4. ปุ่มหลักเปลี่ยนเฟส/จบเทิร์น (ฝั่งขวาสุด เด่นชัด)
+  if (!document.getElementById('btn-pass-turn-inline')) {
     const nextPhaseBtn = document.createElement('button');
     nextPhaseBtn.id = 'btn-pass-turn-inline';
     nextPhaseBtn.className = 'btn';
-    nextPhaseBtn.style.marginRight = '8px';
     nextPhaseBtn.textContent = '⚔️ เฟสถัดไป (Battle Phase)';
     nextPhaseBtn.onclick = () => handleNextPhaseButtonClick();
     parentGroup.appendChild(nextPhaseBtn);
-
-    const surrenderBtn = document.createElement('button');
-    surrenderBtn.id = 'btn-surrender-match';
-    surrenderBtn.className = 'btn';
-    surrenderBtn.title = 'ยอมแพ้';
-    surrenderBtn.setAttribute('aria-label', 'ยอมแพ้');
-    surrenderBtn.innerHTML = `${hudIcon('flag')}<span class="sr-label">ยอมแพ้</span>`;
-    surrenderBtn.onclick = () => handlePlayerSurrender();
-    parentGroup.appendChild(surrenderBtn);
   }
 
   const sbBtn = document.getElementById('btn-open-sandbox');
