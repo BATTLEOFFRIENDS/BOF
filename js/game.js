@@ -12835,16 +12835,6 @@ function renderDeckCurrentTray() {
   if (mobileBottomSave) {
     mobileBottomSave.disabled = (count !== 20);
   }
-  if (!trayList) return;
-
-  trayList.innerHTML = '';
-  const mainDeck = currentDeckConfig.mainDeck || [];
-  const count = mainDeck.length;
-
-  if (countSummary) {
-    countSummary.textContent = `${count}/20 ใบ`;
-    countSummary.className = `deck-tray-count-badge ${count === 20 ? '' : 'is-incomplete'}`;
-  }
 
   let monsterCount = 0;
   let spellCount = 0;
