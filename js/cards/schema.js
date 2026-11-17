@@ -7,7 +7,7 @@
    เพิ่มบล็อกใหม่: เพิ่ม case ใน executeSingleStep + generateStepText แล้วเพิ่มรายการที่นี่ */
 const CARD_SCHEMA = {
   triggers: [
-    'ON_SUMMON', 'ON_DESTROY', 'ON_BATTLE_DESTROY', 'ON_KILL_UNIT', 'ON_INTERCEPT', 'ON_HIT_LEADER',
+    'ON_SUMMON', 'ON_SUMMON_BY_EFFECT', 'ON_DESTROY', 'ON_BATTLE_DESTROY', 'ON_KILL_UNIT', 'ON_INTERCEPT', 'ON_HIT_LEADER',
     'ACTIVATE_MAIN', 'ACTIVATE_LEADER', 'CAST_SPELL', 'CONTINUOUS_POWER', 'CONTINUOUS_BOARD_AURA',
   ],
   costs: {
@@ -92,7 +92,7 @@ const CARD_SCHEMA = {
       desc: 'นำการ์ดที่ตรงเงื่อนไข 1 ใบจากกองนรกขึ้นมือ',
     },
     SEARCH_DECK_OR_GRAVE: {
-      required: ['destination'], optional: ['cardId', 'filterTribe', 'filterName', 'filterType', 'grantImmunity'],
+      required: ['destination'], optional: ['cardId', 'filterTribe', 'filterName', 'filterType', 'grantImmunity', 'optional', 'minCount', 'maxCount'],
       enums: { destination: ['HAND', 'BOARD'], filterType: ['SPELL', 'MONSTER'] },
       desc: 'ค้นการ์ดที่ตรงเงื่อนไขจากกองการ์ดหรือกองนรก ไปขึ้นมือ (HAND) หรือลงสนาม (BOARD)',
     },
