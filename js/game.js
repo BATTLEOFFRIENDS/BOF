@@ -12036,9 +12036,12 @@ function renderCombatLogModal(animate = false) {
     return;
   }
 
+  // เรียงจากใหม่ไปเก่า (เทิร์นปัจจุบันและเหตุการณ์ล่าสุดอยู่บนสุด)
+  const displayList = [...filtered].reverse();
+
   let lastTurn = null;
   const rows = [];
-  filtered.forEach(item => {
+  displayList.forEach(item => {
     if (item.turn !== lastTurn) {
       lastTurn = item.turn;
       const sep = document.createElement('div');
@@ -12094,10 +12097,10 @@ function renderCombatLogModal(animate = false) {
     rows.push(row);
   });
 
-  listEl.scrollTop = listEl.scrollHeight;
-  // เปิดหน้าต่าง: แถวล่าสุดไหลเข้าทีละแถว (เฉพาะ ~10 แถวสุดท้ายที่มองเห็น)
+  listEl.scrollTop = 0;
+  // เปิดหน้าต่าง: แถวบนสุดที่เป็นเหตุการณ์ล่าสุดไหลเข้าทีละแถว
   if (animate && window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    gsap.from(rows.slice(-10), { x: -14, opacity: 0, duration: .28, stagger: .03, delay: .08, ease: 'power2.out', clearProps: 'transform,opacity' });
+    gsap.from(rows.slice(0, 10), { y: -10, opacity: 0, duration: .25, stagger: .03, ease: 'power2.out', clearProps: 'transform,opacity' });
   }
 }
 
