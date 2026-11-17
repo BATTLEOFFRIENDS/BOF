@@ -651,11 +651,16 @@
           <button class="btn" id="btn-next-phase" disabled>⚔️ เข้าสู่ Battle Phase</button>
           <button class="btn" id="btn-end-turn" style="background:#dc2626;" disabled>⏭️ จบเทิร์น</button>
           <button class="btn" id="btn-open-deck" style="background:#8b5cf6;">🃏 จัดเด็ค</button>
+          <button class="btn" id="btn-open-combat-log" style="background:#1e293b; border: 1px solid rgba(160, 175, 255, 0.25);" title="ดูประวัติการต่อสู้ทั้งหมด">📜 ประวัติ (<span id="combat-log-counter">0</span>)</button>
           <button class="btn" id="btn-toggle-sound" style="background:#334155; padding: 6px 10px;" title="เปิด/ปิดเสียง">🔊</button>
         </div>
       </div>
-      <!-- Hidden element to keep setLog functioning safely without displaying on board -->
-      <span id="action-log" style="display:none;"></span>
+      <!-- Live Battle Feed Bar (แถบ Action Log ล่าสุดแบบเรียลไทม์) -->
+      <div id="live-battle-ticker" class="live-battle-ticker" title="คลิกเพื่อดูประวัติการต่อสู้ทั้งหมด">
+        <div class="ticker-badge" id="ticker-badge">📜 ล่าสุด</div>
+        <div class="ticker-content" id="action-log">รอเริ่มการแข่งขัน...</div>
+        <div class="ticker-history-hint">📜 ดูประวัติ (<span id="ticker-counter">0</span>) ➔</div>
+      </div>
     </div>
 
     <!-- โซนที่ 3 (ส่วนล่าง): สนามฝั่งผู้เล่น (Player Half) กลับด้านแบบสมมาตรตามผังภาพ -->

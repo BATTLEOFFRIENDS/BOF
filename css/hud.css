@@ -267,6 +267,182 @@
 .cl-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 0; color: #64748b; font-size: 14px; }
 .cl-empty .bof-i { font-size: 34px; }
 
+/* ============================================================================
+   LIVE BATTLE ACTION TICKER (แถบ Action Log เรียลไทม์กลางกระดาน)
+   ============================================================================ */
+.live-battle-ticker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  padding: 6px 14px;
+  margin-top: 6px;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.94) 0%, rgba(24, 32, 60, 0.92) 100%);
+  border: 1px solid rgba(160, 175, 255, 0.24);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+.live-battle-ticker:hover {
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.98) 0%, rgba(45, 55, 95, 0.95) 100%);
+  border-color: rgba(243, 201, 105, 0.6);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6), 0 0 18px rgba(243, 201, 105, 0.25);
+  transform: translateY(-1px);
+}
+.live-battle-ticker.ticker-bump {
+  animation: tickerPulse 0.45s ease-out;
+}
+@keyframes tickerPulse {
+  0% { transform: scale(0.98); border-color: #38bdf8; box-shadow: 0 0 20px rgba(56, 189, 248, 0.6); }
+  50% { transform: scale(1.01); border-color: #fbbf24; box-shadow: 0 0 25px rgba(251, 191, 36, 0.6); }
+  100% { transform: scale(1); }
+}
+.ticker-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  color: #fff;
+  background: #0284c7;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: background 0.2s ease;
+}
+.ticker-content {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.2px;
+}
+.ticker-history-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f3c969;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.92;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.live-battle-ticker:hover .ticker-history-hint {
+  opacity: 1;
+  transform: translateX(2px);
+  color: #ffe39a;
+}
+
+/* ============================================================================
+   SKILL CUT-IN SHOWCASE BANNER (แบนเนอร์แจ้งเตือนสกิลเริ่มทำงานแบบพรีเมียม)
+   ============================================================================ */
+@keyframes bannerGlowFlare {
+  0% { box-shadow: 0 20px 50px rgba(0,0,0,0.85), 0 0 20px var(--banner-theme, #fbbf24); }
+  50% { box-shadow: 0 25px 65px rgba(0,0,0,0.95), 0 0 50px var(--banner-theme, #fbbf24), 0 0 25px #ffffff; }
+  100% { box-shadow: 0 20px 50px rgba(0,0,0,0.85), 0 0 25px var(--banner-theme, #fbbf24); }
+}
+@keyframes bannerEntrySlide {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -62%) scale(0.8);
+    filter: brightness(2);
+  }
+  65% {
+    opacity: 1;
+    transform: translate(-50%, -49%) scale(1.03);
+    filter: brightness(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: brightness(1);
+  }
+}
+#fx-card-cutin-banner {
+  position: fixed;
+  top: 36%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  z-index: 500;
+  background: linear-gradient(135deg, rgba(12, 16, 38, 0.97), rgba(24, 30, 64, 0.96));
+  border: 2px solid var(--banner-theme, #fbbf24);
+  border-radius: 18px;
+  padding: 14px 22px;
+  display: none;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.9), 0 0 35px var(--banner-theme, rgba(251, 191, 36, 0.5));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  pointer-events: none;
+  opacity: 0;
+  min-width: 320px;
+  max-width: min(92vw, 540px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+#fx-card-cutin-banner.show {
+  display: flex !important;
+  opacity: 1;
+  animation: bannerEntrySlide 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards, bannerGlowFlare 1.4s ease-in-out infinite alternate;
+}
+#fx-card-cutin-banner img {
+  width: 72px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid var(--banner-theme, #38bdf8);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
+  flex-shrink: 0;
+}
+.cutin-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.cutin-info-actor {
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 2.5px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--banner-theme-bg, rgba(56, 189, 248, 0.25));
+  border: 1px solid var(--banner-theme, rgba(56, 189, 248, 0.5));
+  letter-spacing: 0.3px;
+}
+.cutin-turn-badge {
+  font-size: 11px;
+  color: #f3c969;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.cutin-info-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+}
+.cutin-info-sub {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .turn-phase-group.is-my-turn #turn-indicator::before, #normal-spell-quota .bof-i, #btn-pass-turn-inline .pb-shine,
   #btn-pass-turn-inline .bof-i, #btn-pass-turn-inline .bof-i *, #btn-toggle-sound .i-wave, #phase-indicator .bof-i,

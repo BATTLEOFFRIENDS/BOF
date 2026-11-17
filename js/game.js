@@ -911,7 +911,31 @@ function updateLastPlayedCardWidget(info) {
 
 function setLog(message) {
   const singleLog = document.getElementById('action-log');
-  if (singleLog) singleLog.textContent = message;
+  if (singleLog) {
+    singleLog.textContent = message;
+    const ticker = document.getElementById('live-battle-ticker');
+    if (ticker) {
+      ticker.classList.remove('ticker-bump');
+      void ticker.offsetWidth;
+      ticker.classList.add('ticker-bump');
+    }
+    const badge = document.getElementById('ticker-badge');
+    if (badge) {
+      if (message.includes('🤖') || message.includes('AI') || message.includes('ฝ่ายตรงข้าม')) {
+        badge.textContent = '🤖 คู่แข่ง';
+        badge.style.background = '#ef4444';
+      } else if (message.includes('⚡') || message.includes('สกิล') || message.includes('เวท') || message.includes('✨') || message.includes('🧀')) {
+        badge.textContent = '⚡ สกิล';
+        badge.style.background = '#f59e0b';
+      } else if (message.includes('⚔️') || message.includes('โจมตี') || message.includes('💥')) {
+        badge.textContent = '⚔️ โจมตี';
+        badge.style.background = '#f97316';
+      } else {
+        badge.textContent = '👤 ฝั่งเรา';
+        badge.style.background = '#10b981';
+      }
+    }
+  }
 
   const scrollbox = document.getElementById('action-log-scrollbox');
   if (scrollbox) {
@@ -928,7 +952,7 @@ function setLog(message) {
   if (!Array.isArray(gameState.matchLogHistory)) gameState.matchLogHistory = [];
   let logCategory = 'OTHER';
   if (/โจมตี|ดาเมจ|⚔️|💥|ตี/i.test(message)) logCategory = 'ATTACK';
-  else if (/เวท|สกิล|✨|⚡|🔮|🏰|🌌/i.test(message)) logCategory = 'SPELL';
+  else if (/เวท|สกิล|✨|⚡|🔮|🏰|🌌|🧀/i.test(message)) logCategory = 'SPELL';
   else if (/อัญเชิญ|ลงสนาม|คอล|🦖|👑/i.test(message)) logCategory = 'SUMMON';
 
   const isAI = message.includes('🤖') || message.includes('AI') || message.includes('ฝ่ายตรงข้าม') || message.includes('[เพื่อน]');
@@ -958,6 +982,11 @@ function setLog(message) {
   };
 
   gameState.matchLogHistory.push(entry);
+
+  const tickerCounter = document.getElementById('ticker-counter');
+  if (tickerCounter) tickerCounter.textContent = gameState.matchLogHistory.length;
+  const combatCounter = document.getElementById('combat-log-counter');
+  if (combatCounter) combatCounter.textContent = gameState.matchLogHistory.length;
 
   if (matchedCard) {
     gameState.lastPlayedCardInfo = {
@@ -2194,14 +2223,53 @@ const EffectEngine = {
         }
       }
 
-      if (sourceCard && (effectDef.trigger === 'CAST_SPELL' || sourceCard.type === 'NSpell' || sourceCard.type === 'NormalSpell' || sourceCard.type === 'RSpell' || sourceCard.type === 'ReactionSpell')) {
-        const isR = sourceCard.type === 'RSpell' || sourceCard.type === 'ReactionSpell' || effectDef.isReaction;
-        const bannerTitle = isR ? `⚡ ${caster.name} ใช้เวทรีแอค!` : `✨ ${caster.name} ร่ายเวทมนตร์!`;
-        const bannerDesc = `[${sourceCard.name}] ${effectDef.label || sourceCard.desc || ''}`.trim();
-        if (typeof showCardShowcaseBanner === 'function') {
-          showCardShowcaseBanner(sourceCard, bannerTitle, bannerDesc, isR ? '#ec4899' : '#38bdf8', 1300);
+      if (sourceCard) {
+        const isPlayerCaster = (caster === gameState.player || !caster || caster.ownerPrefix === 'P1');
+        const sidePrefix = isPlayerCaster ? 'ฝั่งเรา' : 'คู่แข่ง';
+        let bannerTitle = '';
+        let bannerColor = isPlayerCaster ? '#06b6d4' : '#ef4444';
+        let isSpell = false;
+
+        if (effectDef.trigger === 'CAST_SPELL' || sourceCard.type === 'NSpell' || sourceCard.type === 'NormalSpell' || sourceCard.type === 'RSpell' || sourceCard.type === 'ReactionSpell') {
+          isSpell = true;
+          const isR = sourceCard.type === 'RSpell' || sourceCard.type === 'ReactionSpell' || effectDef.isReaction;
+          bannerTitle = isR ? `⚡ เวทรีแอค (${sidePrefix})` : `✨ ร่ายเวทมนตร์ (${sidePrefix})`;
+          bannerColor = isR ? '#ec4899' : '#38bdf8';
+        } else if (effectDef.trigger === 'ACTIVATE_LEADER' || sourceCard.type === 'Leader') {
+          bannerTitle = `👑 สกิลลีดเดอร์ (${sidePrefix})`;
+          bannerColor = isPlayerCaster ? '#f59e0b' : '#f43f5e';
+        } else if (effectDef.trigger === 'ACTIVATE_MAIN') {
+          bannerTitle = `⚡ สกิลยูนิต (${sidePrefix})`;
+          bannerColor = isPlayerCaster ? '#06b6d4' : '#ef4444';
+        } else if (effectDef.trigger === 'ON_SUMMON' || effectDef.trigger === 'ON_SUMMON_BY_EFFECT') {
+          bannerTitle = `🌟 สกิลเมื่อลงสนาม (${sidePrefix})`;
+          bannerColor = isPlayerCaster ? '#10b981' : '#a855f7';
+        } else if (effectDef.trigger === 'ON_BATTLE_DESTROY' || effectDef.trigger === 'ON_KILL_UNIT') {
+          bannerTitle = `💥 สกิลทำลายยูนิต (${sidePrefix})`;
+          bannerColor = isPlayerCaster ? '#f97316' : '#dc2626';
+        } else if (effectDef.trigger === 'ON_DESTROY') {
+          bannerTitle = `☠️ สกิลเมื่อถูกทำลาย (${sidePrefix})`;
+          bannerColor = '#8b5cf6';
+        } else if (effectDef.trigger === 'ON_INTERCEPT') {
+          bannerTitle = `🛡️ สกิลสกัดกั้น (${sidePrefix})`;
+          bannerColor = '#3b82f6';
+        } else if (effectDef.trigger === 'ACTIVATE_GRAVE') {
+          bannerTitle = `🪦 สกิลสั่งใช้จากนรก (${sidePrefix})`;
+          bannerColor = '#9333ea';
+        } else {
+          bannerTitle = `⚡ สกิลทำงาน (${sidePrefix})`;
         }
-        setLog(`✨ [${bannerTitle}] ${sourceCard.name}: ${effectDef.label || sourceCard.desc || ''}`);
+
+        const bannerDesc = (effectDef.label || sourceCard.desc || '').trim();
+        if (typeof showCardShowcaseBanner === 'function') {
+          showCardShowcaseBanner(sourceCard, bannerTitle, bannerDesc, bannerColor, 1400);
+        }
+        if (isSpell && window.BOF_AUDIO && typeof window.BOF_AUDIO.playSpell === 'function') {
+          window.BOF_AUDIO.playSpell();
+        } else if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playSkill === 'function') {
+          window.BOF_AUDIO.playSkill();
+        }
+        setLog(`⚡ [${bannerTitle}] ${sourceCard.name}: ${bannerDesc}`);
       }
 
       fxSkillActivated(sourceCard, caster);
@@ -6744,8 +6812,11 @@ function ensureVisualEffectsStyles() {
     banner.id = 'fx-card-cutin-banner';
     banner.innerHTML = `
       <img id="cutin-img" src="" alt="Card">
-      <div>
-        <div class="cutin-info-actor" id="cutin-actor">ACTION</div>
+      <div style="flex:1; min-width:0;">
+        <div class="cutin-badge-row">
+          <span class="cutin-info-actor" id="cutin-actor">⚡ ACTION</span>
+          <span class="cutin-turn-badge" id="cutin-turn" style="font-size:11px; color:#f3c969; font-weight:700;">TURN 1</span>
+        </div>
         <div class="cutin-info-title" id="cutin-title">Card Name</div>
         <div class="cutin-info-sub" id="cutin-sub">Effect description</div>
       </div>
@@ -6755,9 +6826,9 @@ function ensureVisualEffectsStyles() {
 }
 
 let cutinTimeoutId = null;
-function showCardShowcaseBanner(card, actorName, actionSubText, borderColor = '#fbbf24', duration = 1050) {
+function showCardShowcaseBanner(card, actorName, actionSubText, borderColor = '#fbbf24', duration = 1400) {
   if (!card) return;
-  const isAIActor = String(actorName || '').includes('AI') || String(actorName || '').includes('ฝ่ายตรงข้าม');
+  const isAIActor = String(actorName || '').includes('AI') || String(actorName || '').includes('ฝ่ายตรงข้าม') || String(actorName || '').includes('คู่แข่ง');
   gameState._pendingBannerCard = {
     card,
     actorName,
@@ -6782,13 +6853,24 @@ function showCardShowcaseBanner(card, actorName, actionSubText, borderColor = '#
   const banner = document.getElementById('fx-card-cutin-banner');
   if (!banner) return;
 
-  document.getElementById('cutin-img').src = card.image || '';
-  document.getElementById('cutin-actor').textContent = `⚡ ${actorName}`;
-  document.getElementById('cutin-title').textContent = card.name;
-  document.getElementById('cutin-sub').textContent = actionSubText;
+  const cutinImg = document.getElementById('cutin-img');
+  if (cutinImg) cutinImg.src = card.image || '';
+  const cutinActor = document.getElementById('cutin-actor');
+  if (cutinActor) cutinActor.textContent = actorName;
+  const cutinTitle = document.getElementById('cutin-title');
+  if (cutinTitle) cutinTitle.textContent = card.name;
+  const cutinSub = document.getElementById('cutin-sub');
+  if (cutinSub) cutinSub.textContent = actionSubText;
+  const cutinTurn = document.getElementById('cutin-turn');
+  if (cutinTurn) cutinTurn.textContent = `TURN ${gameState.turnCount || 1}`;
+
+  banner.style.setProperty('--banner-theme', borderColor);
+  banner.style.setProperty('--banner-theme-bg', `${borderColor}33`);
   banner.style.borderColor = borderColor;
 
   if (cutinTimeoutId) clearTimeout(cutinTimeoutId);
+  banner.classList.remove('show');
+  void banner.offsetWidth; // Force reflow to replay animation
   banner.classList.add('show');
   cutinTimeoutId = setTimeout(() => {
     banner.classList.remove('show');
@@ -11906,7 +11988,16 @@ function renderCombatLogModal(animate = false) {
     const row = document.createElement(cardObj ? 'button' : 'div');
     if (cardObj) row.type = 'button';
     row.className = `cl-row ${item.isAI ? 'is-ai' : 'is-player'} cat-${cat}${cardObj ? ' has-card' : ''}`;
-    row.innerHTML = `<span class="cl-dot">${hudIcon(CL_CAT_ICON[item.category] || 'bell')}</span><span class="cl-msg"></span>`;
+    row.innerHTML = `
+      <span class="cl-dot">${hudIcon(CL_CAT_ICON[item.category] || 'bell')}</span>
+      <div class="cl-row-body" style="flex:1; min-width:0; text-align:left;">
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+          <span class="cl-side-pill ${item.isAI ? 'is-ai' : 'is-player'}" style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; background:${item.isAI ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}; color:${item.isAI ? '#fca5a5' : '#86efac'};">${item.isAI ? '🤖 คู่แข่ง' : '👤 ฝั่งเรา'}</span>
+          <span style="font-size:10.5px; color:#64748b; margin-left:auto;">${item.time || ''}</span>
+        </div>
+        <span class="cl-msg"></span>
+      </div>
+    `;
     row.querySelector('.cl-msg').textContent = String(item.message || '').replace(CL_LEAD_EMOJI, '');
     row.title = `${item.isAI ? 'คู่แข่ง' : 'ฝั่งเรา'} · ${item.time || ''}`;
 
@@ -11946,9 +12037,16 @@ function renderCombatLogModal(animate = false) {
 function initCombatLogAndAudioControls() {
   const btnOpenLog = document.getElementById('btn-open-combat-log');
   const btnCloseLog = document.getElementById('btn-close-combat-log');
+  const liveTicker = document.getElementById('live-battle-ticker');
   const logModal = document.getElementById('combat-log-modal');
   if (btnOpenLog && logModal) {
     btnOpenLog.onclick = () => {
+      renderCombatLogModal(true);
+      logModal.style.display = 'flex';
+    };
+  }
+  if (liveTicker && logModal) {
+    liveTicker.onclick = () => {
       renderCombatLogModal(true);
       logModal.style.display = 'flex';
     };
