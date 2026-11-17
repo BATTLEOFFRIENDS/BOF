@@ -11893,7 +11893,23 @@ function ensureCombatLogSpotlightContainer() {
 
 // ประวัติการต่อสู้ (หน้าตา): การ์ดเด่นแบบย่อ + รายการแบ่งตามเทิร์น · สไตล์อยู่ที่ css/hud.css
 const CL_CAT_ICON = { ATTACK: 'sword', SPELL: 'spark', SUMMON: 'summon' };
+const CL_CAT_LABEL = {
+  ATTACK: '⚔️ โจมตี',
+  SPELL: '🔮 เวทมนตร์',
+  SUMMON: '🌟 ลงสนาม',
+  OTHER: '⚡ สกิล'
+};
 const CL_LEAD_EMOJI = /^\s*(?:\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*\s*)+/u;
+
+function formatLogMessageHtml(msg) {
+  if (!msg) return '';
+  let clean = String(msg).replace(CL_LEAD_EMOJI, '');
+  // Format [Card Name] with distinct styling
+  clean = clean.replace(/\[([^\]]+)\]/g, '<b class="cl-card-hl">[$1]</b>');
+  // Format "Card Name" with distinct styling
+  clean = clean.replace(/"([^"]+)"/g, '<b class="cl-card-hl">"$1"</b>');
+  return clean;
+}
 
 function renderCombatLogSpotlight(spotEl, pop = false) {
   if (!spotEl) return;
@@ -11988,25 +12004,26 @@ function renderCombatLogModal(animate = false) {
     const row = document.createElement(cardObj ? 'button' : 'div');
     if (cardObj) row.type = 'button';
     row.className = `cl-row ${item.isAI ? 'is-ai' : 'is-player'} cat-${cat}${cardObj ? ' has-card' : ''}`;
+    const catLabel = CL_CAT_LABEL[item.category] || '⚡ สกิล';
+    const sidePillText = item.isAI ? '🤖 คู่แข่ง' : '👤 ฝั่งเรา';
+    const thumbHtml = cardObj
+      ? `<img class="cl-thumb" src="${cardObj.image || ''}" alt="${cardObj.name || ''}" title="คลิกเพื่อดูการ์ด">`
+      : `<div class="cl-thumb-fallback">${hudIcon(CL_CAT_ICON[item.category] || 'bell')}</div>`;
+
     row.innerHTML = `
-      <span class="cl-dot">${hudIcon(CL_CAT_ICON[item.category] || 'bell')}</span>
-      <div class="cl-row-body" style="flex:1; min-width:0; text-align:left;">
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
-          <span class="cl-side-pill ${item.isAI ? 'is-ai' : 'is-player'}" style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; background:${item.isAI ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}; color:${item.isAI ? '#fca5a5' : '#86efac'};">${item.isAI ? '🤖 คู่แข่ง' : '👤 ฝั่งเรา'}</span>
-          <span style="font-size:10.5px; color:#64748b; margin-left:auto;">${item.time || ''}</span>
+      ${thumbHtml}
+      <div class="cl-row-body">
+        <div class="cl-row-meta">
+          <span class="cl-side-pill ${item.isAI ? 'is-ai' : 'is-player'}">${sidePillText}</span>
+          <span class="cl-cat-pill cat-${cat}">${catLabel}</span>
+          <span class="cl-time">${item.time || ''}</span>
         </div>
-        <span class="cl-msg"></span>
+        <div class="cl-msg">${formatLogMessageHtml(item.message)}</div>
       </div>
     `;
-    row.querySelector('.cl-msg').textContent = String(item.message || '').replace(CL_LEAD_EMOJI, '');
     row.title = `${item.isAI ? 'คู่แข่ง' : 'ฝั่งเรา'} · ${item.time || ''}`;
 
     if (cardObj) {
-      const thumb = document.createElement('img');
-      thumb.className = 'cl-thumb';
-      thumb.src = cardObj.image || '';
-      thumb.alt = '';
-      row.appendChild(thumb);
       row.onclick = () => {
         selectedLogSpotlight = {
           card: cardObj,
