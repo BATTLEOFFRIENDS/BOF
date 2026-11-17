@@ -12,12 +12,12 @@ CARD_DATABASE.push(
     effects: [
       {
         id: 'mami_summon_bebe',
-        label: 'ทิ้งมือ 1 ใบ -> อัญเชิญ "เบเบ้" จากกองหรือนรก & พลัง +1',
+        label: 'ทิ้งมือ 1 ใบ -> อัญเชิญ "เบเบ้" จากกองหรือนรก ไม่เกิน 1 ใบ & พลัง +1',
         trigger: 'ACTIVATE_MAIN',
         oncePerTurn: true,
         costs: [{ type: 'DISCARD_HAND', count: 1 }],
         steps: [
-          { block: 'SEARCH_DECK_OR_GRAVE', destination: 'BOARD', cardId: 'MD06' },
+          { block: 'SEARCH_DECK_OR_GRAVE', destination: 'BOARD', cardId: 'MD06', optional: true, minCount: 0, maxCount: 1 },
           { block: 'ADD_POWER', target: 'SELF_UNIT', amount: 1, duration: 'PERM' }
         ]
       }
@@ -84,7 +84,17 @@ CARD_DATABASE.push(
     power: 2,
     image: 'images/มาโดกะ/7.png',
     ability: 'BEBE_SUMMON_DRAW',
-    desc: 'ออโต้ : เมื่อลงสนามด้วยความสามารถการ์ดเราจั่วการ์ด 1 ใบ'
+    desc: 'ออโต้ : เมื่อลงสนามด้วยความสามารถการ์ดเราจั่วการ์ด 1 ใบ',
+    effects: [
+      {
+        id: 'bebe_summon_draw',
+        label: 'เมื่อลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ',
+        trigger: 'ON_SUMMON_BY_EFFECT',
+        steps: [
+          { block: 'DRAW', side: 'SELF', count: 1 }
+        ]
+      }
+    ]
   },
   {
     id: 'MD07',

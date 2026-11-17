@@ -1523,6 +1523,14 @@ function handleUltimateMadokaBattleEnd(contestant) {
     resetCardStateForZoneChange(card);
     card.state = 'Stand';
     contestant.board[emptySlot] = card;
+    EffectEngine.triggerCardEffects(card, 'ON_SUMMON', {
+      caster: contestant,
+      opponent: (contestant === gameState.player ? gameState.ai : gameState.player),
+      sourceCard: card,
+      sourceSlot: emptySlot,
+      isAI: (contestant !== gameState.player),
+      isEffectSummon: true
+    });
     placed++;
   }
   setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด นำการ์ดบนมือ ${placed} ใบลงสนามในสภาพ Stand และ Ultimate Madoka กลับสู่มิติมืด!`);
@@ -1980,9 +1988,16 @@ const EffectEngine = {
           if (matches.length === 0) return { ok: false, reason: 'ไม่มีการ์ดที่ตรงเงื่อนไขอยู่ในกองนรก!' };
         }
         if (step.block === 'SEARCH_DECK_OR_GRAVE') {
-          const inDeck = this.filterCards(caster.deck, step).length > 0;
-          const inGrave = this.filterCards(caster.graveyard, step).length > 0;
-          if (!inDeck && !inGrave) return { ok: false, reason: 'ไม่มีการ์ดเป้าหมายอยู่ในกองการ์ดหรือกองนรกเลย!' };
+          if (!step.optional && step.minCount !== 0) {
+            const inDeck = this.filterCards(caster.deck, step).length > 0;
+            const inGrave = this.filterCards(caster.graveyard, step).length > 0;
+            const canDiscardFromHand = Array.isArray(effectDef.costs) &&
+              effectDef.costs.some(c => c.type === 'DISCARD_HAND') &&
+              this.filterCards(caster.hand, step).length > 0;
+            if (!inDeck && !inGrave && !canDiscardFromHand) {
+              return { ok: false, reason: 'ไม่มีการ์ดเป้าหมายอยู่ในกองการ์ดหรือกองนรกเลย!' };
+            }
+          }
         }
         if (step.block === 'SEARCH_DECK') {
           const inDeck = this.filterCards(caster.deck, step).length > 0;
@@ -2080,19 +2095,36 @@ const EffectEngine = {
 
   // 2. เรียกใช้เอฟเฟกต์ทั้งหมดของการ์ดที่ตรงกับ Trigger (เช่น ON_SUMMON, ON_DESTROY, ON_KILL_UNIT, ON_HIT_LEADER, ON_INTERCEPT)
   triggerCardEffects(card, triggerType, context, onAllDone = null) {
-    if (!card || !Array.isArray(card.effects)) {
+    if (!card) {
       if (onAllDone) onAllDone();
       return false;
     }
     const opp = context && context.opponent;
     if (card.type === 'Monster' && opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT01_08')) {
-      if (['ON_SUMMON', 'ON_KILL_UNIT', 'ON_HIT_LEADER', 'ON_INTERCEPT'].includes(triggerType)) {
+      if (['ON_SUMMON', 'ON_SUMMON_BY_EFFECT', 'ON_KILL_UNIT', 'ON_HIT_LEADER', 'ON_INTERCEPT'].includes(triggerType)) {
         if (onAllDone) onAllDone();
         return false;
       }
     }
+    const isEffectSummon = context ? (context.isEffectSummon || !context.isNormalSummon) : false;
+
+    // Fallback สำหรับเบเบ้หากไม่มี effects array
+    if (triggerType === 'ON_SUMMON' && isEffectSummon && (card.id === 'MD06' || card.ability === 'BEBE_SUMMON_DRAW') && (!Array.isArray(card.effects) || card.effects.length === 0)) {
+      drawCards(context.caster, 1);
+      setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
+      if (onAllDone) onAllDone();
+      return true;
+    }
+
+    if (!Array.isArray(card.effects)) {
+      if (onAllDone) onAllDone();
+      return false;
+    }
     const matchingEffects = card.effects.filter(e => {
-      if (e.trigger !== triggerType) return false;
+      if (e.trigger === triggerType) return true;
+      if (triggerType === 'ON_SUMMON' && e.trigger === 'ON_SUMMON_BY_EFFECT' && isEffectSummon) return true;
+      return false;
+    }).filter(e => {
       if (e.oncePerTurn && card.usedSkills && card.usedSkills[e.id]) return false;
       return true;
     });
@@ -2888,12 +2920,8 @@ const EffectEngine = {
               if (fromZone === 'grave' && typeof notifyUnitCalledFromGrave === 'function') {
                 notifyUnitCalledFromGrave(foundCard, caster);
               }
-              if (foundCard.id === 'MD06') {
-                drawCards(caster, 1);
-                setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
-              }
               EffectEngine.triggerCardEffects(foundCard, 'ON_SUMMON', {
-                caster, opponent, sourceCard: foundCard, sourceSlot: emptySlot, isAI
+                caster, opponent, sourceCard: foundCard, sourceSlot: emptySlot, isAI, isEffectSummon: true
               }, next);
             } else if (isAI) {
               // ถ้าสนาม AI เต็ม ให้ AI วางทับยูนิทเดิมบนสนามของ AI เอง (ไม่ไปถามผู้เล่น)
@@ -2904,25 +2932,18 @@ const EffectEngine = {
               if (fromZone === 'grave' && typeof notifyUnitCalledFromGrave === 'function') {
                 notifyUnitCalledFromGrave(foundCard, caster);
               }
-              if (foundCard.id === 'MD06') {
-                drawCards(caster, 1);
-                setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
-              }
               EffectEngine.triggerCardEffects(foundCard, 'ON_SUMMON', {
-                caster, opponent, sourceCard: foundCard, sourceSlot: overwriteSlot, isAI: true
+                caster, opponent, sourceCard: foundCard, sourceSlot: overwriteSlot, isAI: true, isEffectSummon: true
               }, next);
             } else {
               gameState.pendingAction = {
                 type: 'CALL_FROM_EFFECT_SELECT_SLOT',
                 targetContestant: caster,
                 cardToPlace: foundCard,
+                isEffectSummon: true,
                 onAfterPlace: () => {
                   if (fromZone === 'grave' && typeof notifyUnitCalledFromGrave === 'function') {
                     notifyUnitCalledFromGrave(foundCard, caster);
-                  }
-                  if (foundCard.id === 'MD06') {
-                    drawCards(caster, 1);
-                    setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
                   }
                   next();
                 }
@@ -2946,8 +2967,44 @@ const EffectEngine = {
           return;
         }
 
-        // ถ้าเป็นการค้นหาเพื่อลงสนามทันที (เช่น โอนามิ เรียก โรเซเลีย) ให้ดึงจากนรกหรือกองให้อัตโนมัติ
+        // ถ้าเป็นการค้นหาเพื่อลงสนามทันที (เช่น โอนามิ เรียก โรเซเลีย, มามิ เรียก เบเบ้)
         if (step.destination === 'BOARD' && step.cardId) {
+          if (!isAI && inGrave.length > 0 && inDeck.length > 0) {
+            const targetName = inGrave[0].name || inDeck[0].name || 'การ์ดเป้าหมาย';
+            const options = [
+              {
+                label: `ดึง "${targetName}" จากกองการ์ด (สับกอง)`,
+                color: '#0284c7',
+                onSelect: () => {
+                  const idx = caster.deck.findIndex(c => c.id === step.cardId);
+                  if (idx !== -1) placeCardToDestination(caster.deck.splice(idx, 1)[0], 'deck');
+                  else next();
+                }
+              },
+              {
+                label: `ดึง "${targetName}" จากกองนรก`,
+                color: '#7c3aed',
+                onSelect: () => {
+                  const idx = caster.graveyard.findIndex(c => c.id === step.cardId);
+                  if (idx !== -1) placeCardToDestination(caster.graveyard.splice(idx, 1)[0], 'grave');
+                  else next();
+                }
+              }
+            ];
+            if (step.optional || step.minCount === 0) {
+              options.push({
+                label: 'ไม่ทำการอัญเชิญ',
+                color: '#64748b',
+                onSelect: () => {
+                  setLog(`ℹ️ ${cardTitle} ข้ามขั้นตอนการอัญเชิญ`);
+                  next();
+                }
+              });
+            }
+            showChoiceModal(`🔍 ${cardTitle}`, `เลือกโซนที่ต้องการดึง "${targetName}" ลงสนาม:`, options);
+            return;
+          }
+
           if (inGrave.length > 0) {
             const idx = caster.graveyard.findIndex(c => c.id === step.cardId);
             placeCardToDestination(caster.graveyard.splice(idx, 1)[0], 'grave');
@@ -2955,6 +3012,9 @@ const EffectEngine = {
             const idx = caster.deck.findIndex(c => c.id === step.cardId);
             placeCardToDestination(caster.deck.splice(idx, 1)[0], 'deck');
           } else {
+            if (step.optional || step.minCount === 0) {
+              setLog(`ℹ️ ${cardTitle} ไม่มีการ์ดเป้าหมายในกองการ์ดหรือกองนรก`);
+            }
             next();
           }
           return;
@@ -6340,7 +6400,7 @@ function handlePlayerSlotClick(slotIndex) {
         if (callback) callback(slotIndex);
       } else {
         EffectEngine.triggerCardEffects(cardToPlace, 'ON_SUMMON', {
-          caster: player, opponent: gameState.ai, sourceCard: cardToPlace, sourceSlot: slotIndex, isAI: false
+          caster: player, opponent: gameState.ai, sourceCard: cardToPlace, sourceSlot: slotIndex, isAI: false, isEffectSummon: true
         }, () => {
           renderGame();
           if (callback) callback(slotIndex);
@@ -6423,7 +6483,8 @@ function handlePlayerSlotClick(slotIndex) {
       opponent: gameState.ai,
       sourceCard: summoned,
       sourceSlot: slotIndex,
-      isAI: false
+      isAI: false,
+      isNormalSummon: true
     }, () => renderGame());
     return;
   }
@@ -9358,7 +9419,8 @@ function performSingleAIMainAction() {
           opponent: player,
           sourceCard: summoned,
           sourceSlot: emptySlot,
-          isAI: true
+          isAI: true,
+          isNormalSummon: true
         });
       }
 
