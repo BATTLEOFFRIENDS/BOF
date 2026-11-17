@@ -267,6 +267,35 @@
         <polygon points="62,122 238,122 150,346" fill="none" stroke="#fde047" stroke-width="2" opacity="0.75"/>
         <polygon points="62,298 238,298 150,74" fill="none" stroke="#4ade80" stroke-width="2" opacity="0.75"/>
       `;
+    } else if (pattern === 'soulgem') {
+      patternShapes = `
+        <circle cx="150" cy="210" r="102" fill="none" stroke="${accent}" stroke-width="2" stroke-dasharray="3 5"/>
+        <polygon points="150,85 180,165 265,165 198,215 224,295 150,248 76,295 102,215 35,165 120,165" fill="none" stroke="${border}" stroke-width="2.5" opacity="0.8"/>
+        <polygon points="150,135 200,185 180,255 120,255 100,185" fill="none" stroke="${accent}" stroke-width="2"/>
+        <circle cx="150" cy="210" r="72" fill="none" stroke="${border}" stroke-width="2"/>
+      `;
+    } else if (pattern === 'blademaster') {
+      patternShapes = `
+        <circle cx="150" cy="210" r="95" fill="none" stroke="${border}" stroke-width="3" stroke-dasharray="14 6"/>
+        <line x1="75" y1="135" x2="225" y2="285" stroke="${accent}" stroke-width="3.5" stroke-linecap="round"/>
+        <line x1="225" y1="135" x2="75" y2="285" stroke="${accent}" stroke-width="3.5" stroke-linecap="round"/>
+        <polygon points="150,60 230,140 250,210 230,280 150,360 70,280 50,210 70,140" fill="none" stroke="${border}" stroke-width="2.5" opacity="0.65"/>
+        <circle cx="150" cy="210" r="70" fill="none" stroke="${accent}" stroke-width="2"/>
+      `;
+    } else if (pattern === 'chaos') {
+      patternShapes = `
+        <rect x="60" y="80" width="180" height="260" rx="16" transform="rotate(12 150 210)" fill="none" stroke="${accent}" stroke-width="2.5" opacity="0.6"/>
+        <rect x="60" y="80" width="180" height="260" rx="16" transform="rotate(-12 150 210)" fill="none" stroke="${border}" stroke-width="2.5" opacity="0.6"/>
+        <circle cx="150" cy="210" r="82" fill="none" stroke="${border}" stroke-width="3" stroke-dasharray="8 6"/>
+      `;
+    } else if (pattern === 'darkmatter') {
+      patternShapes = `
+        <circle cx="150" cy="210" r="105" fill="none" stroke="${border}" stroke-width="2.5" opacity="0.5"/>
+        <circle cx="150" cy="210" r="85" fill="none" stroke="${accent}" stroke-width="3" stroke-dasharray="8 10"/>
+        <circle cx="150" cy="210" r="60" fill="none" stroke="${border}" stroke-width="2.5"/>
+        <ellipse cx="150" cy="210" rx="115" ry="42" transform="rotate(35 150 210)" fill="none" stroke="${accent}" stroke-width="2" opacity="0.7"/>
+        <ellipse cx="150" cy="210" rx="115" ry="42" transform="rotate(-35 150 210)" fill="none" stroke="${border}" stroke-width="2" opacity="0.7"/>
+      `;
     } else {
       patternShapes = `
         <circle cx="150" cy="210" r="96" fill="none" stroke="${accent}" stroke-width="2.5" stroke-dasharray="12 6"/>
@@ -441,6 +470,62 @@
       }),
       styleId: 'gold'
     },
+    {
+      id: 'cb_soul_gem',
+      category: 'card_back',
+      name: 'ลายโซลเจมแห่งปาฏิหาริย์',
+      desc: 'คริสตัลดวงใจสาวน้อยเวทมนตร์และวงเวทแห่งความหวัง',
+      currency: 'coins',
+      price: 1100,
+      rarity: 'SR',
+      image: makeCardBackSvgDataUri({
+        bg1: '#260b24', bg2: '#58144b', border: '#f472b6', accent: '#c084fc', glow: '#fb7185',
+        symbol: '💎', title: 'SOUL GEM', pattern: 'soulgem'
+      }),
+      styleId: 'crimson'
+    },
+    {
+      id: 'cb_blademaster',
+      category: 'card_back',
+      name: 'ลายเพลงดาบสุริยันคาเงโร่',
+      desc: 'คมดาบเพลิงคู่สุริยะและตราประทับแห่งกองทัพมังกรเพลิง',
+      currency: 'coins',
+      price: 1200,
+      rarity: 'SR',
+      image: makeCardBackSvgDataUri({
+        bg1: '#2a0c02', bg2: '#6c1e05', border: '#fbbf24', accent: '#ea580c', glow: '#f97316',
+        symbol: '⚔️', title: 'BLADEMASTER', pattern: 'blademaster'
+      }),
+      styleId: 'crimson'
+    },
+    {
+      id: 'cb_chaos_oat',
+      category: 'card_back',
+      name: 'ลายมหาเทพบ้าพลัง โอ๊ตท็อปเด็ค',
+      desc: 'กงล้อพลังงานสายปั่นสุดฮา พร้อมพลังบลูชีสระดับตำนาน',
+      currency: 'coins',
+      price: 950,
+      rarity: 'R',
+      image: makeCardBackSvgDataUri({
+        bg1: '#13122c', bg2: '#1f2868', border: '#38bdf8', accent: '#fb923c', glow: '#facc15',
+        symbol: '🧀', title: 'CHAOS OAT', pattern: 'chaos'
+      }),
+      styleId: 'gold'
+    },
+    {
+      id: 'cb_dark_matter',
+      category: 'card_back',
+      name: 'ลายเนบิวลาปฏิสสารมิติมืด',
+      desc: 'ห้วงลึกอวกาศมิติมืดและวงแหวนหลุมดำนิรันดร์',
+      currency: 'shards',
+      price: 320,
+      rarity: 'SSR',
+      image: makeCardBackSvgDataUri({
+        bg1: '#060417', bg2: '#1a0f3d', border: '#a855f7', accent: '#38bdf8', glow: '#c084fc',
+        symbol: '🌌', title: 'DARK MATTER', pattern: 'darkmatter'
+      }),
+      styleId: 'abyss'
+    },
 
     // 2. กรอบโปรไฟล์ (Profile Frames)
     {
@@ -502,6 +587,46 @@
       price: 1500,
       rarity: 'SSR',
       styleId: 'holo'
+    },
+    {
+      id: 'pf_emerald',
+      category: 'frame',
+      name: 'กรอบมรกตจิตฮีโร่',
+      desc: 'กรอบออร่าพลังงานสีเขียวมรกตแห่งจิตฮีโร่',
+      currency: 'coins',
+      price: 750,
+      rarity: 'R',
+      styleId: 'emerald'
+    },
+    {
+      id: 'pf_sakura',
+      category: 'frame',
+      name: 'กรอบซากุระเวทมนตร์',
+      desc: 'กรอบเวทมนตร์สีชมพูเปล่งประกายของสาวน้อยเวทมนตร์',
+      currency: 'coins',
+      price: 850,
+      rarity: 'SR',
+      styleId: 'sakura'
+    },
+    {
+      id: 'pf_solar',
+      category: 'frame',
+      name: 'กรอบสุริยะเพลิงมังกร',
+      desc: 'กรอบเปลวเพลิงสีส้มทองลุกโชนของคาเงโร่',
+      currency: 'coins',
+      price: 850,
+      rarity: 'SR',
+      styleId: 'solar'
+    },
+    {
+      id: 'pf_amethyst',
+      category: 'frame',
+      name: 'กรอบอเมทิสต์มิติมืด',
+      desc: 'กรอบคริสตัลสีม่วงลึกลับแห่งห้วงมิติมืด',
+      currency: 'shards',
+      price: 220,
+      rarity: 'SR',
+      styleId: 'amethyst'
     },
 
     // 3. ฉายาผู้เล่น (Player Titles)
@@ -593,6 +718,61 @@
       rarity: 'SSR',
       color: '#fde047'
     },
+    {
+      id: 'tt_magical_girl',
+      category: 'title',
+      name: 'สาวน้อยเวทมนตร์ผู้พิทักษ์',
+      badgeText: '🪄 สาวน้อยเวทมนตร์ผู้พิทักษ์',
+      desc: 'ฉายาผู้ศรัทธาในปาฏิหาริย์และความหวัง',
+      currency: 'coins',
+      price: 600,
+      rarity: 'R',
+      color: '#f472b6'
+    },
+    {
+      id: 'tt_dragon_blade',
+      category: 'title',
+      name: 'ดาบเพลิงสุริยันคาเงโร่',
+      badgeText: '⚔️ ดาบเพลิงสุริยันคาเงโร่',
+      desc: 'ฉายานักดาบมังกรผู้เผาผลาญทุกอุปสรรค',
+      currency: 'coins',
+      price: 600,
+      rarity: 'R',
+      color: '#f97316'
+    },
+    {
+      id: 'tt_void_master',
+      category: 'title',
+      name: 'เจ้าแห่งมิติมืด',
+      badgeText: '🌌 เจ้าแห่งมิติมืด',
+      desc: 'ฉายาผู้ควบคุมพลังมิติแห่งอนาคตและนรก',
+      currency: 'shards',
+      price: 200,
+      rarity: 'SR',
+      color: '#c084fc'
+    },
+    {
+      id: 'tt_cheese_power',
+      category: 'title',
+      name: 'ผู้ตื่นรู้แห่งบลูชีส',
+      badgeText: '🧀 ผู้ตื่นรู้แห่งบลูชีส',
+      desc: 'ฉายาผู้กุมพลังลึกลับแห่งชีสอันยิ่งใหญ่',
+      currency: 'coins',
+      price: 700,
+      rarity: 'SR',
+      color: '#38bdf8'
+    },
+    {
+      id: 'tt_grandmaster',
+      category: 'title',
+      name: 'ปรมาจารย์สมรภูมิ BOF',
+      badgeText: '🏆 ปรมาจารย์สมรภูมิ BOF',
+      desc: 'ฉายาเกียรติยศระดับตำนานของผู้เชี่ยวชาญการ์ดเกม',
+      currency: 'coins',
+      price: 1800,
+      rarity: 'SSR',
+      color: '#fde047'
+    },
 
     // 4. สีพื้นสนามประลอง (Arena Mat Themes)
     {
@@ -660,6 +840,39 @@
       rarity: 'SSR',
       styleId: 'cyber',
       previewBg: 'linear-gradient(135deg, #021024, #082f49, #0c4a6e)'
+    },
+    {
+      id: 'mt_sakura',
+      category: 'arena_theme',
+      name: 'สนามมิติมนตรา (Magical Sakura)',
+      desc: 'พื้นสนามประลองมิติดอกไม้เวทมนตร์สีชมพู-ม่วงต้องมนตร์',
+      currency: 'coins',
+      price: 1100,
+      rarity: 'SR',
+      styleId: 'sakura',
+      previewBg: 'linear-gradient(135deg, #3b0724, #831843, #be185d)'
+    },
+    {
+      id: 'mt_inferno',
+      category: 'arena_theme',
+      name: 'สนามเพลิงมังกร (Dragon Inferno)',
+      desc: 'พื้นสนามประลองลาวาเพลิงมังกรคาเงโร่ที่ไม่มีวันดับ',
+      currency: 'coins',
+      price: 1100,
+      rarity: 'SR',
+      styleId: 'inferno',
+      previewBg: 'linear-gradient(135deg, #270a04, #7c2d12, #c2410c)'
+    },
+    {
+      id: 'mt_void',
+      category: 'arena_theme',
+      name: 'สนามห้วงอวกาศลึก (Cosmic Void)',
+      desc: 'พื้นสนามประลองกาแล็กซีมิติมืดอันกว้างใหญ่ไร้ที่สิ้นสุด',
+      currency: 'shards',
+      price: 260,
+      rarity: 'SSR',
+      styleId: 'void',
+      previewBg: 'linear-gradient(135deg, #09091a, #1e1b4b, #312e81)'
     }
   ];
 
