@@ -158,9 +158,10 @@ html.is-mobile #bof-game-arena #btn-toggle-sound { flex: 0 0 var(--m-tap) !impor
 
 html.is-mobile .live-battle-ticker {
   padding: 5px 10px !important;
-  margin-top: 4px !important;
+  margin: 0 !important;
   gap: 6px !important;
   border-radius: 8px !important;
+  height: var(--m-tap) !important;
 }
 html.is-mobile .ticker-badge {
   font-size: 10px !important;

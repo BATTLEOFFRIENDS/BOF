@@ -9070,21 +9070,26 @@ function setupInGameControlBar() {
   const parentGroup = document.getElementById('btn-open-deck')?.parentElement;
   if (!parentGroup) return;
 
+  const ticker = document.getElementById('live-battle-ticker');
+
   // 1. ปุ่มยอมแพ้ (ฝั่งซ้าย ข้างปุ่มเสียง)
-  if (!document.getElementById('btn-surrender-match')) {
-    const surrenderBtn = document.createElement('button');
+  let surrenderBtn = document.getElementById('btn-surrender-match');
+  if (!surrenderBtn) {
+    surrenderBtn = document.createElement('button');
     surrenderBtn.id = 'btn-surrender-match';
     surrenderBtn.className = 'btn';
     surrenderBtn.title = 'ยอมแพ้';
     surrenderBtn.setAttribute('aria-label', 'ยอมแพ้');
     surrenderBtn.innerHTML = `${hudIcon('flag')}<span class="sr-label">ยอมแพ้</span>`;
     surrenderBtn.onclick = () => handlePlayerSurrender();
-    parentGroup.appendChild(surrenderBtn);
+    if (ticker) parentGroup.insertBefore(surrenderBtn, ticker);
+    else parentGroup.appendChild(surrenderBtn);
   }
 
   // 2. ป้ายการ์ดล่าสุดที่ทำงาน (คลิกเพื่อเปิดประวัติ)
-  if (!document.getElementById('btn-last-card-pill')) {
-    const lastCardBtn = document.createElement('button');
+  let lastCardBtn = document.getElementById('btn-last-card-pill');
+  if (!lastCardBtn) {
+    lastCardBtn = document.createElement('button');
     lastCardBtn.type = 'button';
     lastCardBtn.id = 'btn-last-card-pill';
     lastCardBtn.className = 'btn last-card-pill-btn';
@@ -9107,12 +9112,14 @@ function setupInGameControlBar() {
         logModal.style.display = 'flex';
       }
     };
-    parentGroup.appendChild(lastCardBtn);
+    if (ticker) parentGroup.insertBefore(lastCardBtn, ticker);
+    else parentGroup.appendChild(lastCardBtn);
   }
 
   // 3. ปุ่มทดสอบสกิล (แอดมิน/Sandbox)
-  if (!document.getElementById('btn-open-sandbox')) {
-    const sandboxBtn = document.createElement('button');
+  let sandboxBtn = document.getElementById('btn-open-sandbox');
+  if (!sandboxBtn) {
+    sandboxBtn = document.createElement('button');
     sandboxBtn.type = 'button';
     sandboxBtn.id = 'btn-open-sandbox';
     sandboxBtn.className = 'btn';
@@ -9124,16 +9131,26 @@ function setupInGameControlBar() {
         window.BOFSandbox.openModal();
       }
     };
-    parentGroup.appendChild(sandboxBtn);
+    if (ticker) parentGroup.insertBefore(sandboxBtn, ticker);
+    else parentGroup.appendChild(sandboxBtn);
   }
 
-  // 4. ปุ่มหลักเปลี่ยนเฟส/จบเทิร์น (ฝั่งขวาสุด เด่นชัด)
-  if (!document.getElementById('btn-pass-turn-inline')) {
-    const nextPhaseBtn = document.createElement('button');
+  // 4. ตรวจสอบให้ ticker อยู่ใน parentGroup ก่อนปุ่มเฟส
+  if (ticker && ticker.parentElement !== parentGroup) {
+    parentGroup.appendChild(ticker);
+  }
+
+  // 5. ปุ่มหลักเปลี่ยนเฟส/จบเทิร์น (ฝั่งขวาสุด เด่นชัด)
+  let nextPhaseBtn = document.getElementById('btn-pass-turn-inline');
+  if (!nextPhaseBtn) {
+    nextPhaseBtn = document.createElement('button');
     nextPhaseBtn.id = 'btn-pass-turn-inline';
     nextPhaseBtn.className = 'btn';
     nextPhaseBtn.textContent = '⚔️ เฟสถัดไป (Battle Phase)';
     nextPhaseBtn.onclick = () => handleNextPhaseButtonClick();
+    parentGroup.appendChild(nextPhaseBtn);
+  } else {
+    // ให้มั่นใจว่าอยู่หลัง ticker เสมอ
     parentGroup.appendChild(nextPhaseBtn);
   }
 
