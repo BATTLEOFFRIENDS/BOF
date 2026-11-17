@@ -111,6 +111,7 @@
       image: 'images/BT/BT01/2.png',
       backImage: 'images/BT/BT01/4.png',
       prefix: 'images/BT/BT01/',
+      rates: { N: 50, R: 40, SR: 10 },
       price: PACK_PRICE,
       tenPrice: TEN_PACK_PRICE
     }
@@ -806,12 +807,13 @@
 
   const PITY_THRESHOLD = 15; // เปิดครบ 15 ซอง การันตี SSR แน่นอน
 
-  // สุ่มการ์ด 1 ใบตามเปอร์เซ็นต์ N 40% | R 30% | SR 20% | SSR 10% (หรือบังคับความแรร์เมื่อติดการันตี)
-  function pickCardByRate(pool, forceRarity = null) {
+  // สุ่มการ์ด 1 ใบตามเปอร์เซ็นต์ (ตาม pack.rates หรือเรทสากล N 40% | R 30% | SR 20% | SSR 10%)
+  function pickCardByRate(pool, forceRarity = null, packRates = null) {
     let chosenRarity = forceRarity;
     if (!chosenRarity) {
       const poolRarities = new Set(pool.map(c => c.rarity));
-      const activeRates = Object.entries(RARITY_RATES).filter(([r]) => poolRarities.has(r));
+      const rateSource = packRates || RARITY_RATES;
+      const activeRates = Object.entries(rateSource).filter(([r]) => poolRarities.has(r));
       const totalWeight = activeRates.reduce((sum, [, w]) => sum + w, 0);
       const r = Math.random() * (totalWeight || 100);
       let acc = 0;
@@ -928,7 +930,7 @@
     for (let i = 0; i < totalCards; i++) {
       // ใบสุดท้าย ถ้าครบการันตี Pity จะบังคับเป็นระดับสูงสุดในซอง
       const forceRarity = (isPityTriggered && i === totalCards - 1) ? targetPityRarity : null;
-      const card = pickCardByRate(pool, forceRarity);
+      const card = pickCardByRate(pool, forceRarity, pack.rates);
       if (card && card.rarity === targetPityRarity) {
         economy.pity[packId] = 0; // รีเซ็ตการันตีเมื่อสุ่มได้ระดับสูงสุด
       }
@@ -1428,7 +1430,7 @@
           <button type="button" role="radio" data-qty="1" aria-checked="${packQty === 1}">1 ซอง</button>
           <button type="button" role="radio" data-qty="10" aria-checked="${packQty === 10}">10 ซอง <span class="sh-save">−10%</span></button>
         </div>
-        <p class="sh-packs-info">ซองละ 1 ใบ · R 60% · SR 40% · การันตี SR ทุก 15 ซอง · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
+        <p class="sh-packs-info">ซองละ 1 ใบ · การันตีระดับสูงสุดทุก 15 ซอง · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
       </div>
       <p class="sh-dupe-note">${SHARD_SVG}<span>การ์ดที่เกินจำนวนจัดเด็ค (การ์ดตามโควตาจัดเด็ค) จะกลายเป็นชาร์ดให้อัตโนมัติ</span></p>
 
