@@ -23,7 +23,9 @@
     modal.querySelectorAll('.um-x').forEach(n => n.remove());
     document.querySelectorAll('.um-spark').forEach(n => n.remove());
     if (window.BOFParticles) window.BOFParticles.clear(); // กระดาษสีของฉากชนะไม่ค้างไปหน้าต่างถัดไป
-    modal.classList.remove('um-choice', 'um-end', 'um-victory', 'um-defeat', 'um-tone-danger', 'um-tone-arcane', 'um-has-card-grid');
+    modal.classList.remove('um-choice', 'um-end', 'um-victory', 'um-defeat', 'um-tone-danger', 'um-tone-arcane', 'um-has-card-grid', 'is-peeking-field');
+    const peekBar = document.getElementById('bof-peek-floating-bar');
+    if (peekBar) peekBar.style.display = 'none';
     const box = modal.querySelector('.modal-box');
     if (box && hasGsap) gsap.set([box, ...box.children, ...box.querySelectorAll('#choice-modal-buttons .btn')], { clearProps: 'transform,opacity' });
   }
@@ -106,34 +108,82 @@
   }
 
   function findCard(title) {
-    // "การ์ด: ชื่อ (Power: n) [เผ่า: x]" — ส่วน Power และเผ่าเป็นทางเลือก
-    const m = title.match(/การ์ด:\s*(.+?)(?:\s*\(Power:[^)]*\))?(?:\s*\[เผ่า:[^\]]*\])?\s*$/);
-    if (!m || typeof CARD_DATABASE === 'undefined') return null;
-    return CARD_DATABASE.find(c => c.name === m[1].trim()) || null;
-  }
+    if (!title || typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE)) return null;
+    const norm = s => String(s || '').trim().toLowerCase();
 
-  function findCardInButtonLabel(label) {
-    if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE) || !label) return null;
+    // 1. "การ์ด: ชื่อ (Power: n) [เผ่า: x]"
+    const m = title.match(/การ์ด:\s*(.+?)(?:\s*\(Power:[^)]*\))?(?:\s*\[เผ่า:[^\]]*\])?\s*$/i);
+    if (m) {
+      const targetName = norm(m[1]);
+      const exact = CARD_DATABASE.find(c => c && norm(c.name) === targetName);
+      if (exact) return exact;
+    }
+
     const candidates = CARD_DATABASE
       .filter(c => c && c.name && c.type !== 'Leader')
       .slice()
       .sort((a, b) => b.name.length - a.name.length);
-    for (const c of candidates) {
-      if (label.includes(`"${c.name}"`)) return c;
+
+    // 2. ถ้าใน title มีเครื่องหมายคำพูด "ชื่อการ์ด"
+    const quotedMatches = [...title.matchAll(/"([^"]+)"/g)];
+    for (const qm of quotedMatches) {
+      const qText = norm(qm[1]);
+      const exact = candidates.find(c => norm(c.name) === qText);
+      if (exact) return exact;
+      const partial = candidates.find(c => qText.includes(norm(c.name)));
+      if (partial) return partial;
     }
-    const quoted = label.match(/"([^"]+)"/);
-    if (quoted) {
-      const exact = candidates.find(c => c.name === quoted[1].trim());
+
+    // 3. ตรวจสอบชื่อการ์ดตรงๆ ใน title โดยเรียงตามความยาวชื่อมากไปน้อย
+    const cleanTitle = norm(title);
+    for (const c of candidates) {
+      const cName = norm(c.name);
+      if (cleanTitle.includes(cName)) return c;
+    }
+
+    return null;
+  }
+
+  function findCardInButtonLabel(label, btn = null) {
+    if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE)) return null;
+
+    // หากปุ่มมี data-card-id ระบุตรงๆ ให้ใช้ก่อนเสมอ 100% ถูกต้องแน่นอน
+    if (btn && btn.dataset && btn.dataset.cardId) {
+      const exact = CARD_DATABASE.find(c => c.id === btn.dataset.cardId);
       if (exact) return exact;
     }
+
+    if (!label) return null;
+    const norm = s => String(s || '').trim().toLowerCase();
+    const cleanLabel = norm(label);
+
+    const candidates = CARD_DATABASE
+      .filter(c => c && c.name && c.type !== 'Leader')
+      .slice()
+      .sort((a, b) => b.name.length - a.name.length);
+
+    // 1. ตรวจสอบในเครื่องหมายคำพูดก่อน โดยจับคู่ชื่อที่ยาวที่สุดก่อน
+    const quotedMatches = [...label.matchAll(/"([^"]+)"/g)];
+    for (const qm of quotedMatches) {
+      const qText = norm(qm[1]);
+      const exact = candidates.find(c => norm(c.name) === qText);
+      if (exact) return exact;
+      const partial = candidates.find(c => qText.includes(norm(c.name)));
+      if (partial) return partial;
+    }
+
+    // 2. ตรวจสอบชื่อการ์ดตรงๆ ในข้อความปุ่ม โดยเทียบจากการ์ดที่ชื่อยาวที่สุดก่อน
     for (const c of candidates) {
-      if (label.includes(c.name)) return c;
+      const cName = norm(c.name);
+      if (cleanLabel.includes(`"${cName}"`) || cleanLabel.includes(cName)) {
+        return c;
+      }
     }
     return null;
   }
 
   function stripCardNameFromCaption(label, cardName) {
-    let s = label.replace(`"${cardName}"`, '').replace(cardName, '');
+    let s = label.replace(new RegExp(`"${cardName}"`, 'gi'), '').replace(new RegExp(cardName, 'gi'), '');
     s = s.replace(/\(\s*Power\s*\d+\s*\)/gi, '').replace(/\s{2,}/g, ' ').trim();
     return s || 'เลือกใบนี้';
   }
@@ -142,7 +192,7 @@
     const container = modal.querySelector('#choice-modal-buttons');
     if (!container) return;
     const buttons = [...container.querySelectorAll('.btn')];
-    const matched = buttons.map(btn => ({ btn, card: findCardInButtonLabel(btn.textContent || '') }));
+    const matched = buttons.map(btn => ({ btn, card: findCardInButtonLabel(btn.textContent || '', btn) }));
     const cardEntries = matched.filter(x => x.card);
     if (cardEntries.length === 0) return;
 
@@ -397,4 +447,6 @@
   };
   new MutationObserver(watch).observe(document.body, { childList: true });
   watch();
+  window.findCardInButtonLabel = findCardInButtonLabel;
+  window.findCard = findCard;
 })();

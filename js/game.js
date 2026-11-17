@@ -706,11 +706,14 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
           renderGame();
         }
       } else {
+        const kouenCard = boardOwner.graveyard[kouenIdx];
         showChoiceModal(
           '🔥 สั่งใช้งานในนรก: ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"',
           '"ดราโกนิค เบลดมาสเตอร์" บนสนามของคุณถูกทำลาย!\nต้องการสั่งใช้งาน "โคเอ็น" จากนรก เพื่ออัญเชิญลงสนาม (1 ครั้งต่อเกม) หรือไม่?',
           [
             {
+              card: kouenCard,
+              cardId: 'KG06',
               label: '🔥 สั่งใช้งาน: อัญเชิญ "โคเอ็น" ลงสนาม!',
               color: '#ef4444',
               onSelect: () => {
@@ -760,7 +763,8 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
               color: '#475569',
               onSelect: () => renderGame()
             }
-          ]
+          ],
+          { previewCards: kouenCard ? [kouenCard] : [] }
         );
       }
     }
@@ -1168,6 +1172,48 @@ function disableControls() {
   if (passBtn) passBtn.disabled = true;
 }
 
+window.toggleBattlefieldPeek = function(modal) {
+  if (!modal) {
+    modal = document.getElementById('custom-choice-modal') || document.getElementById('intercept-modal') || document.getElementById('bof-recycle-modal');
+  }
+  if (!modal) return;
+  const isPeeking = modal.classList.toggle('is-peeking-field');
+  let bar = document.getElementById('bof-peek-floating-bar');
+  if (isPeeking) {
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'bof-peek-floating-bar';
+      bar.className = 'bof-peek-bar';
+      bar.innerHTML = `
+        <span class="peek-status-text">👁️ กำลังดูสถานการณ์บนสนาม...</span>
+        <button type="button" class="peek-return-btn" id="btn-peek-restore">🔙 กลับไปหน้าต่างตัวเลือก</button>
+      `;
+      document.body.appendChild(bar);
+    }
+    bar.style.display = 'flex';
+    const restoreBtn = bar.querySelector('.peek-return-btn');
+    if (restoreBtn) {
+      restoreBtn.onclick = (e) => {
+        e.stopPropagation();
+        window.toggleBattlefieldPeek(modal);
+      };
+    }
+  } else {
+    if (bar) bar.style.display = 'none';
+  }
+};
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const activePeeks = document.querySelectorAll('.modal-overlay.is-peeking-field');
+    if (activePeeks.length > 0) {
+      activePeeks.forEach(m => m.classList.remove('is-peeking-field'));
+      const bar = document.getElementById('bof-peek-floating-bar');
+      if (bar) bar.style.display = 'none';
+    }
+  }
+});
+
 function showChoiceModal(title, description, options, extra = null) {
   let modal = document.getElementById('custom-choice-modal');
   if (!modal) {
@@ -1177,7 +1223,8 @@ function showChoiceModal(title, description, options, extra = null) {
     modal.style.display = 'none';
     modal.style.zIndex = '250';
     modal.innerHTML = `
-      <div class="modal-box" style="max-width: 620px; max-height: 85vh; overflow-y: auto;">
+      <div class="modal-box" style="max-width: 620px; max-height: 85vh; overflow-y: auto; position: relative;">
+        <button type="button" class="btn-peek-field" id="choice-btn-peek-field" title="ซ่อนหน้าต่างชั่วคราวเพื่อตรวจดูสถานการณ์บนสนาม">👁️ ดูสนาม</button>
         <h2 id="choice-modal-title" style="color: #38bdf8;">เลือกการทำงาน</h2>
         <p id="choice-modal-desc" style="color: #cbd5e1; margin: 10px 0 14px 0; white-space: pre-line;"></p>
         <div id="choice-modal-preview" style="display: none; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 14px;"></div>
@@ -1186,6 +1233,25 @@ function showChoiceModal(title, description, options, extra = null) {
     `;
     document.body.appendChild(modal);
   }
+
+  // Ensure peek button exists and is wired
+  let peekBtn = modal.querySelector('#choice-btn-peek-field');
+  if (!peekBtn) {
+    peekBtn = document.createElement('button');
+    peekBtn.type = 'button';
+    peekBtn.className = 'btn-peek-field';
+    peekBtn.id = 'choice-btn-peek-field';
+    peekBtn.title = 'ซ่อนหน้าต่างชั่วคราวเพื่อตรวจดูสถานการณ์บนสนาม';
+    peekBtn.textContent = '👁️ ดูสนาม';
+    const box = modal.querySelector('.modal-box');
+    if (box) box.prepend(peekBtn);
+  }
+  peekBtn.onclick = () => window.toggleBattlefieldPeek(modal);
+
+  // Clear any existing peeking state
+  modal.classList.remove('is-peeking-field');
+  const existingBar = document.getElementById('bof-peek-floating-bar');
+  if (existingBar) existingBar.style.display = 'none';
 
   document.getElementById('choice-modal-title').textContent = title;
   document.getElementById('choice-modal-desc').textContent = description;
@@ -1220,7 +1286,12 @@ function showChoiceModal(title, description, options, extra = null) {
     btn.style.padding = '10px 16px';
     btn.textContent = opt.label;
     btn.disabled = !!opt.disabled;
+    if (opt.cardId) btn.dataset.cardId = opt.cardId;
+    else if (opt.card && opt.card.id) btn.dataset.cardId = opt.card.id;
     btn.onclick = () => {
+      modal.classList.remove('is-peeking-field');
+      const b = document.getElementById('bof-peek-floating-bar');
+      if (b) b.style.display = 'none';
       modal.style.display = 'none';
       if (opt.onSelect) opt.onSelect();
     };
@@ -1240,6 +1311,8 @@ function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
       {
         label: (window.isMobileUI && window.isMobileUI()) ? '✅ ยืนยัน' : `✅ ยืนยัน (${actionTitle})`,
         color: '#16a34a',
+        card: card,
+        cardId: card.id,
         onSelect: () => {
           if (onConfirmCallback) onConfirmCallback();
         }
@@ -1249,7 +1322,8 @@ function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
         color: '#475569',
         onSelect: () => renderGame()
       }
-    ]
+    ],
+    { previewCards: [card] }
   );
 }
 
@@ -1874,8 +1948,8 @@ function flushAllCastingZones() {
   }
 }
 
-// 🔮 จิตไนท์อาย รู้อนาคต (BT01_03): เลือกการ์ดในนรกอย่างน้อย 5 ใบกลับเข้ากอง แล้วสับกอง (ไม่รวมใบที่ร่ายในครั้งนั้น)
-function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = null, excludeCard = null) {
+// 🔮 จิตไนท์อาย รู้อนาคต (BT01_03) & 🌿 มิโกะต้นไม้แห่งชีวิต เอเลน (RP11): นำการ์ดจากนรกกลับเข้ากอง
+function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = null, excludeCard = null, options = {}) {
   if (!contestant.castingZone) contestant.castingZone = [];
   const castingUids = new Set(
     contestant.castingZone.map(c => c && c.uid).filter(Boolean)
@@ -1895,6 +1969,11 @@ function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = nul
   });
   if (grave.length < minGrave) return;
 
+  const modalTitle = options.title || '🔮 จิตไนท์อาย รู้อนาคต';
+  const isExact = typeof options.exactCount === 'number';
+  const targetCount = isExact ? options.exactCount : minGrave;
+  const titleColor = options.titleColor || '#38bdf8';
+
   let modal = document.getElementById('bof-recycle-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -1904,39 +1983,66 @@ function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = nul
     document.body.appendChild(modal);
   }
 
+  // Clear peeking state
+  modal.classList.remove('is-peeking-field');
+  const existingBar = document.getElementById('bof-peek-floating-bar');
+  if (existingBar) existingBar.style.display = 'none';
+
   const selectedUids = new Set();
   const updateUI = () => {
+    const canConfirm = isExact ? (selectedUids.size === targetCount) : (selectedUids.size >= minGrave);
+    const descText = isExact
+      ? `เลือกการ์ดจากนรกของคุณ <b>${targetCount} ใบ</b> เพื่อนำกลับเข้ากอง (เลือกแล้ว <b style="color:${selectedUids.size === targetCount ? '#4ade80' : '#f87171'}; font-size: 16px;">${selectedUids.size}</b> / ${targetCount} ใบ):`
+      : `เลือกการ์ดจากนรกของคุณ <b>อย่างน้อย ${minGrave} ใบขึ้นไป</b> เพื่อนำกลับเข้ากอง (เลือกแล้ว <b style="color:${selectedUids.size >= minGrave ? '#4ade80' : '#f87171'}; font-size: 16px;">${selectedUids.size}</b> / อย่างน้อย ${minGrave} ใบ):`;
+
+    const confirmBtnText = canConfirm
+      ? (isExact ? `✅ ยืนยันนำกลับเข้ากอง (${targetCount} ใบ)` : `✅ ยืนยันนำกลับเข้ากอง (${selectedUids.size} ใบ)`)
+      : (isExact ? `⚠️ เลือกให้ครบ ${targetCount} ใบ (เลือกแล้ว ${selectedUids.size} ใบ)` : `⚠️ เลือกอย่างน้อย ${minGrave} ใบ (เลือกแล้ว ${selectedUids.size} ใบ)`);
+
     modal.innerHTML = `
-      <div class="modal-box" style="max-width: 650px; max-height: 85vh; overflow-y: auto; text-align: center;">
-        <h2 style="color: #38bdf8; margin-bottom: 8px;">🔮 จิตไนท์อาย รู้อนาคต</h2>
-        <p style="color: #cbd5e1; margin-bottom: 14px;">เลือกการ์ดจากนรกของคุณ <b>อย่างน้อย ${minGrave} ใบขึ้นไป</b> เพื่อนำกลับเข้ากอง (เลือกแล้ว <b style="color:${selectedUids.size >= minGrave ? '#4ade80' : '#f87171'}; font-size: 16px;">${selectedUids.size}</b> / อย่างน้อย ${minGrave} ใบ):</p>
+      <div class="modal-box" style="max-width: 650px; max-height: 85vh; overflow-y: auto; text-align: center; position: relative;">
+        <button type="button" class="btn-peek-field" id="recycle-btn-peek-field" title="ซ่อนหน้าต่างชั่วคราวเพื่อตรวจดูสถานการณ์บนสนาม">👁️ ดูสนาม</button>
+        <h2 style="color: ${titleColor}; margin-bottom: 8px;">${modalTitle}</h2>
+        <p style="color: #cbd5e1; margin-bottom: 14px;">${descText}</p>
         <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-height: 50vh; overflow-y: auto; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 8px;">
           ${grave.map((c) => {
             const isSel = selectedUids.has(String(c.uid));
             return `
-              <button type="button" class="card-recycle-item" data-uid="${c.uid}" style="display: flex; flex-direction: column; align-items: center; width: 85px; padding: 4px; border-radius: 6px; cursor: pointer; border: 2px solid ${isSel ? '#38bdf8' : 'rgba(255,255,255,0.1)'}; background: ${isSel ? 'rgba(56,189,248,0.25)' : 'rgba(15,23,42,0.8)'};">
+              <button type="button" class="card-recycle-item" data-uid="${c.uid}" style="display: flex; flex-direction: column; align-items: center; width: 85px; padding: 4px; border-radius: 6px; cursor: pointer; border: 2px solid ${isSel ? titleColor : 'rgba(255,255,255,0.1)'}; background: ${isSel ? 'rgba(56,189,248,0.25)' : 'rgba(15,23,42,0.8)'};">
                 <img src="${c.image}" style="width: 75px; height: 105px; object-fit: cover; border-radius: 4px; pointer-events: none;">
                 <span style="font-size: 11px; color: #fff; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${c.name}</span>
-                <span style="font-size: 10px; color: ${isSel ? '#38bdf8' : '#64748b'}; font-weight: bold;">${isSel ? '✓ เลือกแล้ว' : '+ คลิกเลือก'}</span>
+                <span style="font-size: 10px; color: ${isSel ? titleColor : '#64748b'}; font-weight: bold;">${isSel ? '✓ เลือกแล้ว' : '+ คลิกเลือก'}</span>
               </button>
             `;
           }).join('')}
         </div>
         <div style="display: flex; justify-content: center; gap: 12px; margin-top: 16px;">
-          <button type="button" id="btn-recycle-select-all" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #475569; background: #334155; color: #fff; cursor: pointer;">${selectedUids.size === grave.length ? 'ยกเลิกเลือกทั้งหมด' : `เลือกทั้งหมด (${grave.length} ใบ)`}</button>
-          <button type="button" id="btn-recycle-confirm" ${selectedUids.size < minGrave ? 'disabled' : ''} style="padding: 8px 20px; border-radius: 8px; border: none; background: ${selectedUids.size >= minGrave ? '#0284c7' : '#475569'}; color: #fff; font-weight: bold; cursor: ${selectedUids.size >= minGrave ? 'pointer' : 'not-allowed'}; opacity: ${selectedUids.size >= minGrave ? '1' : '0.55'};">
-            ${selectedUids.size >= minGrave ? `✅ ยืนยันนำกลับเข้ากอง (${selectedUids.size} ใบ)` : `⚠️ เลือกอย่างน้อย ${minGrave} ใบ (เลือกแล้ว ${selectedUids.size} ใบ)`}
+          ${!isExact ? `<button type="button" id="btn-recycle-select-all" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #475569; background: #334155; color: #fff; cursor: pointer;">${selectedUids.size === grave.length ? 'ยกเลิกเลือกทั้งหมด' : `เลือกทั้งหมด (${grave.length} ใบ)`}</button>` : ''}
+          <button type="button" id="btn-recycle-confirm" ${canConfirm ? '' : 'disabled'} style="padding: 8px 20px; border-radius: 8px; border: none; background: ${canConfirm ? '#0284c7' : '#475569'}; color: #fff; font-weight: bold; cursor: ${canConfirm ? 'pointer' : 'not-allowed'}; opacity: ${canConfirm ? '1' : '0.55'};">
+            ${confirmBtnText}
           </button>
         </div>
       </div>
     `;
     modal.style.display = 'flex';
 
+    const peekBtn = modal.querySelector('#recycle-btn-peek-field');
+    if (peekBtn) {
+      peekBtn.onclick = () => window.toggleBattlefieldPeek(modal);
+    }
+
     modal.querySelectorAll('.card-recycle-item').forEach(btn => {
       btn.onclick = () => {
         const uid = String(btn.dataset.uid);
-        if (selectedUids.has(uid)) selectedUids.delete(uid);
-        else selectedUids.add(uid);
+        if (selectedUids.has(uid)) {
+          selectedUids.delete(uid);
+        } else {
+          if (isExact && selectedUids.size >= targetCount) {
+            // หากเลือกครบจำนวนแล้ว ไม่ให้เลือกเกิน
+            return;
+          }
+          selectedUids.add(uid);
+        }
         updateUI();
       };
     });
@@ -1953,7 +2059,10 @@ function showGraveRecycleModal(contestant, minGrave, onConfirm, excludeUid = nul
     const confirmBtn = modal.querySelector('#btn-recycle-confirm');
     if (confirmBtn) {
       confirmBtn.onclick = () => {
-        if (selectedUids.size < minGrave) return;
+        if (!canConfirm) return;
+        modal.classList.remove('is-peeking-field');
+        const b = document.getElementById('bof-peek-floating-bar');
+        if (b) b.style.display = 'none';
         modal.style.display = 'none';
         onConfirm(Array.from(selectedUids));
       };
@@ -1994,6 +2103,7 @@ function triggerAceGraveSummon(boardOwner, slotIndex, excludeUid = null) {
   };
 
   if (isPlayer) {
+    const aceCard = boardOwner.graveyard[aceIdx];
     showChoiceModal(
       '🔥 สั่งใช้งานในนรก: ดราโกนิค โอเวอร์ลอร์ด THE ACE',
       'ยูนิทบนสนามของคุณถูกทำลาย!\nต้องการสั่งใช้งาน "THE ACE" จากนรก เพื่ออัญเชิญลงสนาม (1 ครั้งต่อเทิร์น) หรือไม่?',
@@ -2001,6 +2111,8 @@ function triggerAceGraveSummon(boardOwner, slotIndex, excludeUid = null) {
         {
           label: '🔥 สั่งใช้งาน: อัญเชิญ "THE ACE" ลงสนาม!',
           color: '#ef4444',
+          card: aceCard,
+          cardId: 'BT01_05',
           onSelect: () => doSummonAce()
         },
         {
@@ -2008,7 +2120,8 @@ function triggerAceGraveSummon(boardOwner, slotIndex, excludeUid = null) {
           color: '#475569',
           onSelect: () => renderGame()
         }
-      ]
+      ],
+      { previewCards: aceCard ? [aceCard] : [] }
     );
   } else {
     doSummonAce();
@@ -4337,6 +4450,10 @@ function initiatePlayerSpell(handIndex) {
     return;
   }
   if (spell.id === 'RP11') {
+    if (!Array.isArray(player.graveyard) || player.graveyard.length < 2) {
+      setLog('❌ ต้องมีการ์ดในกองนรกของคุณอย่างน้อย 2 ใบเพื่อนำกลับเข้ากอง!');
+      return;
+    }
     askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "มิโกะต้นไม้แห่งชีวิต เอเลน"', () => {
       gameState.selectedHandIndex = null;
       executeElenHandSkill(player, spell, handIndex);
@@ -6824,24 +6941,39 @@ function executeEponaGraveSkill(contestant, card) {
   renderGame();
 }
 
-// 🌿 มิโกะต้นไม้แห่งชีวิต เอเลน (RP11): นำการ์ดจากนรก 2 ใบกลับเข้ากอง สลับกอง แล้วจั่ว 2 ใบ ทิ้งมือ 1 ใบ
+// 🌿 มิโกะต้นไม้แห่งชีวิต เอเลน (RP11): เลือกการ์ดจากนรกเรากลับเข้ากองเรา 2 ใบ สลับกอง จากนั้นจั่วการ์ด 2 ใบ แล้วทิ้งการ์ดบนมือ 1 ใบ
 function executeElenHandSkill(caster, spellCard, handIndex) {
-  if (!Array.isArray(caster.graveyard) || caster.graveyard.length < 2) {
-    setLog('❌ ต้องมีการ์ดในกองนรกของคุณอย่างน้อย 2 ใบเพื่อนำกลับเข้ากอง!');
-    return;
-  }
+  if (!Array.isArray(caster.graveyard)) caster.graveyard = [];
 
   const isAI = (caster !== gameState.player);
   if (isAI) {
-    const spell = caster.hand.splice(handIndex, 1)[0];
+    if (caster.graveyard.length < 2) {
+      setLog('❌ ต้องมีการ์ดในกองนรกของคุณอย่างน้อย 2 ใบเพื่อนำกลับเข้ากอง!');
+      return;
+    }
+    const curIdx = caster.hand.findIndex(c => c.uid === spellCard.uid);
+    const spell = curIdx !== -1 ? caster.hand.splice(curIdx, 1)[0] : spellCard;
     caster.spellQuota.normalUsed += 1;
     resetCardStateForZoneChange(spell);
     caster.graveyard.push(spell);
 
-    for (let i = 0; i < 2; i++) {
-      const c = caster.graveyard.pop();
-      resetCardStateForZoneChange(c);
-      caster.deck.push(c);
+    const candidates = caster.graveyard.filter(c => c !== spell);
+    if (candidates.length >= 2) {
+      const c1 = candidates[0];
+      const idx1 = caster.graveyard.indexOf(c1);
+      if (idx1 !== -1) {
+        caster.graveyard.splice(idx1, 1);
+        resetCardStateForZoneChange(c1);
+        caster.deck.push(c1);
+      }
+      const rem = caster.graveyard.filter(c => c !== spell);
+      const c2 = rem[0];
+      const idx2 = caster.graveyard.indexOf(c2);
+      if (idx2 !== -1) {
+        caster.graveyard.splice(idx2, 1);
+        resetCardStateForZoneChange(c2);
+        caster.deck.push(c2);
+      }
     }
     caster.deck = shuffleDeck(caster.deck);
     drawCards(caster, 2);
@@ -6851,8 +6983,8 @@ function executeElenHandSkill(caster, spellCard, handIndex) {
       caster.graveyard.push(discarded);
       checkDiscardTriggers(caster, discarded);
     }
-    showCardShowcaseBanner(spell, 'AI ร่ายเวทมนตร์ เอเลน!', '🌿 รีไซเคิลการ์ดจากนรก 2 ใบ จั่ว 2 และทิ้ง 1!', '#2563eb', 1300);
-    setLog(`🌿 [AI เอเลน] นำการ์ดจากนรก 2 ใบกลับเข้ากอง สลับกอง แล้วจั่ว 2 ใบ จากนั้นทิ้งมือ 1 ใบ!`);
+    showCardShowcaseBanner(spell, 'AI ร่ายเวทมนตร์ เอเลน!', '🌿 เลือกการ์ดจากนรก 2 ใบกลับเข้ากอง จั่ว 2 และทิ้ง 1!', '#2563eb', 1300);
+    setLog(`🌿 [AI เอเลน] เลือกการ์ดจากนรก 2 ใบกลับเข้ากอง สลับกอง แล้วจั่ว 2 ใบ จากนั้นทิ้งมือ 1 ใบ!`);
     renderGame();
     return;
   }
@@ -6865,37 +6997,69 @@ function executeElenHandSkill(caster, spellCard, handIndex) {
   resetCardStateForZoneChange(spell);
   caster.graveyard.push(spell);
 
-  // นำการ์ด 2 ใบล่าสุดจากนรกกลับเข้ากอง
-  const c1 = caster.graveyard.pop();
-  resetCardStateForZoneChange(c1);
-  caster.deck.push(c1);
-
-  const c2 = caster.graveyard.pop();
-  resetCardStateForZoneChange(c2);
-  caster.deck.push(c2);
-
-  caster.deck = shuffleDeck(caster.deck);
-  drawCards(caster, 2);
-  setLog(`🌿 [เอเลน] นำ "${c1.name}" และ "${c2.name}" จากนรกกลับเข้ากอง สลับกอง และได้จั่ว 2 ใบ!`);
-
-  // ให้เลือกทิ้งการ์ดบนมือ 1 ใบ
-  if (caster.hand.length > 0) {
-    const discardChoices = caster.hand.map((card, idx) => ({
-      label: `ทิ้ง "${card.name}"`,
-      color: '#dc2626',
-      onSelect: () => {
-        const discarded = caster.hand.splice(idx, 1)[0];
-        resetCardStateForZoneChange(discarded);
-        caster.graveyard.push(discarded);
-        setLog(`🌿 [เอเลน] ทิ้ง "${discarded.name}" 1 ใบจากมือลงนรกเรียบร้อย!`);
-        checkDiscardTriggers(caster, discarded);
-        renderGame();
-      }
-    }));
-    showChoiceModal('🌿 มิโกะต้นไม้แห่งชีวิต เอเลน: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:', discardChoices);
-  } else {
+  // ดึงการ์ดในนรกที่ไม่ใช่ใบที่เพิ่งร่าย
+  const eligibleGrave = caster.graveyard.filter(c => c && c !== spell && c.uid !== spell.uid);
+  if (eligibleGrave.length < 2) {
+    setLog('❌ ต้องมีการ์ดในกองนรกของคุณอย่างน้อย 2 ใบเพื่อนำกลับเข้ากอง!');
+    // คืนการ์ดกลับมือหากไม่พอ
+    const spellIdx = caster.graveyard.indexOf(spell);
+    if (spellIdx !== -1) caster.graveyard.splice(spellIdx, 1);
+    caster.hand.splice(curIdx, 0, spell);
+    caster.spellQuota.normalUsed = Math.max(0, caster.spellQuota.normalUsed - 1);
     renderGame();
+    return;
   }
+
+  showGraveRecycleModal(caster, 2, (selectedUids) => {
+    const selectedCards = [];
+    const uidSet = new Set(selectedUids.map(String));
+    for (let i = caster.graveyard.length - 1; i >= 0 && selectedCards.length < 2; i--) {
+      const c = caster.graveyard[i];
+      if (c && uidSet.has(String(c.uid)) && c !== spell && c.uid !== spell.uid) {
+        caster.graveyard.splice(i, 1);
+        resetCardStateForZoneChange(c);
+        caster.deck.push(c);
+        selectedCards.push(c);
+      }
+    }
+    caster.deck = shuffleDeck(caster.deck);
+    drawCards(caster, 2);
+    setLog(`🌿 [เอเลน] นำ ${selectedCards.map(c => `"${c.name}"`).join(' และ ')} จากนรกกลับเข้ากอง สลับกอง และได้จั่ว 2 ใบ!`);
+    renderGame();
+
+    // จากนั้นทิ้งการ์ดบนมือ 1 ใบ
+    if (caster.hand.length > 0) {
+      const discardChoices = caster.hand.map((card, idx) => ({
+        label: `ทิ้ง "${card.name}"`,
+        color: '#dc2626',
+        card: card,
+        cardId: card.id,
+        onSelect: () => {
+          const discarded = caster.hand.splice(idx, 1)[0];
+          resetCardStateForZoneChange(discarded);
+          caster.graveyard.push(discarded);
+          setLog(`🌿 [เอเลน] ทิ้ง "${discarded.name}" 1 ใบจากมือลงนรกเรียบร้อย!`);
+          checkDiscardTriggers(caster, discarded);
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(spell, 'ร่ายเวทมนตร์ เอเลน สำเร็จ!', `🌿 นำการ์ด 2 ใบกลับเข้ากอง จั่ว 2 ใบ และทิ้ง "${discarded.name}" 1 ใบ!`, '#2563eb', 1300);
+          }
+          renderGame();
+        }
+      }));
+      showChoiceModal(
+        '🌿 มิโกะต้นไม้แห่งชีวิต เอเลน: เลือกการ์ดที่จะทิ้ง',
+        'หลังจากจั่วการ์ด 2 ใบแล้ว คุณต้องเลือกทิ้งการ์ดบนมือ 1 ใบลงสู่สุสาน:',
+        discardChoices,
+        { previewCards: caster.hand.slice() }
+      );
+    } else {
+      renderGame();
+    }
+  }, spell.uid, spell, {
+    title: '🌿 มิโกะต้นไม้แห่งชีวิต เอเลน',
+    exactCount: 2,
+    titleColor: '#38bdf8'
+  });
 }
 
 function executeStartPhase(contestant, onStartEffectsComplete = null) {
@@ -8853,6 +9017,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseForbiddenWarning) {
       options.push({
+        cardId: 'DMS02',
         label: '🌌 ใช้การ์ด "คำเตือนต้องห้าม": เราและฝ่ายตรงข้ามนำการ์ดบนมือตนเอง 1 ใบเข้ามิติมืด และยกเลิกการโจมตี!',
         color: '#7c3aed',
         onSelect: () => {
@@ -8915,6 +9080,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseMeteor) {
       options.push({
+        cardId: 'DNS03',
         label: '☄️ ใช้การ์ด "เมเทโอ": ทำลายการ์ดทั้งหมดบนสนามทั้ง 2 ฝั่ง (เมื่อเรามียูนิทเผ่าไดโน 2 ใบขึ้นไป)!',
         color: '#dc2626',
         onSelect: () => {
@@ -8949,6 +9115,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseMayaOnce) {
       options.push({
+        cardId: 'DM03',
         label: '🔮 สั่งใช้สกิล 1 เกมของ "มายอา": เปิดท็อปกอง 1 ใบ ถ้าเป็น "โซเนบุ" อีกฝ่ายจบเทิร์นทันที!',
         color: '#7c3aed',
         onSelect: () => {
@@ -8973,6 +9140,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseWeWillHelp) {
       options.push({
+        cardId: 'DS02',
         label: '🛡️ ใช้การ์ด "พวกเราจะช่วยเอง": นำยูนิต 5 ใบในนรกกลับเข้ากอง แล้วยกเลิกการโจมตี!',
         color: '#0284c7',
         onSelect: () => {
@@ -9015,7 +9183,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseTheXInGrave) {
       options.push({
-        label: '🔥 สั่งใช้ "ดราโกนิค โอเวอร์ลอร์ด The X" จากนรก: ทำลายยูนิทที่โจมตี และอัญเชิญ The X ลงสนาม!',
+        cardId: 'KG04',
+        label: '🔥 สั่งใช้ "ดราโกนิค โอเวอร์ลอร์ด THE X" จากนรก: ทำลายยูนิทที่โจมตี และอัญเชิญ THE X ลงสนาม!',
         color: '#ef4444',
         onSelect: () => {
           defender.kg04UsedThisGame = true;
@@ -9044,6 +9213,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
             const replaceChoices = defender.board.map((m, sIdx) => ({
               label: `💀 ส่ง "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" ลงนรก และวาง The X ทับ`,
               color: '#ef4444',
+              card: m,
+              cardId: m ? m.id : null,
               onSelect: () => {
                 sendOverwrittenMonsterToGrave(defender, sIdx);
                 finishTheXEffect(sIdx);
@@ -9070,6 +9241,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseNagisa) {
       options.push({
+        cardId: 'MD07',
         label: '🧀 สั่งใช้ "โมโมเอะ นางิสะ" จากบนมือ: อัญเชิญลงสนาม และเรสยูนิทที่ Stand ของอีกฝ่ายทั้งหมด!',
         color: '#f472b6',
         onSelect: () => {
@@ -9094,6 +9266,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseHomura) {
       options.push({
+        cardId: 'MD02',
         label: '⏳ สั่งใช้ "อาเคมิ โฮมุระ": ทิ้งการ์ดบนมือเพื่อลดพลังยูนิทที่โจมตี',
         color: '#6366f1',
         onSelect: () => {
@@ -9101,6 +9274,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           const discardChoices = defender.hand.map((card, idx) => ({
             label: `ทิ้ง "${card.name}" (ลดพลัง 1 หน่วย)`,
             color: '#6366f1',
+            card: card,
+            cardId: card.id,
             onSelect: () => {
               const discarded = defender.hand.splice(idx, 1)[0];
               resetCardStateForZoneChange(discarded);
@@ -9119,6 +9294,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseLawOfCycles) {
       options.push({
+        cardId: 'MD12',
         label: '🛡️ ร่าย "กฎแห่งวัฏจักร": สแตร์นยูนิทเรา 1 ใบ ได้รับเกราะไม่ออกจากสนาม 1 ครั้ง และดำเนินการต่อสู้/ป้องกัน!',
         color: '#ec4899',
         onSelect: () => {
@@ -9136,6 +9312,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
               allyChoices.push({
                 label: `🛡️ เลือก "${m.name}" (ช่อง ${s + 1})`,
                 color: '#ec4899',
+                card: m,
+                cardId: m.id,
                 onSelect: () => {
                   m.state = 'Stand';
                   m.protectedOnce = true;
@@ -9153,6 +9331,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseBarry) {
       options.push({
+        cardId: 'KG09',
         label: '🐉 ร่าย "ไวเวอร์นการ์ด บาร์รี่": เปลี่ยนเป้าหมายการโจมตีไปที่ยูนิทหรือลีดเดอร์ของฝ่ายตรงข้าม!',
         color: '#ef4444',
         onSelect: () => {
@@ -9170,6 +9349,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
               retargetChoices.push({
                 label: `🎯 เปลี่ยนเป้าหมายไปที่ "${m.name}" (ช่อง ${s + 1})`,
                 color: '#ef4444',
+                card: m,
+                cardId: m.id,
                 onSelect: () => {
                   compareAndDestroyMonsters(attacker, attackerSlot, attacker, s, (msg) => {
                     setLog(`🐉 [บาร์รี่] เปลี่ยนเป้าหมายโจมตีไปที่ "${m.name}"! -> ${msg}`);
@@ -9188,6 +9369,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
                 const discardChoices = defender.hand.map((card, idx) => ({
                   label: `ทิ้ง "${card.name}"`,
                   color: '#dc2626',
+                  card: card,
+                  cardId: card.id,
                   onSelect: () => {
                     const discarded = defender.hand.splice(idx, 1)[0];
                     resetCardStateForZoneChange(discarded);
@@ -9211,6 +9394,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseIseult) {
       options.push({
+        cardId: 'RP09',
         label: '🛡️ ร่าย "โล่แสง อิโซลท์": ทิ้งการ์ด 1 ใบ ยกเลิกการโจมตี (ถ้าเป็นการ์ดรอยัล พาลาดิน ทำลายยูนิทที่โจมตีด้วย!)',
         color: '#2563eb',
         onSelect: () => {
@@ -9227,6 +9411,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           const discardChoices = defender.hand.map((card, idx) => ({
             label: `ทิ้ง "${card.name}" ${hasCardTribe(card, 'รอยัล พาลาดิน') || card.id.startsWith('RP') ? '(👑 เผ่ารอยัล พาลาดิน -> ทำลายยูนิทที่โจมตี!)' : ''}`,
             color: '#2563eb',
+            card: card,
+            cardId: card.id,
             onSelect: () => {
               const discarded = defender.hand.splice(idx, 1)[0];
               resetCardStateForZoneChange(discarded);
@@ -9350,6 +9536,7 @@ function checkLeaderDamagedTriggers(damagedContestant) {
         }
       }
     } else {
+      const theEndCard = damagedContestant.graveyard[theEndIdx];
       showChoiceModal(
         '🔥 สั่งใช้งานในนรก: ดราโกนิค โอเวอร์ลอร์ด The end',
         'ลีดเดอร์ของคุณสูญเสียพลังชีวิต!\nต้องการสั่งใช้งาน "The End" จากนรก เพื่ออัญเชิญลงบนสนาม (1 ครั้ง/เทิร์น) หรือไม่?',
@@ -9357,6 +9544,8 @@ function checkLeaderDamagedTriggers(damagedContestant) {
           {
             label: '🔥 สั่งใช้งาน: อัญเชิญ "The End" ลงสนาม!',
             color: '#ef4444',
+            card: theEndCard,
+            cardId: 'KG02',
             onSelect: () => {
               const curIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
               if (curIdx === -1 || damagedContestant.theEndRevivedThisTurn) return;
@@ -9404,7 +9593,8 @@ function checkLeaderDamagedTriggers(damagedContestant) {
             color: '#475569',
             onSelect: () => renderGame()
           }
-        ]
+        ],
+        { previewCards: theEndCard ? [theEndCard] : [] }
       );
     }
   }
@@ -9495,6 +9685,7 @@ function checkLeaderDamagedTriggers(damagedContestant) {
           }
         }
       } else {
+        const gordonCard = damagedContestant.graveyard[rp07Idx];
         showChoiceModal(
           '🛡️ สั่งใช้งานในนรก: อัศวินแห่งความจริง กอร์ดอน',
           'ลีดเดอร์ของคุณสูญเสียพลังชีวิต!\nต้องการสั่งใช้งาน "กอร์ดอน" จากนรก เพื่ออัญเชิญลงสนาม และฟื้นฟูพลังชีวิต 1 หน่วย (1 ครั้ง/เกม) หรือไม่?',
@@ -9502,6 +9693,8 @@ function checkLeaderDamagedTriggers(damagedContestant) {
             {
               label: '🛡️ สั่งใช้งาน: อัญเชิญ "กอร์ดอน" + ฮีล 1 HP!',
               color: '#2563eb',
+              card: gordonCard,
+              cardId: 'RP07',
               onSelect: () => {
                 const curIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'RP07');
                 if (curIdx === -1 || damagedContestant.rp07RevivedThisGame) return;
@@ -9551,7 +9744,8 @@ function checkLeaderDamagedTriggers(damagedContestant) {
               color: '#475569',
               onSelect: () => renderGame()
             }
-          ]
+          ],
+          { previewCards: gordonCard ? [gordonCard] : [] }
         );
       }
     }

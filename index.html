@@ -759,7 +759,8 @@
 
   <!-- หน้าต่าง Intercept -->
   <div class="modal-overlay" id="intercept-modal" style="display: none;">
-    <div class="modal-box">
+    <div class="modal-box" style="position: relative;">
+      <button type="button" class="btn-peek-field" id="intercept-btn-peek-field" onclick="if(window.toggleBattlefieldPeek)window.toggleBattlefieldPeek(document.getElementById('intercept-modal'))" title="ซ่อนหน้าต่างชั่วคราวเพื่อตรวจดูสถานการณ์บนสนาม">👁️ ดูสนาม</button>
       <h2>🛡️ Intercept: ป้องกันการโจมตีใส่ Leader!</h2>
       <p id="intercept-desc" style="color:#fbbf24; margin-top:8px;">
         เลือก Monster ที่ Stand อยู่เพื่อรับการโจมตีแทน หรือกดไม่ป้องกัน
