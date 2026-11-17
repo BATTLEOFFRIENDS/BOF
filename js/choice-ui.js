@@ -24,6 +24,8 @@
     document.querySelectorAll('.um-spark').forEach(n => n.remove());
     if (window.BOFParticles) window.BOFParticles.clear(); // กระดาษสีของฉากชนะไม่ค้างไปหน้าต่างถัดไป
     modal.classList.remove('um-choice', 'um-end', 'um-victory', 'um-defeat', 'um-tone-danger', 'um-tone-arcane', 'um-has-card-grid', 'is-peeking-field');
+    const peekBtn = modal.querySelector('#choice-btn-peek-field');
+    if (peekBtn) peekBtn.style.display = '';
     const peekBar = document.getElementById('bof-peek-floating-bar');
     if (peekBar) peekBar.style.display = 'none';
     const box = modal.querySelector('.modal-box');
@@ -343,6 +345,8 @@
     themeButtons(modal);
 
     if (victory || defeat) {
+      const peekBtn = modal.querySelector('#choice-btn-peek-field');
+      if (peekBtn) peekBtn.style.display = 'none';
       modal.classList.add('um-end', victory ? 'um-victory' : 'um-defeat');
       const ring = window.BOFIcon ? endEmblem(victory) : iconRing(glyph || (victory ? '🏆' : '💀'));
       const word = document.createElement('span'); word.className = 'um-end-word um-x';

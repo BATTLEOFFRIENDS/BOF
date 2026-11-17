@@ -2341,39 +2341,41 @@
         const mainContainer = document.getElementById('main-pool-list');
         if (!leaderContainer || !mainContainer) return res;
 
-        const allLeaders = CARD_DATABASE.filter(c => c.type === 'Leader');
         const leaderItems = Array.from(leaderContainer.children);
-        allLeaders.forEach((leader, idx) => {
-          const item = leaderItems[idx];
-          if (!item) return;
-          const ownedCount = Number(economy.ownedCards[leader.id] || 0);
-          item.style.display = ownedCount <= 0 ? 'none' : '';
+        leaderItems.forEach(item => {
+          const leaderId = item.dataset.cardId;
+          const leader = CARD_DATABASE.find(c => c.id === leaderId && c.type === 'Leader');
+          if (!leader) return;
+          item.style.display = '';
         });
 
-        const allMainCards = CARD_DATABASE.filter(c => c.type !== 'Leader');
         const mainItems = Array.from(mainContainer.children);
-        allMainCards.forEach((card, idx) => {
-          const item = mainItems[idx];
-          if (!item) return;
-          const ownedCount = Number(economy.ownedCards[card.id] || 0);
-          if (ownedCount <= 0) {
-            item.style.display = 'none';
-            return;
-          }
+        mainItems.forEach(item => {
+          const cardId = item.dataset.cardId;
+          const card = CARD_DATABASE.find(c => c.id === cardId);
+          if (!card) return;
           item.style.display = '';
           const ruleMax = typeof getCardMaxCopies === 'function' ? getCardMaxCopies(card) : 2;
-          const allowedMax = Math.min(ruleMax, ownedCount);
+          const ownedCount = Number(economy.ownedCards[card.id] || 0);
           const countInDeck = currentDeckConfig.mainDeck.filter(id => id === card.id).length;
 
           const badge = item.querySelector('.count-badge');
           if (badge) {
-            badge.className = `count-badge ${countInDeck >= allowedMax ? 'maxed' : ''}`;
-            badge.textContent = (window.isMobileUI && window.isMobileUI()) ? `${countInDeck}/${allowedMax} · มี ${ownedCount}` : `ใส่ในเด็ค: ${countInDeck}/${allowedMax} (มีในคลัง ${ownedCount} ใบ)`;
+            badge.className = `count-badge ${countInDeck >= ruleMax ? 'maxed' : ''}`;
+            if (ownedCount > 0) {
+              badge.textContent = (window.isMobileUI && window.isMobileUI())
+                ? `${countInDeck}/${ruleMax} · มี ${ownedCount}`
+                : `ใส่ในเด็ค: ${countInDeck}/${ruleMax} (มีในคลัง ${ownedCount} ใบ)`;
+            } else {
+              badge.textContent = (window.isMobileUI && window.isMobileUI())
+                ? `${countInDeck}/${ruleMax}`
+                : `ใส่ในเด็ค: ${countInDeck} / ${ruleMax} ใบ`;
+            }
           }
 
           const cardEl = item.querySelector('.card');
           if (cardEl) {
-            cardEl.dataset.allowedMax = String(allowedMax);
+            cardEl.dataset.allowedMax = String(ruleMax);
           }
         });
 

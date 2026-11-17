@@ -1137,7 +1137,32 @@ function checkGameOver() {
   return false;
 }
 
+function resetMatchLogs() {
+  gameState.matchLogHistory = [];
+  gameState.lastPlayedCardInfo = null;
+  gameState._pendingBannerCard = null;
+  updateLastPlayedCardWidget(null);
+
+  const singleLog = document.getElementById('action-log');
+  if (singleLog) singleLog.textContent = 'รอเริ่มการแข่งขัน...';
+
+  const ticker = document.getElementById('live-battle-ticker');
+  if (ticker) ticker.classList.remove('ticker-bump');
+
+  const tickerCounter = document.getElementById('ticker-counter');
+  if (tickerCounter) tickerCounter.textContent = '0';
+  const combatCounter = document.getElementById('combat-log-counter');
+  if (combatCounter) combatCounter.textContent = '0';
+
+  const scrollbox = document.getElementById('action-log-scrollbox');
+  if (scrollbox) scrollbox.innerHTML = '';
+
+  const combatList = document.getElementById('combat-log-modal-list');
+  if (combatList) combatList.innerHTML = '';
+}
+
 function showEndMatchModal(title, desc) {
+  resetMatchLogs();
   // โหมดฝึก: ปุ่ม "เริ่มเล่นใหม่" ของหน้านี้จะเริ่มเกมจริงทับการซ้อม · แถบโค้ชมีปุ่มเริ่มใหม่/ออกให้แล้ว
   // วาดกระดานใหม่ด้วย: ชนะแบบ "ดินแดนปีศาจ" ไม่มีการวาดหลังจบ แถบโค้ชเลยไม่ขึ้นว่าสำเร็จ
   if (window.BOFTutorial && window.BOFTutorial.isTutorialActive()) { renderGame(); return; }
@@ -1156,6 +1181,7 @@ function showEndMatchModal(title, desc) {
 }
 
 function returnToLobbyScreen() {
+  resetMatchLogs();
   // ปิด isMultiplayer ก่อน destroy: ไม่งั้น conn.on('close') ฝั่งเราจะเด้ง "คุณชนะ" ให้คนที่กดออกเอง
   if (typeof pvpState !== 'undefined') pvpState.isMultiplayer = false;
   if (typeof pvpState !== 'undefined' && pvpState.peer) pvpState.peer.destroy();
@@ -1247,6 +1273,9 @@ function showChoiceModal(title, description, options, extra = null) {
     if (box) box.prepend(peekBtn);
   }
   peekBtn.onclick = () => window.toggleBattlefieldPeek(modal);
+
+  const isEndModal = /ชนะ|พ่ายแพ้|ยอมแพ้|VICTORY|DEFEAT/i.test(title);
+  peekBtn.style.display = isEndModal ? 'none' : '';
 
   // Clear any existing peeking state
   modal.classList.remove('is-peeking-field');
@@ -12712,6 +12741,7 @@ function openDeckBuilderEditorForSlot(slotIdx) {
   const pickerModal = document.getElementById('deck-slot-picker-modal');
   if (pickerModal) pickerModal.style.display = 'none';
   document.getElementById('deck-builder-modal').style.display = 'flex';
+  if (typeof resetDeckBuilderFilter === 'function') resetDeckBuilderFilter();
   if (typeof switchDeckBuilderMobileTab === 'function') switchDeckBuilderMobileTab('collection');
   window.renderDeckBuilder();
 }
@@ -13205,6 +13235,7 @@ function renderDeckBuilder() {
     CARD_DATABASE.filter(c => c.type === 'Leader').forEach(leader => {
       const item = document.createElement('div');
       item.className = 'pool-item';
+      item.dataset.cardId = leader.id;
       const isSelected = (currentDeckConfig.leaderId === leader.id);
       const cardEl = document.createElement('div');
       cardEl.className = `card Leader ${isSelected ? 'selected-leader' : ''}`;
@@ -13333,6 +13364,7 @@ function renderDeckBuilder() {
 
         const item = document.createElement('div');
         item.className = `pool-item ${isRestricted ? 'is-restricted' : ''}`;
+        item.dataset.cardId = card.id;
         const cardEl = createCardElement(card, null);
         if (countInDeck > 0) {
           cardEl.style.outline = '2px solid #10b981';
@@ -13449,10 +13481,7 @@ function initGame() {
     gameState._attackingTimeout = null;
   }
   gameState.gameOver = false;
-  gameState.matchLogHistory = [];
-  gameState.lastPlayedCardInfo = null;
-  gameState._pendingBannerCard = null;
-  updateLastPlayedCardWidget(null);
+  resetMatchLogs();
 
   previousBoardUids = {
     player: [null, null, null],
@@ -15996,6 +16025,33 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             '1. ร่ายเวท "ลิซาร์ดโซลเจอร์ คอนโร (KG08)" จากบนมือ -> เลือกส่งมอนสเตอร์จากกองลงนรก 1 ใบ แล้วจั่วการ์ด 2 ใบฟรี!',
             '2. เมื่อในนรกมีมอนสเตอร์ครบ 3 ใบแล้ว ให้อัญเชิญ "ดราโกนิค เบิร์นเอาท์ (KG07)" ลงสนาม -> พลังโจมตีจะเพิ่มขึ้น +2 กลายเป็น Power 3 ทันที!',
             '3. สั่งเบิร์นเอาท์โจมตีใส่ Leader อีกฝ่ายเพื่อสร้างความเสียหายหนัก!'
+          ]
+        }
+      ]
+    },
+    {
+      leaderId: 'L09',
+      deckName: '👑 เด็ครอยัล พาลาดิน',
+      overview: 'จุดเด่น: ค้นหายูนิตขึ้นมืออย่างต่อเนื่อง เสริมพลังการ์ดทุกใบเมื่อมีความได้เปรียบจำนวนการ์ดบนมือ และสแตร์นยูนิตทั้งหมดเมื่อจบเทิร์น พร้อมการลงแบบคอมโบทำลายล้างของราชาอัศวิน อัลเฟรด และบลาสเตอร์ เบลด!',
+      combos: [
+        {
+          id: 'royal_alfred_blaster',
+          title: '⚔️ คอมโบ 1: ราชาอัศวิน อัลเฟรด คอล บลาสเตอร์ เบลด ทำลายยูนิตและพุ่งชน Power 4!',
+          cards: ['RP02', 'RP03'],
+          steps: [
+            '1. อัญเชิญ "ราชาอัศวิน อัลเฟรด (RP02)" ลงสู่สนาม',
+            '2. ใช้ความสามารถของอัลเฟรด เรียก "บลาสเตอร์ เบลด (RP03)" จากในกองหรือนรก ลงสู่สนามฟรีทันที!',
+            '3. เมื่อบลาสเตอร์ เบลด ลงสนาม จะสั่งทำลายยูนิตฝ่ายตรงข้าม 1 ใบ และทำให้อัลเฟรดได้รับพลังโจมตีเพิ่ม +2 (กลายเป็น Power 4) พร้อมคุ้มกันไม่ถูกทำลายจากความสามารถการ์ด!'
+          ]
+        },
+        {
+          id: 'royal_hand_advantage_soulsaver',
+          title: '✨ คอมโบ 2: ครองความได้เปรียบการ์ดบนมือ & ปิดฉากด้วย โซลเซฟเวอร์ ดราก้อน!',
+          cards: ['RP04', 'RP11', 'RP01'],
+          steps: [
+            '1. ใช้สกิลลีดเดอร์ รอยัล พาลาดิน หยิบยูนิตเข้ามือทุกเทิร์น ร่วมกับ "วิงกัล (RP04)" ค้นหาการ์ดขึ้นมือ และ "มิโกะต้นไม้แห่งชีวิต เอเลน (RP11)" คืนการ์ดจั่ว 2 ทิ้ง 1',
+            '2. เมื่อการ์ดบนมือของเรามากกว่าอีกฝ่าย ยูนิตทั้งหมดในสนามจะได้รับพลัง +1 และฝ่ายตรงข้ามจะไม่สามารถใช้สกิลการ์ดจากนรกได้',
+            '3. ร่าย "โซลเซฟเวอร์ ดราก้อน (RP01)" คืนการ์ดจากนรกทั้งสองฝั่ง 8 ใบ เพิ่ม HP ลีดเดอร์เรา +3 และบุกโจมตีด้วย Power มหาศาลปิดเกม!'
           ]
         }
       ]
