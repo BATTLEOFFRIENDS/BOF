@@ -1656,22 +1656,23 @@
     });
 
     overlay.querySelectorAll('.sh-peek-card-item[data-peek-card-id]').forEach(itemEl => {
-      const clickHandler = () => {
+      const clickHandler = (e) => {
+        if (e) e.stopPropagation();
         const cid = itemEl.dataset.peekCardId;
-        const targetCard = CARD_DATABASE.find(c => c.id === cid);
+        const targetCard = (typeof CARD_DATABASE !== 'undefined') ? CARD_DATABASE.find(c => c.id === cid) : null;
         if (targetCard && typeof window.openCardDetailModal === 'function') {
+          window.openCardDetailModal(targetCard, null, itemEl);
           const holoInspect = document.querySelector('.holo-inspect');
           if (shopDialog && shopDialog.open && holoInspect && holoInspect.parentElement !== shopDialog) {
             shopDialog.appendChild(holoInspect);
           }
-          window.openCardDetailModal(targetCard, null, itemEl);
         }
       };
       itemEl.addEventListener('click', clickHandler);
       itemEl.addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          clickHandler();
+          clickHandler(e);
         }
       });
     });

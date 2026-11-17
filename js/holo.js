@@ -159,26 +159,37 @@
     document.body.appendChild(ov);
     big = ov.querySelector('.holo-big');
     ov.querySelector('.holo-close').onclick = close;
-    ov.addEventListener('click', e => { if (e.target === ov || e.target.classList.contains('holo-stage')) close(); });
+    ov.addEventListener('click', e => {
+      e.stopPropagation();
+      if (e.target === ov || e.target.classList.contains('holo-stage')) close();
+    });
     addEventListener('keydown', e => { if (e.key === 'Escape' && !ov.hidden) close(); });
   }
 
   function statsTextFor(card, owner) {
     // คงข้อความเดียวกับ openCardDetailModal เดิม
     if (card.type === 'Monster') {
-      const effPwr = owner ? getEffectivePower(card, owner) : card.power;
-      return `⚔️ พลังโจมตี: ${effPwr} (พื้นฐาน: ${card.power})\n🃏 ใส่ในเด็คได้สูงสุด: ${getCardMaxCopies(card)} ใบ`;
+      const effPwr = (owner && typeof getEffectivePower === 'function') ? getEffectivePower(card, owner) : card.power;
+      const tribeLine = card.tribe ? `\n🧬 เผ่า: ${card.tribe}` : '';
+      const maxCopy = typeof getCardMaxCopies === 'function' ? getCardMaxCopies(card) : 2;
+      return `⚔️ พลังโจมตี: ${effPwr} (พื้นฐาน: ${card.power})${tribeLine}\n🃏 ใส่ในเด็คได้สูงสุด: ${maxCopy} ใบ`;
     }
     if (card.type === 'Leader') {
-      const hp = card.hp !== undefined ? `${card.hp} / ${card.maxHp}` : card.maxHp;
+      const hp = card.hp !== undefined ? `${card.hp} / ${card.maxHp}` : (card.maxHp || card.hp || 10);
       return `👑 พลังชีวิต (HP): ${hp}`;
     }
-    return `✨ การ์ดเวทมนตร์ (${card.type})\n🃏 ใส่ในเด็คได้สูงสุด: ${getCardMaxCopies(card)} ใบ`;
+    const maxCopy = typeof getCardMaxCopies === 'function' ? getCardMaxCopies(card) : 2;
+    return `✨ การ์ดเวทมนตร์ (${card.type})\n🃏 ใส่ในเด็คได้สูงสุด: ${maxCopy} ใบ`;
   }
 
   function open(card, owner, fromEl) {
     if (!card) return;
     if (!ov) buildOverlay();
+    const activeDialog = document.querySelector('dialog[open]');
+    const targetParent = activeDialog || document.body;
+    if (ov.parentElement !== targetParent) {
+      targetParent.appendChild(ov);
+    }
     closeSeq++; // ยกเลิกตัวจับเวลาปิดของรอบก่อน
     suppressClickUntil = performance.now() + 500; // กันคลิกที่ตามหลังการแตะค้าง
     stopIdle(); stopFx();
@@ -234,7 +245,16 @@
     ov.classList.remove('open');
     const o = origin; origin = null;
     let done = false; const seq = ++closeSeq;
-    const fin = () => { if (done || seq !== closeSeq) return; done = true; ov.hidden = true; document.body.classList.remove('holo-inspecting'); if (o) o.style.visibility = ''; };
+    const fin = () => {
+      if (done || seq !== closeSeq) return;
+      done = true;
+      ov.hidden = true;
+      document.body.classList.remove('holo-inspecting');
+      if (o) o.style.visibility = '';
+      if (ov.parentElement !== document.body) {
+        document.body.appendChild(ov);
+      }
+    };
     setTimeout(fin, 600); // กันค้าง: ถึงแอนิเมชันปิดไม่จบ หน้าต่างก็ต้องปิด
     if (reduceMotion || !o || !o.isConnected) return fin();
     const to = o.getBoundingClientRect(), from = current.getBoundingClientRect();

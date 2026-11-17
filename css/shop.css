@@ -54,6 +54,11 @@
   background: transparent;
   color: #e8eaf7;
   box-shadow: none;
+  overflow: visible;
+}
+
+.holo-inspect {
+  z-index: 2500 !important;
 }
 
 #bof-shop-dialog::backdrop {

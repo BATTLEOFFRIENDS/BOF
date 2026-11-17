@@ -189,7 +189,7 @@ h1, h2, h3, .btn, .card-name, .card-power, .card-type,
    INSPECT การ์ดใบใหญ่
    ============================================================================ */
 .holo-inspect {
-  position: fixed; inset: 0; z-index: 400; display: grid; place-items: center;
+  position: fixed; inset: 0; z-index: 2500; display: grid; place-items: center;
   padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   /* ห้ามใส่ backdrop-filter ที่นี่: ด้านหลังมีการ์ดเล่นแอนิเมชันตลอดเวลา ทำให้ต้องเบลอใหม่ทุกเฟรมจนหน้าค้าง */
   background: rgba(6, 8, 20, .9);
