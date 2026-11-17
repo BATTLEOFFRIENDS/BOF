@@ -1313,8 +1313,6 @@ function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
       {
         label: (window.isMobileUI && window.isMobileUI()) ? '✅ ยืนยัน' : `✅ ยืนยัน (${actionTitle})`,
         color: '#16a34a',
-        card: card,
-        cardId: card.id,
         onSelect: () => {
           if (onConfirmCallback) onConfirmCallback();
         }
@@ -1324,8 +1322,7 @@ function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
         color: '#475569',
         onSelect: () => renderGame()
       }
-    ],
-    { previewCards: [card] }
+    ]
   );
 }
 
@@ -9302,6 +9299,16 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
               continueNormalAttackFlow();
             }
           }));
+          discardChoices.push({
+            label: '❌ ยกเลิก (ไม่ใช้สกิลโฮมุระ)',
+            color: '#475569',
+            onSelect: () => {
+              defender.homuraUsedThisTurn = false;
+              setLog('⏳ [อาเคมิ โฮมุระ] ยกเลิกการใช้สกิล');
+              renderGame();
+              continueNormalAttackFlow();
+            }
+          });
           showChoiceModal('⏳ อาเคมิ โฮมุระ: เลือกการ์ดที่จะทิ้ง', 'ทิ้งการ์ด 1 ใบเพื่อลดพลังตัวโจมตี 1 หน่วย:', discardChoices);
         }
       });
@@ -9337,6 +9344,19 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
                   continueNormalAttackFlow();
                 }
               });
+            }
+          });
+          allyChoices.push({
+            label: '❌ ยกเลิก (ไม่ร่ายกฎแห่งวัฏจักร)',
+            color: '#475569',
+            onSelect: () => {
+              const gIdx = defender.graveyard.lastIndexOf(spellCard);
+              if (gIdx !== -1) defender.graveyard.splice(gIdx, 1);
+              defender.hand.splice(md12InHandIdx, 0, spellCard);
+              defender.spellQuota.reactionUsed = Math.max(0, defender.spellQuota.reactionUsed - 1);
+              setLog('🛡️ [กฎแห่งวัฏจักร] ยกเลิกการร่ายเวทมนตร์ -> คืนการ์ดกลับขึ้นมือ');
+              renderGame();
+              continueNormalAttackFlow();
             }
           });
           showChoiceModal('🛡️ กฎแห่งวัฏจักร: เลือกยูนิทเป้าหมาย', 'เลือกยูนิทฝั่งเราที่จะสแตร์นและได้รับเกราะป้องกัน 1 ครั้ง:', allyChoices);
@@ -9398,10 +9418,34 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
                     if (onCompleteCallback) onCompleteCallback();
                   }
                 }));
+
+                discardChoices.push({
+                  label: '❌ ยกเลิก (กลับไปเลือกเป้าหมายใหม่)',
+                  color: '#475569',
+                  onSelect: () => {
+                    showChoiceModal('🐉 ไวเวอร์นการ์ด บาร์รี่: เลือกเป้าหมายใหม่', 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
+                  }
+                });
+
                 showChoiceModal('🐉 บาร์รี่: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ด 1 ใบที่จะทิ้งลงนรก:', discardChoices);
               }
             });
           }
+
+          retargetChoices.push({
+            label: '❌ ยกเลิก (ไม่ร่ายบาร์รี่)',
+            color: '#475569',
+            onSelect: () => {
+              const gIdx = defender.graveyard.lastIndexOf(spellCard);
+              if (gIdx !== -1) defender.graveyard.splice(gIdx, 1);
+              defender.hand.splice(kg09InHandIdx, 0, spellCard);
+              defender.spellQuota.reactionUsed = Math.max(0, defender.spellQuota.reactionUsed - 1);
+              setLog('🐉 [บาร์รี่] ยกเลิกการร่ายเวทมนตร์ -> คืนการ์ดกลับขึ้นมือ');
+              renderGame();
+              continueNormalAttackFlow();
+            }
+          });
+
           showChoiceModal('🐉 ไวเวอร์นการ์ด บาร์รี่: เลือกเป้าหมายใหม่', 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
         }
       });
@@ -9447,6 +9491,21 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
               if (onCompleteCallback) onCompleteCallback();
             }
           }));
+
+          discardChoices.push({
+            label: '❌ ยกเลิก (ไม่ร่ายโล่แสง อิโซลท์)',
+            color: '#475569',
+            onSelect: () => {
+              const gIdx = defender.graveyard.lastIndexOf(spellCard);
+              if (gIdx !== -1) defender.graveyard.splice(gIdx, 1);
+              defender.hand.splice(curIdx, 0, spellCard);
+              defender.spellQuota.reactionUsed = Math.max(0, defender.spellQuota.reactionUsed - 1);
+              setLog('🛡️ [โล่แสง อิโซลท์] ยกเลิกการร่ายเวทมนตร์ -> คืนการ์ดกลับขึ้นมือ');
+              renderGame();
+              continueNormalAttackFlow();
+            }
+          });
+
           showChoiceModal('🛡️ โล่แสง อิโซลท์: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:', discardChoices);
         }
       });

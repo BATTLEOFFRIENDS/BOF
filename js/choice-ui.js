@@ -145,6 +145,13 @@
   }
 
   function findCardInButtonLabel(label, btn = null) {
+    if (!label) return null;
+    const norm = s => String(s || '').trim().toLowerCase();
+    const cleanLabel = norm(label);
+
+    // ปุ่ม ยืนยัน / ยกเลิก ทั่วไป (เช่น ในหน้าต่างยืนยันการลงการ์ด) ไม่ใช่ตัวเลือกการ์ดในกริด
+    if (/^✅?\s*ยืนยัน|^❌?\s*ยกเลิก/.test(cleanLabel) && !cleanLabel.includes('ทิ้ง')) return null;
+
     if (btn && btn._card) return btn._card;
     if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE)) return null;
 
@@ -153,10 +160,6 @@
       const exact = CARD_DATABASE.find(c => c.id === btn.dataset.cardId);
       if (exact) return exact;
     }
-
-    if (!label) return null;
-    const norm = s => String(s || '').trim().toLowerCase();
-    const cleanLabel = norm(label);
 
     const candidates = CARD_DATABASE
       .filter(c => c && c.name && c.type !== 'Leader')
@@ -301,13 +304,13 @@
     // เพิ่มปุ่มยืนยันไว้ที่ปุ่มแรกของกล่องตัวเลือก
     container.prepend(confirmBtn);
 
-    // ตรวจสอบว่ามีปุ่มยกเลิก/ข้าม อยู่แล้วหรือไม่ ถ้าไม่มีให้สร้างปุ่มยกเลิก
+    // ตรวจสอบว่ามีปุ่มยกเลิก/ข้าม อยู่แล้วหรือไม่ ถ้าไม่มีให้สร้างปุ่มยกเลิกสำหรับล้างการเลือก
     const otherEntries = matched.filter(x => !x.card);
     if (otherEntries.length === 0) {
       const cancelBtn = document.createElement('button');
       cancelBtn.type = 'button';
       cancelBtn.className = 'btn um-btn-ghost um-x';
-      cancelBtn.textContent = '❌ ยกเลิก';
+      cancelBtn.textContent = '❌ ยกเลิกการเลือก';
       cancelBtn.onclick = () => {
         if (selectedEntry) {
           grid.querySelectorAll('.um-card-pick-item.is-selected').forEach(el => el.classList.remove('is-selected'));
@@ -316,11 +319,6 @@
           confirmBtn.style.opacity = '0.45';
           confirmBtn.style.cursor = 'not-allowed';
           confirmBtn.textContent = isDiscard ? '✅ ยืนยันการทิ้ง' : '✅ ยืนยัน';
-        } else {
-          modal.style.display = 'none';
-          modal.classList.remove('is-peeking-field');
-          const b = document.getElementById('bof-peek-floating-bar');
-          if (b) b.style.display = 'none';
         }
       };
       container.appendChild(cancelBtn);
@@ -362,10 +360,11 @@
     }
 
     modal.classList.add('um-choice');
+    const isConfirmModal = /ยืนยันการใช้งานการ์ด|ยืนยันการยอมแพ้/.test(title);
     const container = modal.querySelector('#choice-modal-buttons');
     const buttons = container ? [...container.querySelectorAll('.btn')] : [];
-    const hasCardButtons = buttons.some(btn => btn._card || findCardInButtonLabel(btn.textContent || '', btn));
-    const isSelectionModal = hasCardButtons || /เลือกการ์ด|เลือกยูนิท|เลือกเป้าหมาย|ทิ้ง/.test(title + ' ' + description);
+    const hasCardButtons = !isConfirmModal && buttons.some(btn => btn._card || findCardInButtonLabel(btn.textContent || '', btn));
+    const isSelectionModal = !isConfirmModal && (hasCardButtons || /เลือกการ์ด|เลือกยูนิท|เลือกเป้าหมาย|ทิ้ง/.test(title + ' ' + description));
     const card = isSelectionModal ? null : findCard(title);
     if (/ยอมแพ้|ทำลาย|ทิ้ง/.test(title)) modal.classList.add('um-tone-danger');
     else if (/⚡|สกิล|ความสามารถ/.test(title)) modal.classList.add('um-tone-arcane');
