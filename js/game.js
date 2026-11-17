@@ -1538,8 +1538,8 @@ function executeSummonUltimateMadoka(contestant) {
   renderGame();
 }
 
-function handleUltimateMadokaBattleEnd(contestant) {
-  if (contestant.graveyard.length > 0) {
+function handleUltimateMadokaBattleEnd(contestant, onComplete = null) {
+  if (contestant.graveyard && contestant.graveyard.length > 0) {
     contestant.deck.push(...contestant.graveyard);
     contestant.graveyard = [];
     contestant.deck = shuffleDeck(contestant.deck);
@@ -1553,26 +1553,127 @@ function handleUltimateMadokaBattleEnd(contestant) {
     contestant.darkDimension.push(card);
   }
 
-  let placed = 0;
-  while (contestant.hand.length > 0 && placed < 2) {
-    const emptySlot = contestant.board.findIndex(m => m === null);
-    if (emptySlot === -1) break;
-    const card = contestant.hand.shift();
-    resetCardStateForZoneChange(card);
-    card.state = 'Stand';
-    contestant.board[emptySlot] = card;
-    EffectEngine.triggerCardEffects(card, 'ON_SUMMON', {
-      caster: contestant,
-      opponent: (contestant === gameState.player ? gameState.ai : gameState.player),
-      sourceCard: card,
-      sourceSlot: emptySlot,
-      isAI: (contestant !== gameState.player),
-      isEffectSummon: true
-    });
-    placed++;
+  if (gameState.gameOver) {
+    setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด และ Ultimate Madoka กลับสู่มิติมืด!`);
+    renderGame();
+    if (typeof onComplete === 'function') onComplete();
+    return;
   }
-  setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด นำการ์ดบนมือ ${placed} ใบลงสนามในสภาพ Stand และ Ultimate Madoka กลับสู่มิติมืด!`);
+
+  // AI ฝั่งคอม: เลือกยูนิทบนมือที่มีพลังโจมตีสูงสุดไม่เกิน 2 ใบ
+  if (contestant !== gameState.player) {
+    let placed = 0;
+    while (placed < 2) {
+      const emptySlot = contestant.board.findIndex(m => m === null);
+      if (emptySlot === -1) break;
+      const unitIndex = contestant.hand.findIndex(c => c && c.type === 'Monster');
+      if (unitIndex === -1) break;
+      const card = contestant.hand.splice(unitIndex, 1)[0];
+      resetCardStateForZoneChange(card);
+      card.state = 'Stand';
+      contestant.board[emptySlot] = card;
+      EffectEngine.triggerCardEffects(card, 'ON_SUMMON', {
+        caster: contestant,
+        opponent: gameState.player,
+        sourceCard: card,
+        sourceSlot: emptySlot,
+        isAI: true,
+        isEffectSummon: true
+      });
+      placed++;
+    }
+    setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด AI คอลยูนิทบนมือ ${placed} ใบลงสนามในสภาพ Stand และ Ultimate Madoka กลับสู่มิติมืด!`);
+    renderGame();
+    if (typeof onComplete === 'function') onComplete();
+    return;
+  }
+
+  // ฝั่งผู้เล่น: ให้เลือกยูนิทบนมือไม่เกิน 2 ใบคอลลงสนาม
+  const placedUnits = [];
+
+  const finish = () => {
+    if (placedUnits.length > 0) {
+      const names = placedUnits.map(u => `"${u.name}"`).join(', ');
+      setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด คอลยูนิท ${names} (${placedUnits.length} ใบ) ลงสนามในสภาพ Stand และ Ultimate Madoka กลับสู่มิติมืด!`);
+    } else {
+      setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด และ Ultimate Madoka กลับสู่มิติมืด!`);
+    }
+    renderGame();
+    if (typeof onComplete === 'function') onComplete();
+  };
+
+  const promptChooseUnit = (step) => {
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    const unitChoices = contestant.hand.filter(c => c && c.type === 'Monster');
+
+    if (emptySlot === -1 || unitChoices.length === 0 || step > 2) {
+      finish();
+      return;
+    }
+
+    const options = unitChoices.map(c => ({
+      label: `⚔️ คอล "${c.name}" (Power ${c.power}${c.tribe ? ' · ' + c.tribe : ''})`,
+      color: '#ec4899',
+      onSelect: () => {
+        const targetSlot = contestant.board.findIndex(m => m === null);
+        const idx = contestant.hand.indexOf(c);
+        if (targetSlot === -1 || idx === -1) {
+          finish();
+          return;
+        }
+        const [card] = contestant.hand.splice(idx, 1);
+        resetCardStateForZoneChange(card);
+        card.state = 'Stand';
+        contestant.board[targetSlot] = card;
+        placedUnits.push(card);
+        setLog(`🌸 [Ultimate Madoka] คอล "${card.name}" ลงช่องที่ ${targetSlot + 1} ในสภาพ Stand!`);
+        EffectEngine.triggerCardEffects(card, 'ON_SUMMON', {
+          caster: contestant,
+          opponent: gameState.ai,
+          sourceCard: card,
+          sourceSlot: targetSlot,
+          isAI: false,
+          isEffectSummon: true
+        }, () => {
+          renderGame();
+          if (step === 1 && contestant.board.some(m => m === null) && contestant.hand.some(u => u && u.type === 'Monster')) {
+            promptChooseUnit(2);
+          } else {
+            finish();
+          }
+        });
+      }
+    }));
+
+    options.push({
+      label: step === 1 ? '⏭️ ไม่คอลยูนิท (ข้าม)' : '✅ สิ้นสุดการเลือก (คอลเพียง 1 ใบ)',
+      color: '#475569',
+      onSelect: () => finish()
+    });
+
+    showChoiceModal(
+      `🌸 Ultimate Madoka: เลือกยูนิทคอลลงสนาม (${step}/2)`,
+      `หลังจบการต่อสู้ เลือกยูนิทจากบนมือไม่เกิน 2 ใบคอลลงสนามในสภาพ Stand:\n(เลือกใบที่ ${step} จากสูงสุด 2 ใบ)`,
+      options,
+      { previewCards: unitChoices }
+    );
+  };
+
+  const initialEmpty = contestant.board.some(m => m === null);
+  const initialMonsters = contestant.hand.some(c => c && c.type === 'Monster');
+  if (!initialEmpty || !initialMonsters) {
+    if (!initialMonsters) {
+      setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด และ Ultimate Madoka กลับสู่มิติมืด (ไม่มีการ์ดยูนิทบนมือที่จะคอลลงสนาม)`);
+    } else {
+      setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด และ Ultimate Madoka กลับสู่มิติมืด (สนามเต็ม ไม่มีช่องว่างที่จะคอลลงสนาม)`);
+    }
+    renderGame();
+    if (typeof onComplete === 'function') onComplete();
+    return;
+  }
+
   renderGame();
+  promptChooseUnit(1);
 }
 
 // ==================== สกิลการ์ดชุดบูสเตอร์ 01 (BT01) ====================
