@@ -2295,7 +2295,32 @@
 .sh-pity b { color: #ffe39a; font-family: var(--font-display, 'Kanit', sans-serif); }
 .sh-meter { height: 6px; border-radius: 99px; background: rgba(255, 255, 255, .08); overflow: hidden; }
 .sh-meter i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #e0a83c, #ffe39a); }
-.sh-buy { margin: 14px 16px 16px; margin-top: auto; min-height: 46px; border: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #ffe39a, #e0a83c); color: #1a1405; box-shadow: 0 6px 18px rgba(224, 168, 60, .25); font: 600 15px var(--font-display, 'Kanit', sans-serif); cursor: pointer; touch-action: manipulation; }
+.sh-peek-btn {
+  margin: 0 16px 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 11px;
+  border: 1px solid rgba(160, 175, 255, 0.28);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font: 600 13px var(--font-display, 'Kanit', sans-serif);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sh-peek-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(243, 201, 105, 0.65);
+  color: #ffe39a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.sh-peek-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.sh-buy { margin: 6px 16px 16px; margin-top: auto; min-height: 46px; border: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #ffe39a, #e0a83c); color: #1a1405; box-shadow: 0 6px 18px rgba(224, 168, 60, .25); font: 600 15px var(--font-display, 'Kanit', sans-serif); cursor: pointer; touch-action: manipulation; }
 .sh-buy:hover:not(:disabled) { filter: brightness(1.06); }
 .sh-buy:disabled { opacity: 0.6; cursor: not-allowed; background: #262b48; color: #8a90b8; box-shadow: none; filter: none; }
 .sh-buy.is-owned { background: rgba(30, 41, 59, 0.85); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
@@ -2311,13 +2336,224 @@
   .sh-tab { flex-direction: column; gap: 2px; min-height: 58px; font-size: 12.5px; }
   .sh-tab .sh-badge { position: absolute; top: 4px; right: calc(50% - 26px); }
   .sh-packs { grid-template-columns: 1fr; gap: 10px; }
-  .sh-pack { display: grid; grid-template-columns: 124px minmax(0, 1fr); grid-template-areas: "art info" "pity pity" "buy buy"; }
+  .sh-pack { display: grid; grid-template-columns: 124px minmax(0, 1fr); grid-template-areas: "art info" "pity pity" "peek peek" "buy buy"; }
   .sh-pack-art { grid-area: art; height: auto; padding: 12px 0; }
   .sh-pack-art img { height: 108px; transform: translateX(-8px) rotate(-3deg); }
   .sh-pack-back { height: 100px; transform: translateX(12px) rotate(8deg); }
   .sh-pack-info { grid-area: info; align-self: center; padding: 0 12px 0 0; text-align: left; }
   .sh-pity { grid-area: pity; margin: 0 14px; }
-  .sh-buy { grid-area: buy; margin: 12px 14px 14px; }
+  .sh-peek-btn { grid-area: peek; margin: 4px 14px 6px; }
+  .sh-buy { grid-area: buy; margin: 6px 14px 14px; }
+}
+
+/* ---------- หน้าต่างดูการ์ดข้างใน (Card Peek Modal) ---------- */
+.sh-card-peek-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(6, 8, 20, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: shFadeIn 0.2s ease-out;
+}
+@keyframes shFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sh-card-peek-box {
+  position: relative;
+  width: min(840px, 100%);
+  max-height: min(88vh, 88dvh);
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(160, 175, 255, 0.3);
+  border-color: color-mix(in srgb, var(--accent, #f3c969) 55%, transparent);
+  background: radial-gradient(90% 60% at 50% -10%, color-mix(in srgb, var(--accent, #f3c969) 16%, transparent), transparent 60%), linear-gradient(180deg, #151a3c, #0b0e24);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.75), 0 0 40px color-mix(in srgb, var(--accent, #f3c969) 15%, transparent);
+  color: #e8eaf7;
+  animation: shSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes shSlideUp {
+  from { transform: translateY(16px) scale(0.97); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.sh-card-peek-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sh-card-peek-title-group h3 {
+  margin: 0;
+  font: 700 20px/1.3 var(--font-display, 'Kanit', sans-serif);
+  color: #ffe39a;
+}
+.sh-card-peek-title-group p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #8a90b8;
+}
+.sh-card-peek-close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(160, 175, 255, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8eaf7;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.sh-card-peek-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fca5a5;
+  transform: rotate(90deg);
+}
+
+.sh-card-peek-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(10, 14, 32, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.sh-peek-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-display, 'Kanit', sans-serif);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.sh-peek-badge.r-SSR { color: #fde047; border-color: rgba(253, 224, 71, 0.5); background: rgba(253, 224, 71, 0.1); }
+.sh-peek-badge.r-SR { color: #ff8597; border-color: rgba(255, 133, 151, 0.5); background: rgba(255, 133, 151, 0.1); }
+.sh-peek-badge.r-R { color: #7cc0ff; border-color: rgba(124, 192, 255, 0.5); background: rgba(124, 192, 255, 0.1); }
+.sh-peek-badge.r-N { color: #cbd5e1; border-color: rgba(203, 213, 225, 0.3); background: rgba(255, 255, 255, 0.05); }
+
+.sh-card-peek-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.sh-peek-card-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: 12px;
+  background: #141834;
+  border: 1px solid rgba(160, 175, 255, 0.16);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+.sh-peek-card-item:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(243, 201, 105, 0.7);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 16px rgba(243, 201, 105, 0.25);
+}
+.sh-peek-card-item.r-SSR { border-color: rgba(253, 224, 71, 0.45); }
+.sh-peek-card-item.r-SR { border-color: rgba(255, 133, 151, 0.4); }
+
+.sh-peek-art-wrap {
+  position: relative;
+  aspect-ratio: 750 / 1050;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0a0c1d;
+}
+.sh-peek-art-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.sh-peek-rar-tag {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(10, 12, 29, 0.88);
+  font: 700 11px/1.3 var(--font-display, 'Kanit', sans-serif);
+  border: 1px solid currentColor;
+}
+.sh-peek-rar-tag.r-SSR { color: #fde047; }
+.sh-peek-rar-tag.r-SR { color: #ff8597; }
+.sh-peek-rar-tag.r-R { color: #7cc0ff; }
+.sh-peek-rar-tag.r-N { color: #cbd5e1; }
+
+.sh-peek-count-tag {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(10, 12, 29, 0.9);
+  color: #38bdf8;
+  font: 800 11px/1.3 var(--font-display, 'Kanit', sans-serif);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.sh-peek-meta {
+  padding: 6px 4px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sh-peek-card-name {
+  font: 700 12.5px/1.3 var(--font-display, 'Kanit', sans-serif);
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sh-peek-card-type {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 767px) {
+  .sh-card-peek-grid {
+    grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .sh-card-peek-head {
+    padding: 12px 14px 10px;
+  }
+  .sh-card-peek-summary-bar {
+    padding: 8px 14px;
+  }
 }
 
 /* ---------- ผลการเปิดซอง ---------- */

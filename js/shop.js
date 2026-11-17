@@ -1578,6 +1578,162 @@
     showShopToast(`🎉 ปลดล็อก "${deck.name}" สำเร็จ! ได้รับลีดเดอร์และการ์ดครบเด็ค`);
   }
 
+  function openCardListModal(opts) {
+    const { title, subtitle, cards, color = '#f3c969' } = opts;
+    const shopDialog = document.getElementById('bof-shop-dialog');
+    const targetParent = (shopDialog && shopDialog.open) ? shopDialog : document.body;
+
+    let overlay = document.getElementById('sh-card-peek-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'sh-card-peek-overlay';
+      overlay.className = 'sh-card-peek-overlay';
+    }
+    if (overlay.parentElement !== targetParent) {
+      targetParent.appendChild(overlay);
+    }
+
+    const counts = { SSR: 0, SR: 0, R: 0, N: 0 };
+    cards.forEach(item => {
+      const rar = item.card.rarity || 'N';
+      if (counts[rar] !== undefined) counts[rar] += (item.count || 1);
+    });
+
+    const rarBadges = ['SSR', 'SR', 'R', 'N']
+      .filter(r => counts[r] > 0)
+      .map(r => `<span class="sh-peek-badge r-${r}">${r}: ${counts[r]}</span>`)
+      .join('');
+
+    overlay.innerHTML = `
+      <div class="sh-card-peek-box" style="--accent:${color}">
+        <div class="sh-card-peek-head">
+          <div class="sh-card-peek-title-group">
+            <h3 class="sh-card-peek-title">${title}</h3>
+            <p class="sh-card-peek-sub">${subtitle}</p>
+          </div>
+          <button type="button" class="sh-card-peek-close" aria-label="ปิดหน้าต่าง">✕</button>
+        </div>
+        <div class="sh-card-peek-summary-bar">
+          <span class="sh-peek-badge" style="color:#fff; background:rgba(255,255,255,0.1);">ทั้งหมด: ${cards.reduce((sum, it) => sum + (it.count || 1), 0)} ใบ</span>
+          ${rarBadges}
+          <span style="margin-left:auto; font-size:12px; color:#94a3b8;">คลิกที่การ์ดเพื่อดูรายละเอียด</span>
+        </div>
+        <div class="sh-card-peek-grid">
+          ${cards.map(it => {
+            const c = it.card;
+            const rar = c.rarity || 'N';
+            const countTag = it.count ? `<span class="sh-peek-count-tag">×${it.count}</span>` : '';
+            const typeStr = c.type === 'Monster'
+              ? `⚔️ ${c.power} · ${c.tribe || 'ยูนิต'}`
+              : (c.type === 'Leader' ? `👑 HP ${c.maxHp || c.hp || 10}` : c.type);
+            return `
+              <div class="sh-peek-card-item r-${rar}" data-peek-card-id="${c.id}" tabindex="0" role="button" aria-label="${c.name}">
+                <div class="sh-peek-art-wrap">
+                  <img src="${thumbOf(c.image)}" alt="" onerror="this.onerror=null;this.src='${c.image}'" loading="lazy">
+                  <span class="sh-peek-rar-tag r-${rar}">${rar}</span>
+                  ${countTag}
+                </div>
+                <div class="sh-peek-meta">
+                  <div class="sh-peek-card-name" title="${c.name}">${c.name}</div>
+                  <div class="sh-peek-card-type">${typeStr}</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    overlay.style.display = 'flex';
+
+    const closeOverlay = () => {
+      overlay.style.display = 'none';
+    };
+
+    overlay.querySelector('.sh-card-peek-close')?.addEventListener('click', closeOverlay);
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) closeOverlay();
+    });
+
+    overlay.querySelectorAll('.sh-peek-card-item[data-peek-card-id]').forEach(itemEl => {
+      const clickHandler = () => {
+        const cid = itemEl.dataset.peekCardId;
+        const targetCard = CARD_DATABASE.find(c => c.id === cid);
+        if (targetCard && typeof window.openCardDetailModal === 'function') {
+          const holoInspect = document.querySelector('.holo-inspect');
+          if (shopDialog && shopDialog.open && holoInspect && holoInspect.parentElement !== shopDialog) {
+            shopDialog.appendChild(holoInspect);
+          }
+          window.openCardDetailModal(targetCard, null, itemEl);
+        }
+      };
+      itemEl.addEventListener('click', clickHandler);
+      itemEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          clickHandler();
+        }
+      });
+    });
+  }
+
+  function peekPackCards(packId) {
+    const p = FACTION_PACKS.find(x => x.id === packId);
+    if (!p || typeof CARD_DATABASE === 'undefined') return;
+    const rawCards = CARD_DATABASE.filter(c => c.image && c.image.startsWith(p.prefix));
+    const rarRank = { SSR: 1, SR: 2, R: 3, N: 4 };
+    const sorted = [...rawCards].sort((a, b) => {
+      const ra = rarRank[a.rarity] || 5;
+      const rb = rarRank[b.rarity] || 5;
+      if (ra !== rb) return ra - rb;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
+
+    openCardListModal({
+      title: `🎴 การ์ดใน${p.name}`,
+      subtitle: `${p.sub || 'รายการการ์ดที่มีโอกาสสุ่มได้ในซองนี้'} (ทั้งหมด ${sorted.length} แบบ)`,
+      cards: sorted.map(c => ({ card: c })),
+      color: p.color || '#f3c969'
+    });
+  }
+
+  function peekDeckCards(deckId) {
+    const d = PREBUILT_DECKS.find(x => x.id === deckId);
+    if (!d || typeof CARD_DATABASE === 'undefined') return;
+    const leaderCard = CARD_DATABASE.find(c => c.id === d.leaderId);
+    const mainList = (typeof getDefaultDeckForLeader === 'function')
+      ? getDefaultDeckForLeader(d.leaderId)
+      : [];
+
+    const deckCounts = {};
+    mainList.forEach(cid => { deckCounts[cid] = (deckCounts[cid] || 0) + 1; });
+
+    const items = [];
+    if (leaderCard) {
+      items.push({ card: leaderCard, count: 1 });
+    }
+
+    const rarRank = { SSR: 1, SR: 2, R: 3, N: 4 };
+    const cardObjects = Object.entries(deckCounts).map(([cid, count]) => {
+      const c = CARD_DATABASE.find(x => x.id === cid) || { id: cid, name: cid, rarity: 'N' };
+      return { card: c, count };
+    }).sort((a, b) => {
+      const ra = rarRank[a.card.rarity] || 5;
+      const rb = rarRank[b.card.rarity] || 5;
+      if (ra !== rb) return ra - rb;
+      return a.card.id.localeCompare(b.card.id, undefined, { numeric: true });
+    });
+
+    items.push(...cardObjects);
+
+    openCardListModal({
+      title: `🎴 การ์ดใน${d.name} (เด็คสำเร็จรูป)`,
+      subtitle: `${d.sub || 'การ์ดครบชุด 21 ใบ พร้อมเล่นได้ทันที'}`,
+      cards: items,
+      color: d.color || '#3ee08f'
+    });
+  }
+
   function renderDecksView(container) {
     container.innerHTML = `
       <div class="sh-packs-bar">
@@ -1609,6 +1765,10 @@
                 <div><span>ลีดเดอร์ SSR</span><span><b>${leaderCard ? leaderCard.name : ''}</b></span></div>
                 <div><span>การ์ดในเด็ค</span><span>20 ใบ (ครบชุด)</span></div>
               </div>
+              <button type="button" class="sh-peek-btn" data-peek-deck="${d.id}">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <span>ดูการ์ดข้างใน (21)</span>
+              </button>
               <button type="button" class="sh-buy ${owned ? 'is-owned' : ''}" data-buy-deck="${d.id}" ${owned || !canAfford ? 'disabled' : ''} ${!owned && !canAfford ? 'title="เหรียญ Coins ไม่พอ"' : ''}>
                 ${buyText}
               </button>
@@ -1617,6 +1777,12 @@
         }).join('')}
       </div>
     `;
+
+    container.querySelectorAll('.sh-peek-btn[data-peek-deck]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        peekDeckCards(btn.dataset.peekDeck);
+      });
+    });
 
     container.querySelectorAll('.sh-buy[data-buy-deck]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1673,12 +1839,22 @@
                 <div><span>${pityLabelText}</span><span>อีก <b>${remainingPity}</b> ซอง</span></div>
                 <div class="sh-meter" role="progressbar" aria-label="ความคืบหน้า${pityLabelText} ${p.name}" aria-valuemin="0" aria-valuemax="${PITY_THRESHOLD}" aria-valuenow="${pityCount}"><i style="width:${pityPercent}%"></i></div>
               </div>
+              <button type="button" class="sh-peek-btn" data-peek-pack="${p.id}">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <span>ดูการ์ดข้างใน (${deckCards.length})</span>
+              </button>
               <button type="button" class="sh-buy" data-pack="${p.id}" data-count="${packQty}">${buyLabel(p, packQty)}</button>
             </article>
           `;
         }).join('')}
       </div>
     `;
+
+    container.querySelectorAll('.sh-peek-btn[data-peek-pack]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        peekPackCards(btn.dataset.peekPack);
+      });
+    });
 
     const qtyEl = container.querySelector('.sh-qty');
     qtyEl.addEventListener('click', e => {
