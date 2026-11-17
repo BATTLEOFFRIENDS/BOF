@@ -12023,6 +12023,41 @@ function encodeDeckCode(cfg) {
   return `BOF1-${cfg.leaderId}-${body}`;
 }
 
+// ตรวจสอบเงื่อนไขการล็อกการ์ดตาม Leader (Kagero L08 & Royal Paladin L09)
+function getCardLeaderLock(card) {
+  if (!card) return null;
+  const id = String(card.futureBaseId || card.id || '');
+  // คาเงโร่ (L08): การ์ด KG01-KG11 และ BT01_06 (มังกรมารผู้ใช้เวทย์ แรคช่า) ล็อกใช้ได้เฉพาะลีดเดอร์คาเงโร่
+  // (BT01_04 ไทเท็น และ BT01_05 THE ACE ไม่ได้ล็อก สามารถใช้กับเด็คอื่นได้)
+  if (/^KG/i.test(id) || id === 'BT01_06') {
+    return {
+      leaderId: 'L08',
+      leaderName: 'คาเงโร่',
+      badgeText: '🔒 เฉพาะคาเงโร่',
+      alertMsg: `การ์ด "${card.name}" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "คาเงโร่" เท่านั้น!`
+    };
+  }
+  // รอยัล พาลาดิน (L09): RP02-RP08, RP10, RP11 ล็อกใช้ได้เฉพาะลีดเดอร์รอยัล พาลาดิน
+  // (RP01 โซลเซฟเวอร์ ดราก้อน และ RP09 โล่แสง อิโซลท์ ไม่ได้ล็อก สามารถใช้กับเด็คอื่นได้)
+  if (/^RP/i.test(id)) {
+    if (id !== 'RP01' && id !== 'RP09') {
+      return {
+        leaderId: 'L09',
+        leaderName: 'รอยัล พาลาดิน',
+        badgeText: '🔒 เฉพาะรอยัล พาลาดิน',
+        alertMsg: `การ์ด "${card.name}" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "รอยัล พาลาดิน" เท่านั้น!`
+      };
+    }
+  }
+  return null;
+}
+
+function isCardRestrictedForCurrentLeader(card, leaderId) {
+  const lock = getCardLeaderLock(card);
+  if (!lock) return false;
+  return lock.leaderId !== leaderId;
+}
+
 function decodeDeckCode(rawCode) {
   const code = String(rawCode || '').trim();
   if (!code) throw new Error('กรุณาวางรหัสเด็ค (Deck Code) ก่อนกดนำเข้า');
@@ -12064,6 +12099,10 @@ function decodeDeckCode(rawCode) {
   for (const cid of mainDeck) {
     const card = CARD_DATABASE.find(c => c.id === cid && c.type !== 'Leader');
     if (!card) throw new Error(`ไม่พบการ์ดรหัส "${cid}" ในฐานข้อมูล`);
+    const lock = getCardLeaderLock(card);
+    if (lock && lock.leaderId !== leaderId) {
+      throw new Error(lock.alertMsg || `การ์ด "${card.name}" ไม่สามารถใส่ในเด็คของลีดเดอร์นี้ได้`);
+    }
     copyCheck[cid] = (copyCheck[cid] || 0) + 1;
     const maxAllowed = getCardMaxCopies(card);
     if (copyCheck[cid] > maxAllowed) {
@@ -12191,6 +12230,7 @@ function autoBuildDeckForLeader(leaderId) {
   for (const cid of presetList) {
     const cardObj = CARD_DATABASE.find(c => c.id === cid && c.type !== 'Leader');
     if (!cardObj) continue;
+    if (isCardRestrictedForCurrentLeader(cardObj, targetLeaderId)) continue;
     const ruleMax = getCardMaxCopies(cardObj);
     const have = Number(owned[cid] || 0);
     const allowed = Math.min(ruleMax, have);
@@ -12214,6 +12254,7 @@ function autoBuildDeckForLeader(leaderId) {
     });
     for (const cardObj of allMain) {
       if (result.length >= 20) break;
+      if (isCardRestrictedForCurrentLeader(cardObj, targetLeaderId)) continue;
       const ruleMax = getCardMaxCopies(cardObj);
       const have = Number(owned[cardObj.id] || 0);
       const allowed = Math.min(ruleMax, have);
@@ -12564,7 +12605,7 @@ function cardMatchesDeckTheme(card, themeKey, currentLeaderId) {
 
   const id = String(card.futureBaseId || card.id || '');
   if (themeKey === 'royal_paladin') return /^RP/i.test(id) || hasCardTribe(card, 'รอยัล พาลาดิน');
-  if (themeKey === 'kagero') return /^KG/i.test(id) || hasCardTribe(card, 'คาเงโร่');
+  if (themeKey === 'kagero') return /^KG/i.test(id) || id === 'BT01_06' || hasCardTribe(card, 'คาเงโร่');
   if (themeKey === 'madoka') return /^MD/i.test(id) || hasCardTribe(card, 'สาวน้อยเวทมนตร์');
   if (themeKey === 'dino') return /^DN/i.test(id) || hasCardTribe(card, 'ไดโน');
   if (themeKey === 'doom') return /^D[MS]\d/i.test(id) || hasCardTribe(card, 'วันสิ้นโลก');
@@ -12643,21 +12684,20 @@ function ensureDeckBuilderFilterControls() {
     };
   }
 
-  // Toggle deck tray
-  const toggleBtn = document.getElementById('btn-toggle-deck-tray');
-  const toggleHeader = document.getElementById('deck-tray-toggle-header');
-  const trayList = document.getElementById('deck-current-tray-list');
-  const arrow = document.getElementById('deck-tray-arrow');
-  const toggleTray = (e) => {
-    if (e && e.target && e.target.closest('.deck-tray-chip')) return;
-    if (trayList) {
-      const isHidden = (trayList.style.display === 'none');
-      trayList.style.display = isHidden ? 'flex' : 'none';
-      if (arrow) arrow.textContent = isHidden ? '▼' : '►';
+  // Toggle leader dropdown picker
+  const toggleLeaderBtn = document.getElementById('btn-toggle-leader-picker');
+  const activeLeaderBox = document.getElementById('active-leader-preview-box');
+  const toggleLeaderDropdown = () => {
+    const dropdown = document.getElementById('leader-picker-dropdown');
+    if (dropdown) {
+      const isHidden = (dropdown.style.display === 'none' || !dropdown.style.display);
+      dropdown.style.display = isHidden ? 'block' : 'none';
+      const toggleText = document.getElementById('leader-toggle-text');
+      if (toggleText) toggleText.textContent = isHidden ? '▲ ปิดรายการ' : '🔄 เปลี่ยนลีดเดอร์';
     }
   };
-  if (toggleBtn) toggleBtn.onclick = toggleTray;
-  if (toggleHeader) toggleHeader.onclick = toggleTray;
+  if (toggleLeaderBtn) toggleLeaderBtn.onclick = toggleLeaderDropdown;
+  if (activeLeaderBox) activeLeaderBox.onclick = toggleLeaderDropdown;
 }
 
 function syncFilterControlsUI() {
@@ -12682,6 +12722,28 @@ function syncFilterControlsUI() {
 }
 
 function renderDeckCurrentTray() {
+  // 1. Render Active Leader Preview
+  const activeLeaderBox = document.getElementById('active-leader-preview-box');
+  const currentLeaderId = currentDeckConfig.leaderId;
+  const currentLeader = CARD_DATABASE.find(c => c.id === currentLeaderId && c.type === 'Leader') || CARD_DATABASE.find(c => c.type === 'Leader');
+  if (activeLeaderBox && currentLeader) {
+    activeLeaderBox.innerHTML = `
+      <img src="${currentLeader.image}" alt="${currentLeader.name}" class="alp-thumb">
+      <div class="alp-info">
+        <div class="alp-name">${currentLeader.name}</div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <span class="alp-hp">👑 HP: ${currentLeader.maxHp || 6}</span>
+          ${currentLeader.tribe ? `<span class="alp-tribe">• เผ่า: ${currentLeader.tribe}</span>` : ''}
+        </div>
+      </div>
+      <div style="font-size:11px; color:#38bdf8; font-weight:600; padding:4px 8px; background:rgba(56,189,248,0.1); border-radius:6px; border:1px solid rgba(56,189,248,0.3);">
+        เปลี่ยน ▾
+      </div>
+    `;
+    activeLeaderBox.title = 'คลิกเพื่อเลือก Leader อื่น';
+  }
+
+  // 2. Render Deck Cards List (Left Column)
   const trayList = document.getElementById('deck-current-tray-list');
   const countSummary = document.getElementById('deck-tray-count-summary');
   const typeBreakdown = document.getElementById('deck-tray-type-breakdown');
@@ -12710,31 +12772,62 @@ function renderDeckCurrentTray() {
   });
 
   if (typeBreakdown) {
-    typeBreakdown.textContent = `(มอนสเตอร์: ${monsterCount} · เวทมนตร์: ${spellCount})`;
+    typeBreakdown.textContent = `(⚔️ ${monsterCount} · 📜 ${spellCount})`;
   }
   if (badgeInDeck) {
     badgeInDeck.textContent = Object.keys(cardCounts).length;
   }
 
   if (count === 0) {
-    trayList.innerHTML = '<div class="deck-tray-empty-hint">ยังไม่มีการ์ดในเด็ค — คลิกการ์ดในรายการด้านล่างเพื่อเพิ่มเข้าเด็ค</div>';
+    trayList.innerHTML = '<div class="deck-tray-empty-hint">ยังไม่มีการ์ดในเด็ค — คลิกการ์ดจากคลังด้านขวาเพื่อเพิ่มเข้าเด็ค</div>';
     return;
   }
 
-  Object.keys(cardCounts).forEach(id => {
+  // เรียงลำดับในเด็คให้ดูง่าย: มอนสเตอร์ (พลังมากไปน้อย) ตามด้วยเวทมนตร์
+  const sortedIds = Object.keys(cardCounts).sort((a, b) => {
+    const cardA = CARD_DATABASE.find(c => c.id === a);
+    const cardB = CARD_DATABASE.find(c => c.id === b);
+    if (!cardA || !cardB) return 0;
+    if (cardA.type !== cardB.type) {
+      return cardA.type === 'Monster' ? -1 : 1;
+    }
+    if (cardA.type === 'Monster') {
+      return (cardB.power || 0) - (cardA.power || 0);
+    }
+    return (cardA.name || '').localeCompare(cardB.name || '');
+  });
+
+  sortedIds.forEach(id => {
     const card = CARD_DATABASE.find(c => c.id === id);
     if (!card) return;
     const num = cardCounts[id];
-    const chip = document.createElement('div');
-    chip.className = 'deck-tray-chip';
-    chip.title = `คลิกเพื่อนำ "${card.name}" ออก 1 ใบ`;
-    chip.innerHTML = `
-      <img src="${card.image}" alt="${card.name}">
-      <span class="dtc-count ${num === 1 ? 'dtc-one' : ''}">x${num}</span>
-      <span class="dtc-name">${card.name}</span>
-      <div class="dtc-remove-overlay">✕ เอาออก</div>
+    const maxAllowed = getCardMaxCopies(card);
+    const row = document.createElement('div');
+    row.className = 'deck-list-row-item';
+    row.title = `คลิกเพื่อนำ "${card.name}" ออก 1 ใบ`;
+
+    const typeText = card.type === 'Monster'
+      ? `⚔️ พลัง: ${card.power !== undefined ? card.power : 0}`
+      : (card.type === 'ReactionSpell' ? '🛡️ โต้ตอบ' : '📜 เวทมนตร์');
+
+    row.innerHTML = `
+      <div class="dlr-left">
+        <img src="${card.image}" alt="${card.name}" class="dlr-thumb">
+        <div class="dlr-meta">
+          <div class="dlr-name">${card.name}</div>
+          <div class="dlr-type-power">
+            <span>${typeText}</span>
+            ${card.rarity ? `<span style="color:#f59e0b; font-weight:700;">[${card.rarity}]</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="dlr-right">
+        <span class="dlr-count-badge ${num >= maxAllowed ? 'maxed' : ''}">x${num}</span>
+        <span class="dlr-remove-icon" title="นำออก">✕</span>
+      </div>
     `;
-    chip.onclick = (e) => {
+
+    row.onclick = (e) => {
       e.stopPropagation();
       const removeIdx = currentDeckConfig.mainDeck.lastIndexOf(id);
       if (removeIdx !== -1) {
@@ -12743,7 +12836,8 @@ function renderDeckCurrentTray() {
         renderDeckBuilder();
       }
     };
-    trayList.appendChild(chip);
+
+    trayList.appendChild(row);
   });
 }
 
@@ -12760,7 +12854,7 @@ function renderDeckBuilder() {
   const saveBtn = document.getElementById('btn-save-start');
   if (saveBtn) saveBtn.textContent = `✅ บันทึกสล็อต ${deckSlotsState.activeSlot + 1}`;
 
-  // 1. Leader Selection Pool
+  // 1. Leader Selection Pool (Rendered inside leader-picker-dropdown)
   if (leaderContainer) {
     CARD_DATABASE.filter(c => c.type === 'Leader').forEach(leader => {
       const item = document.createElement('div');
@@ -12778,7 +12872,25 @@ function renderDeckBuilder() {
       `;
       attachCardTooltipEvents(cardEl, leader, null);
       cardEl.addEventListener('click', () => {
-        currentDeckConfig.leaderId = leader.id;
+        if (currentDeckConfig.leaderId !== leader.id) {
+          currentDeckConfig.leaderId = leader.id;
+          // ตรวจสอบและคัดการ์ดที่ล็อกลีดเดอร์อื่นออกจากเด็คอัตโนมัติ
+          const restrictedInDeck = currentDeckConfig.mainDeck.filter(cid => {
+            const cObj = CARD_DATABASE.find(c => c.id === cid);
+            return cObj && isCardRestrictedForCurrentLeader(cObj, leader.id);
+          });
+          if (restrictedInDeck.length > 0) {
+            currentDeckConfig.mainDeck = currentDeckConfig.mainDeck.filter(cid => {
+              const cObj = CARD_DATABASE.find(c => c.id === cid);
+              return !cObj || !isCardRestrictedForCurrentLeader(cObj, leader.id);
+            });
+            showDeckBuilderFeedback(`⚠️ สลับลีดเดอร์เป็น "${leader.name}" และนำการ์ดที่ไม่ตรงเงื่อนไขลีดเดอร์ออก ${restrictedInDeck.length} ใบ`);
+          }
+        }
+        const dropdown = document.getElementById('leader-picker-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
+        const toggleText = document.getElementById('leader-toggle-text');
+        if (toggleText) toggleText.textContent = '🔄 เปลี่ยนลีดเดอร์';
         if (typeof playButtonClick === 'function') playButtonClick();
         renderDeckBuilder();
       });
@@ -12795,10 +12907,10 @@ function renderDeckBuilder() {
     });
   }
 
-  // 2. Render Deck Tray Summary
+  // 2. Render Left Column Deck Tray Summary & Cards
   renderDeckCurrentTray();
 
-  // 3. Main Deck Cards Pool with Category & Search Filters
+  // 3. Right Column: Main Deck Cards Pool with Category & Search Filters
   const allCards = CARD_DATABASE.filter(c => c.type !== 'Leader');
   const totalCountEl = document.getElementById('deck-cards-total-count');
   const visibleCountEl = document.getElementById('deck-cards-visible-count');
@@ -12870,9 +12982,8 @@ function renderDeckBuilder() {
       filteredCards.forEach(card => {
         const maxAllowed = getCardMaxCopies(card);
         const countInDeck = currentDeckConfig.mainDeck.filter(id => id === card.id).length;
-        const isRestrictedToKagero = (card.id === 'BT01_06' && currentDeckConfig.leaderId !== 'L08');
-        const isRestrictedToRoyal = (card.id.startsWith('RP') && card.id !== 'RP01' && currentDeckConfig.leaderId !== 'L09');
-        const isRestricted = isRestrictedToKagero || isRestrictedToRoyal;
+        const lock = getCardLeaderLock(card);
+        const isRestricted = lock && (lock.leaderId !== currentLeaderId);
 
         const item = document.createElement('div');
         item.className = `pool-item ${isRestricted ? 'is-restricted' : ''}`;
@@ -12885,12 +12996,8 @@ function renderDeckBuilder() {
         cardEl.addEventListener('click', () => {
           const limit = cardEl.dataset.allowedMax !== undefined ? Number(cardEl.dataset.allowedMax) : maxAllowed;
           if (countInDeck < limit) {
-            if (isRestrictedToKagero) {
-              alert('การ์ด "มังกรมารผู้ใช้เวทย์ แรคช่า" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "คาเงโร่" เท่านั้น!');
-              return;
-            }
-            if (isRestrictedToRoyal) {
-              alert(`การ์ด "${card.name}" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "รอยัล พาลาดิน" เท่านั้น!`);
+            if (isRestricted) {
+              alert(lock.alertMsg || `การ์ด "${card.name}" ไม่สามารถใส่ในเด็คของลีดเดอร์นี้ได้`);
               return;
             }
             if (currentDeckConfig.mainDeck.length >= 20) {
@@ -12915,7 +13022,7 @@ function renderDeckBuilder() {
         if (isRestricted) {
           const lockTag = document.createElement('div');
           lockTag.className = 'restricted-badge';
-          lockTag.textContent = isRestrictedToKagero ? '🔒 เฉพาะคาเงโร่' : '🔒 เฉพาะรอยัล';
+          lockTag.textContent = lock.badgeText || '🔒 ติดเงื่อนไขลีดเดอร์';
           item.appendChild(lockTag);
         }
 
@@ -12951,6 +13058,17 @@ document.getElementById('btn-default-deck')?.addEventListener('click', () => {
 
 document.getElementById('btn-save-start')?.addEventListener('click', () => {
   if (currentDeckConfig.mainDeck.length !== 20) return;
+  // ตรวจสอบความถูกต้องของการ์ดที่ล็อกลีดเดอร์ก่อนบันทึก
+  const invalidCardId = currentDeckConfig.mainDeck.find(cid => {
+    const cObj = CARD_DATABASE.find(c => c.id === cid);
+    return cObj && isCardRestrictedForCurrentLeader(cObj, currentDeckConfig.leaderId);
+  });
+  if (invalidCardId) {
+    const badCard = CARD_DATABASE.find(c => c.id === invalidCardId);
+    const lock = getCardLeaderLock(badCard);
+    alert(lock ? lock.alertMsg : `การ์ด "${badCard ? badCard.name : invalidCardId}" ไม่สามารถใส่ในเด็คนี้ได้`);
+    return;
+  }
   const activeIdx = deckSlotsState.activeSlot;
   const nameInput = document.getElementById('input-deck-slot-name');
   const slotName = (nameInput && nameInput.value.trim()) || currentDeckConfig.name || `เด็คจัดเอง #${activeIdx + 1}`;
