@@ -23,7 +23,7 @@
   <link rel="stylesheet" href="css/deck-themes.css">
   <link rel="stylesheet" href="css/quests.css">
   <link rel="stylesheet" href="css/bof-fx.css">
-  <link rel="stylesheet" href="css/hud.css?v=20261117d">
+  <link rel="stylesheet" href="css/hud.css?v=20261117e">
   <link rel="stylesheet" href="css/card-dissolve.css">
   <link rel="stylesheet" href="css/deck-fx.css">
   <link rel="stylesheet" href="css/howto.css">
@@ -787,13 +787,18 @@
         </div>
         <button type="button" id="btn-close-combat-log" class="cl-close" aria-label="ปิด" data-ico="close"></button>
       </div>
-      <div class="combat-log-filters" role="tablist">
-        <button class="combat-filter-btn is-active" data-filter="ALL" data-ico="all" role="tab">ทั้งหมด</button>
-        <button class="combat-filter-btn" data-filter="ATTACK" data-ico="sword" role="tab">โจมตี</button>
-        <button class="combat-filter-btn" data-filter="SPELL" data-ico="spark" role="tab">เวท/สกิล</button>
-        <button class="combat-filter-btn" data-filter="SUMMON" data-ico="summon" role="tab">อัญเชิญ</button>
+      <div class="cl-layout">
+        <div id="combat-log-spotlight" class="combat-log-spotlight cl-left-col"></div>
+        <div class="cl-right-col">
+          <div class="combat-log-filters" role="tablist">
+            <button class="combat-filter-btn is-active" data-filter="ALL" data-ico="all" role="tab">ทั้งหมด</button>
+            <button class="combat-filter-btn" data-filter="ATTACK" data-ico="sword" role="tab">โจมตี</button>
+            <button class="combat-filter-btn" data-filter="SPELL" data-ico="spark" role="tab">เวท/สกิล</button>
+            <button class="combat-filter-btn" data-filter="SUMMON" data-ico="summon" role="tab">อัญเชิญ</button>
+          </div>
+          <div id="combat-log-list"></div>
+        </div>
       </div>
-      <div id="combat-log-list"></div>
     </div>
   </div>
 
@@ -842,7 +847,7 @@
   <script src="js/cards/schema.js?v=20261117d"></script>
   <script src="js/audio.js"></script>
   <script src="js/bof-icons.js"></script>
-  <script src="js/game.js?v=20261117d"></script>
+  <script src="js/game.js?v=20261117e"></script>
   <script src="js/hand-shuffle.js"></script>
   <script src="js/summon-fx.js"></script>
   <script src="js/card-drag.js?v=20261115h"></script>

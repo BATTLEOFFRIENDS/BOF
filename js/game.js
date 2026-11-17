@@ -11878,16 +11878,23 @@ let activeCombatLogFilter = 'ALL';
 let selectedLogSpotlight = null;
 
 function ensureCombatLogSpotlightContainer() {
+  let spot = document.getElementById('combat-log-spotlight');
+  if (spot) return spot;
+  const layout = document.querySelector('#combat-log-modal .cl-layout');
+  if (layout) {
+    spot = document.createElement('div');
+    spot.id = 'combat-log-spotlight';
+    spot.className = 'combat-log-spotlight cl-left-col';
+    layout.insertBefore(spot, layout.firstChild);
+    return spot;
+  }
   const modalBox = document.querySelector('#combat-log-modal .combat-log-box');
   const filterRow = document.querySelector('#combat-log-modal .combat-log-filters');
   if (!modalBox || !filterRow) return null;
-  let spot = document.getElementById('combat-log-spotlight');
-  if (!spot) {
-    spot = document.createElement('div');
-    spot.id = 'combat-log-spotlight';
-    spot.className = 'combat-log-spotlight';
-    modalBox.insertBefore(spot, filterRow);
-  }
+  spot = document.createElement('div');
+  spot.id = 'combat-log-spotlight';
+  spot.className = 'combat-log-spotlight cl-left-col';
+  modalBox.insertBefore(spot, filterRow);
   return spot;
 }
 
@@ -11904,19 +11911,51 @@ const CL_LEAD_EMOJI = /^\s*(?:\p{Extended_Pictographic}(?:️|‍\p{Extended_Pic
 function formatLogMessageHtml(msg) {
   if (!msg) return '';
   let clean = String(msg).replace(CL_LEAD_EMOJI, '');
-  // Format [Card Name] with distinct styling
-  clean = clean.replace(/\[([^\]]+)\]/g, '<b class="cl-card-hl">[$1]</b>');
-  // Format "Card Name" with distinct styling
-  clean = clean.replace(/"([^"]+)"/g, '<b class="cl-card-hl">"$1"</b>');
+  // Safe replacement avoiding nested attribute collision
+  clean = clean.replace(/\[([^\]]+)\]/g, '\u0001$1\u0002');
+  clean = clean.replace(/"([^"]+)"/g, '\u0003$1\u0004');
+  clean = clean.replace(/\u0001([^\u0002]+)\u0002/g, '<b class="cl-card-hl">[$1]</b>');
+  clean = clean.replace(/\u0003([^\u0004]+)\u0004/g, '<b class="cl-card-hl">"$1"</b>');
   return clean;
 }
 
 function renderCombatLogSpotlight(spotEl, pop = false) {
   if (!spotEl) return;
-  const info = selectedLogSpotlight || gameState.lastPlayedCardInfo;
-  // ยังไม่มีการ์ดทำงาน: ไม่ต้องมีกล่องว่างมากินที่
-  spotEl.hidden = !(info && info.card);
-  if (spotEl.hidden) { spotEl.innerHTML = ''; return; }
+  let info = selectedLogSpotlight;
+  if (!info || !info.card) {
+    info = gameState.lastPlayedCardInfo;
+  }
+  if (!info || !info.card) {
+    const history = Array.isArray(gameState.matchLogHistory) ? gameState.matchLogHistory : [];
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].cardId && typeof CARD_DATABASE !== 'undefined') {
+        const found = CARD_DATABASE.find(c => c.id === history[i].cardId);
+        if (found) {
+          info = {
+            card: found,
+            actorName: history[i].actorTitle,
+            actionSubText: history[i].actionSubText || history[i].message,
+            message: history[i].message,
+            turn: history[i].turn,
+            isAI: history[i].isAI,
+            category: history[i].category,
+            time: history[i].time
+          };
+          break;
+        }
+      }
+    }
+  }
+
+  if (!info || !info.card) {
+    spotEl.innerHTML = `
+      <div class="cl-spot-placeholder">
+        <span class="cl-spot-ph-icon">🎴</span>
+        <p>คลิกที่การ์ดในประวัติ<br>เพื่อดูรายละเอียดที่นี่</p>
+      </div>
+    `;
+    return;
+  }
 
   const c = info.card;
   const desc = c.desc || (typeof getCardDescription === 'function' ? getCardDescription(c) : 'ไม่มีความสามารถ');
@@ -11928,7 +11967,7 @@ function renderCombatLogSpotlight(spotEl, pop = false) {
   spotEl.innerHTML = `
     <div class="cl-spot ${sideCls}">
       <button type="button" class="cl-spot-art" title="ดูการ์ดใบใหญ่">
-        <img src="${c.image || ''}" alt="">
+        <img src="${c.image || ''}" alt="${c.name || ''}">
         <span class="cl-spot-zoom">${hudIcon('eye')}</span>
       </button>
       <div class="cl-spot-body">
@@ -11936,23 +11975,19 @@ function renderCombatLogSpotlight(spotEl, pop = false) {
           <span class="cl-side ${sideCls}">${info.isAI ? 'คู่แข่ง' : 'ฝั่งเรา'} · เทิร์น ${info.turn || 1}</span>
           <span class="cl-rarity rarity-${c.rarity || 'N'}">${c.rarity || 'N'}</span>
         </div>
-        <strong class="cl-spot-name"></strong>
+        <strong class="cl-spot-name">${c.name}</strong>
         <div class="cl-spot-stat">${statText}</div>
-        <p class="cl-spot-skill" title="แตะเพื่ออ่านทั้งหมด"></p>
+        <p class="cl-spot-skill" title="${desc}">${desc}</p>
       </div>
     </div>
   `;
-  spotEl.querySelector('.cl-spot-name').textContent = c.name;
-  const skill = spotEl.querySelector('.cl-spot-skill');
-  skill.textContent = desc;
-  skill.onclick = () => skill.classList.toggle('is-open');
 
   const artTrigger = spotEl.querySelector('.cl-spot-art');
   if (artTrigger && typeof window.openCardDetailModal === 'function') {
     artTrigger.onclick = () => window.openCardDetailModal(c, null, artTrigger);
   }
   if (pop && window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    gsap.fromTo(spotEl.firstElementChild, { scale: .96, opacity: .4 }, { scale: 1, opacity: 1, duration: .3, ease: 'back.out(2)', clearProps: 'transform,opacity' });
+    gsap.fromTo(spotEl.firstElementChild, { scale: .96, opacity: .4 }, { scale: 1, opacity: 1, duration: .25, ease: 'back.out(1.8)', clearProps: 'transform,opacity' });
   }
 }
 
