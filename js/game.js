@@ -11,6 +11,7 @@ const DEFAULT_DEMON_DECK_LIST = DECK_LISTS.L05;
 const DEFAULT_OAT_DECK_LIST = DECK_LISTS.L06;
 const DEFAULT_MADOKA_DECK_LIST = DECK_LISTS.L07;
 const DEFAULT_KAGERO_DECK_LIST = DECK_LISTS.L08;
+const DEFAULT_ROYAL_PALADIN_DECK_LIST = DECK_LISTS.L09;
 
 function isSpellCard(card) {
   return !!(card && (card.type === 'NormalSpell' || card.type === 'ReactionSpell' || card.type === 'LandSpell'));
@@ -273,6 +274,40 @@ function getEffectivePower(card, ownerContestant) {
       }
     }
 
+    // 0.4 รอยัล พาลาดิน: บัฟต่อเนื่อง
+    if (!isSilencedByEla && typeof gameState !== 'undefined') {
+      const opp = (owner === gameState.player) ? gameState.ai : gameState.player;
+      const ownerHandLen = Array.isArray(owner.hand) ? owner.hand.length : 0;
+      const oppHandLen = (opp && Array.isArray(opp.hand)) ? opp.hand.length : 0;
+      const ownerGraveLen = Array.isArray(owner.graveyard) ? owner.graveyard.length : 0;
+      const oppGraveLen = (opp && Array.isArray(opp.graveyard)) ? opp.graveyard.length : 0;
+
+      // โซลเซฟเวอร์ ดราก้อน (RP01): มือมากกว่าอีกฝ่าย -> ยูนิทบนสนามเราทุกใบ พลัง +1
+      if (owner.board.some(m => m && m.id === 'RP01') && ownerHandLen > oppHandLen) {
+        total += 1;
+      }
+
+      // ราชาอัศวิน อัลเฟรด (RP02): เมื่อมี "บลาสเตอร์ เบลด" บนสนามเรา พลัง +2
+      if (card.id === 'RP02' && owner.board.some(m => m && (m.id === 'RP03' || (m.name && m.name.includes('บลาสเตอร์ เบลด'))))) {
+        total += 2;
+      }
+
+      // วิงกัล (RP04): มือมากกว่าอีกฝ่าย -> ยูนิทบนสนามเราทุกใบ พลัง +1
+      if (owner.board.some(m => m && m.id === 'RP04') && ownerHandLen > oppHandLen) {
+        total += 1;
+      }
+
+      // บาร์คกัล (RP05): เมื่อมี "วิงกัล" บนสนามเรา พลัง +1
+      if (card.id === 'RP05' && owner.board.some(m => m && (m.id === 'RP04' || (m.name && m.name.includes('วิงกัล'))))) {
+        total += 1;
+      }
+
+      // กาลาทิน (RP06): เมื่อในนรกเราน้อยกว่าอีกฝ่าย พลัง +1
+      if (card.id === 'RP06' && ownerGraveLen < oppGraveLen) {
+        total += 1;
+      }
+    }
+
     // 1. บล็อก CONTINUOUS_POWER ของตัวการ์ดเอง
     if (!isSilencedByEla && Array.isArray(card.effects)) {
       card.effects.filter(e => e.trigger === 'CONTINUOUS_POWER').forEach(eff => {
@@ -479,6 +514,34 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   if (monster.id === 'KG01' && !isFromBattle) {
     setLog(`🛡️ [ออโต้ - ${monster.name}] ไม่ถูกทำลายจากความสามารถของการ์ด!`);
     return { destroyed: false, reason: 'effect_immune', monster };
+  }
+
+  // 🛡️ ราชาอัศวิน อัลเฟรด (RP02): เมื่อมี "บลาสเตอร์ เบลด" บนสนามเรา ไม่ถูกทำลายจากความสามารถ
+  if (monster.id === 'RP02' && !isFromBattle) {
+    const hasBlasterBlade = Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && (m.id === 'RP03' || (m.name && m.name.includes('บลาสเตอร์ เบลด'))));
+    if (hasBlasterBlade) {
+      setLog(`🛡️ [ต่อเนื่อง - ${monster.name}] มี "บลาสเตอร์ เบลด" บนสนาม ไม่ถูกทำลายจากความสามารถของการ์ด!`);
+      return { destroyed: false, reason: 'alfred_immune', monster };
+    }
+  }
+
+  // 🛡️ โซลเซฟเวอร์ ดราก้อน (RP01): มือมากกว่าอีกฝ่าย -> ยูนิทเราทุกใบไม่ถูกทำลายจากความสามารถ
+  if (!isFromBattle && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'RP01')) {
+    const opp = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
+    if (opp && Array.isArray(opp.hand) && Array.isArray(boardOwner.hand) && boardOwner.hand.length > opp.hand.length) {
+      setLog(`🛡️ [ต่อเนื่อง - โซลเซฟเวอร์ ดราก้อน] มีการ์ดบนมือมากกว่าอีกฝ่าย -> "${monster.name}" ไม่ถูกทำลายจากความสามารถของการ์ด!`);
+      return { destroyed: false, reason: 'soul_saver_immune', monster };
+    }
+  }
+
+  // 🛡️ อัศวินแห่งความจริง กอร์ดอน (RP07): มือมากกว่าอีกฝ่าย -> ไม่ถูกทำลายจากการป้องกัน
+  if (isFromBattle && monster.id === 'RP07' && typeof gameState !== 'undefined') {
+    const isDefending = gameState.activeTurn !== (boardOwner === gameState.player ? 'player' : 'ai');
+    const opp = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
+    if (isDefending && opp && Array.isArray(opp.hand) && Array.isArray(boardOwner.hand) && boardOwner.hand.length > opp.hand.length) {
+      setLog(`🛡️ [ต่อเนื่อง - กอร์ดอน] มีการ์ดบนมือมากกว่าอีกฝ่าย -> "${monster.name}" ไม่ถูกทำลายจากการป้องกัน!`);
+      return { destroyed: false, reason: 'gordon_battle_protect', monster };
+    }
   }
 
   // ดราโกนิค เบลดมาสเตอร์ไทเท็น (BT01_04): เมื่อมี "ดราโกนิค เบลดมาสเตอร์" ในนรก 2 ใบขึ้นไป ไม่ถูกทำลายจากความสามารถ
@@ -857,6 +920,8 @@ function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckLis
     mayaOncePerGameUsed: false,
     satanOncePerGameUsed: false,
     jitCrazyUpgraded: false,
+    rp07RevivedThisGame: false,
+    eponaUsedThisGame: false,
     leader: setup.leader,
     deck: setup.deck,
     hand: [],
@@ -1487,6 +1552,18 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
           e.stopPropagation();
           modal.style.display = 'none';
           executeMomoCallFromGrave(ownerContestant, card);
+        };
+      }
+      if (card.id === 'RP10' && ownerContestant === gameState.player && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player' && !ownerContestant.eponaUsedThisGame && ownerContestant.leader.hp <= 3) {
+        cardEl.style.cursor = 'pointer';
+        cardEl.style.boxShadow = '0 0 16px #2563eb';
+        cardEl.title = '🍀 คลิกเพื่อสั่งใช้งานจากนรก: ส่งไปมิติมืด เพื่อจั่วการ์ด 2 ใบ (1 ครั้ง/เกม, เลือด <= 3)!';
+        cardEl.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'none';
+          askCardUseConfirmation(card, 'สั่งใช้งาน เอโพน่า จากนรก เพื่อส่งไปมิติมืดและจั่ว 2 ใบ', () => {
+            executeEponaGraveSkill(ownerContestant, card);
+          });
         };
       }
       listEl.appendChild(cardEl);
@@ -2253,6 +2330,32 @@ const EffectEngine = {
       setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
       if (onAllDone) onAllDone();
       return true;
+    }
+
+    // 👑 สกิลลงสนาม (ON_SUMMON) ของการ์ดเด็ครอยัล พาลาดิน
+    if (triggerType === 'ON_SUMMON' && card.id && card.id.startsWith('RP')) {
+      if (card.id === 'RP01') {
+        context.caster.leader.hp = Math.min(6, context.caster.leader.hp + 3);
+        setLog(`❤️ [โซลเซฟเวอร์ ดราก้อน] ฟื้นฟูพลังชีวิตลีดเดอร์ 3 หน่วย (เหลือ ${context.caster.leader.hp}/6)!`);
+      } else if (card.id === 'RP02') {
+        triggerAlfredSummonBlasterBlade(context.caster, context.isAI, onAllDone);
+        return true;
+      } else if (card.id === 'RP03') {
+        triggerBlasterBladeDestroyUnit(context.caster, context.opponent, context.isAI, onAllDone);
+        return true;
+      } else if (card.id === 'RP04') {
+        triggerWingalSearchBlasterBlade(context.caster, context.isAI, onAllDone);
+        return true;
+      } else if (card.id === 'RP05') {
+        triggerBarkgalSearchAlfred(context.caster, context.isAI, onAllDone);
+        return true;
+      } else if (card.id === 'RP06') {
+        drawCards(context.caster, 1);
+        setLog(`🛡️ [ออโต้ - กาลาทิน] ลงสนามสำเร็จ -> ได้จั่วการ์ด 1 ใบ!`);
+      } else if (card.id === 'RP08') {
+        triggerMarronSearchSpell(context.caster, context.isAI, onAllDone);
+        return true;
+      }
     }
 
     if (!Array.isArray(card.effects)) {
@@ -4130,6 +4233,12 @@ function activateMonsterOnBoardPlayer(slotIndex) {
   const monster = player.board[slotIndex];
   if (!monster) return;
 
+  // 📖 มารอน (RP08): สั่งใช้งานบนสนาม 1/เทิร์น
+  if (monster.id === 'RP08') {
+    handleMarronBoardActivation(player, slotIndex);
+    return;
+  }
+
   const mainEffects = (monster.effects || []).filter(e => e.trigger === 'ACTIVATE_MAIN');
   if (mainEffects.length === 0) {
     setLog(`ℹ️ "${monster.name}" ไม่มีสกิลกดใช้บนสนาม (คลิกขวาเพื่อดูรายละเอียด หรือเข้าสู่ Battle Phase เพื่อสั่งโจมตี)`);
@@ -4214,6 +4323,24 @@ function initiatePlayerSpell(handIndex) {
   }
   if (spell.id === 'KG09') {
     setLog('ℹ️ "ไวเวอร์นการ์ด บาร์รี่" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อถูกโจมตี)');
+    return;
+  }
+  if (spell.id === 'RP09') {
+    setLog('ℹ️ "โล่แสง อิโซลท์" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อถูกโจมตี)');
+    return;
+  }
+  if (spell.id === 'RP10') {
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "ผู้นำพาความโชคดี เอโพน่า"', () => {
+      gameState.selectedHandIndex = null;
+      executeEponaHandSkill(player, spell, handIndex);
+    });
+    return;
+  }
+  if (spell.id === 'RP11') {
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "มิโกะต้นไม้แห่งชีวิต เอเลน"', () => {
+      gameState.selectedHandIndex = null;
+      executeElenHandSkill(player, spell, handIndex);
+    });
     return;
   }
 
@@ -6094,6 +6221,683 @@ function triggerKageroLeaderStartTurn(contestant, onComplete) {
   );
 }
 
+/* ============================================================================
+   หมวดพิเศษ: ระบบความสามารถเด็ครอยัล พาลาดิน (Royal Paladin Mechanics)
+   ============================================================================ */
+
+function isGraveyardSkillLockedByOpponent(contestant) {
+  if (!contestant || typeof gameState === 'undefined') return false;
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  if (!opp || !Array.isArray(opp.board)) return false;
+  const hasBlasterBlade = opp.board.some(m => m && (m.id === 'RP03' || (m.name && m.name.includes('บลาสเตอร์ เบลด'))));
+  const oppHandLen = Array.isArray(opp.hand) ? opp.hand.length : 0;
+  const contestantHandLen = Array.isArray(contestant.hand) ? contestant.hand.length : 0;
+  return hasBlasterBlade && (oppHandLen > contestantHandLen);
+}
+
+// 👑 สกิลออโต้เข้าเทิร์นของ Leader รอยัล พาลาดิน (L09): นำการ์ดยูนิทจากกองขึ้นมือไม่เกิน 1 ใบ
+function triggerRoyalPaladinLeaderStartTurn(contestant, onComplete) {
+  if (!contestant.leader || contestant.leader.id !== 'L09') {
+    if (onComplete) onComplete();
+    return;
+  }
+  const monsterCountOnBoard = (contestant.board || []).filter(m => m !== null).length;
+  if (monsterCountOnBoard >= 3) {
+    if (onComplete) onComplete();
+    return;
+  }
+  const rpCardsInDeck = (contestant.deck || []).filter(c => c && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP'))));
+  if (rpCardsInDeck.length === 0) {
+    if (onComplete) onComplete();
+    return;
+  }
+
+  if (contestant !== gameState.player) {
+    // AI: เลือกยูนิทที่มีพลังสูงสุด หรือการ์ดใบแรก
+    let bestIdx = -1, maxP = -1;
+    contestant.deck.forEach((c, idx) => {
+      if (c && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP')))) {
+        const p = c.type === 'Monster' ? (c.power || 0) : 1;
+        if (p > maxP) {
+          maxP = p;
+          bestIdx = idx;
+        }
+      }
+    });
+    if (bestIdx !== -1) {
+      const picked = contestant.deck.splice(bestIdx, 1)[0];
+      resetCardStateForZoneChange(picked);
+      contestant.hand.push(picked);
+      contestant.deck = shuffleDeck(contestant.deck);
+      showCardShowcaseBanner(picked, 'AI สกิลลีดเดอร์ รอยัล พาลาดิน!', '👑 นำการ์ดรอยัล พาลาดินจากกองขึ้นมือ 1 ใบ', '#2563eb', 1200);
+      setLog(`👑 [AI รอยัล พาลาดิน] บนสนามมีมอนสเตอร์ไม่ถึง 3 ใบ -> นำ "${picked.name}" 1 ใบจากกองขึ้นมือ! (สับกองเรียบร้อย)`);
+    }
+    renderGame();
+    if (onComplete) onComplete();
+    return;
+  }
+
+  // Player: ให้เลือกการ์ดเผ่ารอยัล พาลาดิน 1 ใบจากกองขึ้นมือ
+  const uniqueCards = new Map();
+  contestant.deck.forEach(c => {
+    if (c && (hasCardTribe(c, 'รอยัล พาลาดิน') || (c.id && c.id.startsWith('RP'))) && !uniqueCards.has(c.id)) {
+      uniqueCards.set(c.id, c);
+    }
+  });
+
+  const options = Array.from(uniqueCards.values()).map(targetCard => ({
+    label: `นำ "${targetCard.name}" (${targetCard.type}${targetCard.power !== undefined ? ' Power ' + targetCard.power : ''}) ขึ้นมือ`,
+    color: '#2563eb',
+    onSelect: () => {
+      const dIdx = contestant.deck.findIndex(c => c && c.id === targetCard.id);
+      if (dIdx !== -1) {
+        const picked = contestant.deck.splice(dIdx, 1)[0];
+        resetCardStateForZoneChange(picked);
+        contestant.hand.push(picked);
+        contestant.deck = shuffleDeck(contestant.deck);
+        showCardShowcaseBanner(picked, 'สกิลลีดเดอร์ รอยัล พาลาดิน!', '👑 นำการ์ดรอยัล พาลาดินจากกองขึ้นมือ 1 ใบ', '#2563eb', 1200);
+        setLog(`👑 [รอยัล พาลาดิน] บนสนามมีมอนสเตอร์ไม่ถึง 3 ใบ -> นำ "${picked.name}" 1 ใบจากกองขึ้นมือ สำเร็จ! (สับกองเรียบร้อย)`);
+      }
+      renderGame();
+      if (onComplete) onComplete();
+    }
+  }));
+
+  options.push({
+    label: '⏩ ข้าม (ไม่นำการ์ดขึ้นมือ)',
+    color: '#475569',
+    onSelect: () => {
+      if (onComplete) onComplete();
+    }
+  });
+
+  showChoiceModal(
+    '👑 รอยัล พาลาดิน: สกิลออโต้เมื่อเข้าเทิร์น',
+    'คุณสามารถนำการ์ดยูนิทจากกองขึ้นมือไม่เกิน 1 ใบ:',
+    options
+  );
+}
+
+// 🐉 โซลเซฟเวอร์ ดราก้อน (RP01): สั่งใช้งานจากบนมือ นำการ์ดจากนรกแต่ละฝั่ง 8 ใบกลับเข้ากอง เพื่ออัญเชิญยูนิทนี้
+function activateSoulSaverDragonHand(contestant, handIndex) {
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  const myGraveCount = Array.isArray(contestant.graveyard) ? contestant.graveyard.length : 0;
+  const oppGraveCount = Array.isArray(opp.graveyard) ? opp.graveyard.length : 0;
+  const emptySlot = contestant.board.findIndex(m => m === null);
+
+  if (myGraveCount < 8 || oppGraveCount < 8) {
+    setLog(`⚠️ เงื่อนไขไม่ครบ: ต้องมีการ์ดในนรกของทั้งสองฝั่ง ฝั่งละอย่างน้อย 8 ใบ (นรกเรา: ${myGraveCount}/8, นรกอีกฝ่าย: ${oppGraveCount}/8)`);
+    return;
+  }
+  if (emptySlot === -1) {
+    setLog('⚠️ สนามของคุณเต็มทั้ง 3 ช่อง ไม่สามารถอัญเชิญ โซลเซฟเวอร์ ดราก้อน ได้!');
+    return;
+  }
+
+  const soulSaver = contestant.hand.splice(handIndex, 1)[0];
+  resetCardStateForZoneChange(soulSaver);
+  soulSaver.state = 'Stand';
+
+  // คืนนรกฝั่งละ 8 ใบ
+  for (let i = 0; i < 8; i++) {
+    const c1 = contestant.graveyard.pop();
+    resetCardStateForZoneChange(c1);
+    contestant.deck.push(c1);
+
+    const c2 = opp.graveyard.pop();
+    resetCardStateForZoneChange(c2);
+    opp.deck.push(c2);
+  }
+  contestant.deck = shuffleDeck(contestant.deck);
+  opp.deck = shuffleDeck(opp.deck);
+
+  contestant.board[emptySlot] = soulSaver;
+  setLog(`🐉 [สั่งใช้งานบนมือ] อัญเชิญ "โซลเซฟเวอร์ ดราก้อน" ลงช่องที่ ${emptySlot + 1} โดยนำการ์ดจากนรกแต่ละฝั่ง 8 ใบกลับเข้ากองแล้วสลับกอง!`);
+
+  // ออโต้ เมื่อลงสนามเพิ่มพลังชีวิตลีดเดอร์ของเรา 3 หน่วย (ไม่เกิน 6)
+  contestant.leader.hp = Math.min(6, contestant.leader.hp + 3);
+  showCardShowcaseBanner(soulSaver, 'โซลเซฟเวอร์ ดราก้อน!', '🐉 เพิ่มพลังชีวิตลีดเดอร์ 3 หน่วย!', '#2563eb', 1300);
+  setLog(`❤️ [โซลเซฟเวอร์ ดราก้อน] ฟื้นฟูพลังชีวิตลีดเดอร์ 3 หน่วย (เหลือ ${contestant.leader.hp}/6)!`);
+  renderGame();
+}
+
+// 👑 ราชาอัศวิน อัลเฟรด (RP02): เมื่อลงสนาม อัญเชิญ “บลาสเตอร์ เบลด” จากนรกหรือกองไม่เกิน 1 ใบ
+function triggerAlfredSummonBlasterBlade(caster, isAI, onDone) {
+  const emptySlot = caster.board.findIndex(m => m === null);
+  if (emptySlot === -1) {
+    if (onDone) onDone();
+    return;
+  }
+  const inGraveIdx = caster.graveyard.findIndex(c => c && (c.id === 'RP03' || (c.name && c.name.includes('บลาสเตอร์ เบลด'))));
+  const inDeckIdx = caster.deck.findIndex(c => c && (c.id === 'RP03' || (c.name && c.name.includes('บลาสเตอร์ เบลด'))));
+
+  if (inGraveIdx === -1 && inDeckIdx === -1) {
+    if (onDone) onDone();
+    return;
+  }
+
+  if (isAI) {
+    let bb = null;
+    if (inGraveIdx !== -1) {
+      bb = caster.graveyard.splice(inGraveIdx, 1)[0];
+    } else {
+      bb = caster.deck.splice(inDeckIdx, 1)[0];
+      caster.deck = shuffleDeck(caster.deck);
+    }
+    resetCardStateForZoneChange(bb);
+    bb.state = 'Stand';
+    caster.board[emptySlot] = bb;
+    showCardShowcaseBanner(bb, 'AI อัลเฟรด อัญเชิญ บลาสเตอร์ เบลด!', `⚔️ อัญเชิญลงช่องที่ ${emptySlot + 1}!`, '#2563eb', 1200);
+    setLog(`👑 [AI อัลเฟรด] อัญเชิญ "บลาสเตอร์ เบลด" ลงช่องที่ ${emptySlot + 1} สำเร็จ!`);
+    renderGame();
+    // รันสกิลลงสนามของบลาสเตอร์ เบลด
+    triggerBlasterBladeDestroyUnit(caster, (caster === gameState.player ? gameState.ai : gameState.player), true, onDone);
+    return;
+  }
+
+  const choices = [];
+  if (inGraveIdx !== -1) {
+    choices.push({
+      label: '🪦 อัญเชิญ "บลาสเตอร์ เบลด" จากนรก',
+      color: '#2563eb',
+      onSelect: () => {
+        const curGIdx = caster.graveyard.findIndex(c => c && (c.id === 'RP03' || (c.name && c.name.includes('บลาสเตอร์ เบลด'))));
+        if (curGIdx !== -1) {
+          const bb = caster.graveyard.splice(curGIdx, 1)[0];
+          resetCardStateForZoneChange(bb);
+          bb.state = 'Stand';
+          const s = caster.board.findIndex(m => m === null);
+          if (s !== -1) {
+            caster.board[s] = bb;
+            showCardShowcaseBanner(bb, 'อัลเฟรด อัญเชิญ บลาสเตอร์ เบลด!', `⚔️ อัญเชิญลงช่องที่ ${s + 1}!`, '#2563eb', 1200);
+            setLog(`👑 [อัลเฟรด] อัญเชิญ "บลาสเตอร์ เบลด" จากนรกลงช่องที่ ${s + 1} สำเร็จ!`);
+            renderGame();
+            triggerBlasterBladeDestroyUnit(caster, (caster === gameState.player ? gameState.ai : gameState.player), false, onDone);
+            return;
+          }
+        }
+        if (onDone) onDone();
+      }
+    });
+  }
+  if (inDeckIdx !== -1) {
+    choices.push({
+      label: '🃏 อัญเชิญ "บลาสเตอร์ เบลด" จากกองการ์ด',
+      color: '#1d4ed8',
+      onSelect: () => {
+        const curDIdx = caster.deck.findIndex(c => c && (c.id === 'RP03' || (c.name && c.name.includes('บลาสเตอร์ เบลด'))));
+        if (curDIdx !== -1) {
+          const bb = caster.deck.splice(curDIdx, 1)[0];
+          caster.deck = shuffleDeck(caster.deck);
+          resetCardStateForZoneChange(bb);
+          bb.state = 'Stand';
+          const s = caster.board.findIndex(m => m === null);
+          if (s !== -1) {
+            caster.board[s] = bb;
+            showCardShowcaseBanner(bb, 'อัลเฟรด อัญเชิญ บลาสเตอร์ เบลด!', `⚔️ อัญเชิญลงช่องที่ ${s + 1}!`, '#2563eb', 1200);
+            setLog(`👑 [อัลเฟรด] อัญเชิญ "บลาสเตอร์ เบลด" จากกองการ์ดลงช่องที่ ${s + 1} สำเร็จ!`);
+            renderGame();
+            triggerBlasterBladeDestroyUnit(caster, (caster === gameState.player ? gameState.ai : gameState.player), false, onDone);
+            return;
+          }
+        }
+        if (onDone) onDone();
+      }
+    });
+  }
+  choices.push({
+    label: '⏩ ไม่ต้องการอัญเชิญ',
+    color: '#475569',
+    onSelect: () => { if (onDone) onDone(); }
+  });
+
+  showChoiceModal('👑 ราชาอัศวิน อัลเฟรด: สกิลเมื่อลงสนาม', 'คุณสามารถอัญเชิญ "บลาสเตอร์ เบลด" จากในนรกหรือกองการ์ดลงสนามได้:', choices);
+}
+
+// ⚔️ บลาสเตอร์ เบลด (RP03): เมื่อลงสนามทำลายยูนิทฝั่งตรงข้าม 1 ใบ
+function triggerBlasterBladeDestroyUnit(caster, opponent, isAI, onDone) {
+  const targetIndices = [];
+  opponent.board.forEach((m, idx) => {
+    if (m !== null) targetIndices.push(idx);
+  });
+  if (targetIndices.length === 0) {
+    if (onDone) onDone();
+    return;
+  }
+
+  if (isAI) {
+    let bestSlot = targetIndices[0];
+    let maxP = -1;
+    targetIndices.forEach(s => {
+      const p = getEffectivePower(opponent.board[s], opponent);
+      if (p > maxP) { maxP = p; bestSlot = s; }
+    });
+    const target = opponent.board[bestSlot];
+    destroyBoardMonster(opponent, bestSlot, false, true);
+    setLog(`⚔️ [บลาสเตอร์ เบลด] ทำลาย "${target ? target.name : 'ยูนิท'}" ของฝ่ายตรงข้ามสำเร็จ!`);
+    renderGame();
+    if (onDone) onDone();
+    return;
+  }
+
+  const choices = targetIndices.map(s => ({
+    label: `💥 ทำลาย "${opponent.board[s].name}" (ช่อง ${s + 1})`,
+    color: '#dc2626',
+    onSelect: () => {
+      const target = opponent.board[s];
+      destroyBoardMonster(opponent, s, false, true);
+      setLog(`⚔️ [บลาสเตอร์ เบลด] ทำลาย "${target ? target.name : 'ยูนิท'}" ของฝ่ายตรงข้ามสำเร็จ!`);
+      renderGame();
+      if (onDone) onDone();
+    }
+  }));
+
+  showChoiceModal('⚔️ บลาสเตอร์ เบลด: สกิลเมื่อลงสนาม', 'เลือกยูนิทของฝ่ายตรงข้าม 1 ใบเพื่อทำลาย:', choices);
+}
+
+// 🐶 วิงกัล (RP04): เมื่อลงสนามนำ “บลาสเตอร์ เบลด” จากกองขึ้นมือไม่เกิน 1 ใบ
+function triggerWingalSearchBlasterBlade(caster, isAI, onDone) {
+  const bbIdx = caster.deck.findIndex(c => c && (c.id === 'RP03' || (c.name && c.name.includes('บลาสเตอร์ เบลด'))));
+  if (bbIdx === -1) {
+    if (onDone) onDone();
+    return;
+  }
+
+  if (isAI) {
+    const bb = caster.deck.splice(bbIdx, 1)[0];
+    resetCardStateForZoneChange(bb);
+    caster.hand.push(bb);
+    caster.deck = shuffleDeck(caster.deck);
+    setLog(`🐶 [AI วิงกัล] นำ "บลาสเตอร์ เบลด" 1 ใบจากกองขึ้นมือ!`);
+    renderGame();
+    if (onDone) onDone();
+    return;
+  }
+
+  showChoiceModal(
+    '🐶 วิงกัล: สกิลเมื่อลงสนาม',
+    'ต้องการนำ "บลาสเตอร์ เบลด" จากกองการ์ดขึ้นมือหรือไม่?',
+    [
+      {
+        label: 'นำ "บลาสเตอร์ เบลด" ขึ้นมือ',
+        color: '#2563eb',
+        onSelect: () => {
+          const curIdx = caster.deck.findIndex(c => c && (c.id === 'RP03' || (c.name && c.name.includes('บลาสเตอร์ เบลด'))));
+          if (curIdx !== -1) {
+            const bb = caster.deck.splice(curIdx, 1)[0];
+            resetCardStateForZoneChange(bb);
+            caster.hand.push(bb);
+            caster.deck = shuffleDeck(caster.deck);
+            showCardShowcaseBanner(bb, 'วิงกัลค้นหาสำเร็จ!', '🐶 นำ "บลาสเตอร์ เบลด" ขึ้นมือ!', '#2563eb', 1200);
+            setLog(`🐶 [วิงกัล] นำ "บลาสเตอร์ เบลด" จากกองขึ้นมือสำเร็จ! (สับกองเรียบร้อย)`);
+          }
+          renderGame();
+          if (onDone) onDone();
+        }
+      },
+      {
+        label: 'ข้าม (ไม่นำขึ้นมือ)',
+        color: '#475569',
+        onSelect: () => { if (onDone) onDone(); }
+      }
+    ]
+  );
+}
+
+// 🐺 บาร์คกัล (RP05): เมื่อลงสนามนำ “ราชาอัศวิน อัลเฟรด” จากกองขึ้นมือได้ไม่เกิน 1 ใบ
+function triggerBarkgalSearchAlfred(caster, isAI, onDone) {
+  const alfredIdx = caster.deck.findIndex(c => c && (c.id === 'RP02' || (c.name && c.name.includes('ราชาอัศวิน อัลเฟรด'))));
+  if (alfredIdx === -1) {
+    if (onDone) onDone();
+    return;
+  }
+
+  if (isAI) {
+    const alfred = caster.deck.splice(alfredIdx, 1)[0];
+    resetCardStateForZoneChange(alfred);
+    caster.hand.push(alfred);
+    caster.deck = shuffleDeck(caster.deck);
+    setLog(`🐺 [AI บาร์คกัล] นำ "ราชาอัศวิน อัลเฟรด" 1 ใบจากกองขึ้นมือ!`);
+    renderGame();
+    if (onDone) onDone();
+    return;
+  }
+
+  showChoiceModal(
+    '🐺 บาร์คกัล: สกิลเมื่อลงสนาม',
+    'ต้องการนำ "ราชาอัศวิน อัลเฟรด" จากกองการ์ดขึ้นมือหรือไม่?',
+    [
+      {
+        label: 'นำ "ราชาอัศวิน อัลเฟรด" ขึ้นมือ',
+        color: '#2563eb',
+        onSelect: () => {
+          const curIdx = caster.deck.findIndex(c => c && (c.id === 'RP02' || (c.name && c.name.includes('ราชาอัศวิน อัลเฟรด'))));
+          if (curIdx !== -1) {
+            const alfred = caster.deck.splice(curIdx, 1)[0];
+            resetCardStateForZoneChange(alfred);
+            caster.hand.push(alfred);
+            caster.deck = shuffleDeck(caster.deck);
+            showCardShowcaseBanner(alfred, 'บาร์คกัลค้นหาสำเร็จ!', '🐺 นำ "ราชาอัศวิน อัลเฟรด" ขึ้นมือ!', '#2563eb', 1200);
+            setLog(`🐺 [บาร์คกัล] นำ "ราชาอัศวิน อัลเฟรด" จากกองขึ้นมือสำเร็จ! (สับกองเรียบร้อย)`);
+          }
+          renderGame();
+          if (onDone) onDone();
+        }
+      },
+      {
+        label: 'ข้าม (ไม่นำขึ้นมือ)',
+        color: '#475569',
+        onSelect: () => { if (onDone) onDone(); }
+      }
+    ]
+  );
+}
+
+// 📖 มารอน (RP08): เมื่อลงสนามค้นหาการ์ดเวทมนตร์จากกองไม่เกิน 1 ใบ
+function triggerMarronSearchSpell(caster, isAI, onDone) {
+  const spellIndices = [];
+  caster.deck.forEach((c, idx) => {
+    if (isSpellCard(c)) spellIndices.push(idx);
+  });
+  if (spellIndices.length === 0) {
+    if (onDone) onDone();
+    return;
+  }
+
+  if (isAI) {
+    const s = caster.deck.splice(spellIndices[0], 1)[0];
+    resetCardStateForZoneChange(s);
+    caster.hand.push(s);
+    caster.deck = shuffleDeck(caster.deck);
+    setLog(`📖 [AI มารอน] นำการ์ดเวทมนตร์ "${s.name}" จากกองขึ้นมือ!`);
+    renderGame();
+    if (onDone) onDone();
+    return;
+  }
+
+  const uniqueSpells = new Map();
+  caster.deck.forEach(c => {
+    if (isSpellCard(c) && !uniqueSpells.has(c.id)) {
+      uniqueSpells.set(c.id, c);
+    }
+  });
+
+  const choices = Array.from(uniqueSpells.values()).map(sp => ({
+    label: `หยิบเวทมนตร์ "${sp.name}" ขึ้นมือ`,
+    color: '#2563eb',
+    onSelect: () => {
+      const curIdx = caster.deck.findIndex(c => c && c.id === sp.id);
+      if (curIdx !== -1) {
+        const picked = caster.deck.splice(curIdx, 1)[0];
+        resetCardStateForZoneChange(picked);
+        caster.hand.push(picked);
+        caster.deck = shuffleDeck(caster.deck);
+        showCardShowcaseBanner(picked, 'มารอนค้นหาสำเร็จ!', `📖 นำเวทมนตร์ "${picked.name}" ขึ้นมือ!`, '#2563eb', 1200);
+        setLog(`📖 [มารอน] นำเวทมนตร์ "${picked.name}" จากกองขึ้นมือสำเร็จ! (สับกองเรียบร้อย)`);
+      }
+      renderGame();
+      if (onDone) onDone();
+    }
+  }));
+
+  choices.push({
+    label: 'ข้าม (ไม่หยิบเวทมนตร์)',
+    color: '#475569',
+    onSelect: () => { if (onDone) onDone(); }
+  });
+
+  showChoiceModal('📖 นักวางแผนน้อย มารอน: สกิลเมื่อลงสนาม', 'เลือกการ์ดเวทมนตร์ 1 ใบจากกองการ์ดขึ้นมือ:', choices);
+}
+
+// 📖 มารอน (RP08): สั่งใช้งานบนสนาม 1/เทิร์น นำการ์ดจากนรกฝั่งใดก็ได้ 1 ใบกลับเข้ากอง แล้วเจ้าของจั่ว 1 ใบ
+function handleMarronBoardActivation(caster, slotIndex) {
+  const monster = caster.board[slotIndex];
+  if (!monster) return;
+  if (monster.usedSkills && monster.usedSkills.marronActivatedThisTurn) {
+    setLog('⚠️ "นักวางแผนน้อย มารอน" ใช้สกิลในเทิร์นนี้ไปแล้ว (ใช้ได้ 1 ครั้ง/เทิร์น)!');
+    return;
+  }
+
+  const opp = (caster === gameState.player) ? gameState.ai : gameState.player;
+  const myGrave = Array.isArray(caster.graveyard) ? caster.graveyard : [];
+  const oppGrave = Array.isArray(opp.graveyard) ? opp.graveyard : [];
+
+  if (myGrave.length === 0 && oppGrave.length === 0) {
+    setLog('⚠️ ไม่มีนรกของฝั่งใดให้เลือกการ์ดนำกลับเข้ากอง!');
+    return false;
+  }
+
+  const isAI = (caster !== gameState.player);
+  if (isAI) {
+    if (myGrave.length > 0) {
+      const picked = myGrave.pop();
+      resetCardStateForZoneChange(picked);
+      caster.deck.push(picked);
+      caster.deck = shuffleDeck(caster.deck);
+      drawCards(caster, 1);
+      if (!monster.usedSkills) monster.usedSkills = {};
+      monster.usedSkills.marronActivatedThisTurn = true;
+      showCardShowcaseBanner(monster, 'AI ใช้สกิลมารอน!', `📖 นำ "${picked.name}" จากนรกกลับเข้ากอง แล้วจั่ว 1 ใบ!`, '#2563eb', 1200);
+      setLog(`📖 [AI มารอน] นำ "${picked.name}" จากนรกกลับเข้ากอง และได้จั่วการ์ด 1 ใบ!`);
+      renderGame();
+      return true;
+    }
+    return false;
+  }
+
+  const zoneChoices = [];
+  if (myGrave.length > 0) {
+    zoneChoices.push({
+      label: `🪦 เลือกการ์ดจากนรกของเรา (${myGrave.length} ใบ) -> นำกลับกองเรา แล้วเราจั่ว 1 ใบ`,
+      color: '#2563eb',
+      onSelect: () => {
+        const cardChoices = myGrave.map((c, idx) => ({
+          label: `นำ "${c.name}" (${c.type}) กลับเข้ากอง`,
+          color: '#2563eb',
+          onSelect: () => {
+            const picked = myGrave.splice(idx, 1)[0];
+            resetCardStateForZoneChange(picked);
+            caster.deck.push(picked);
+            caster.deck = shuffleDeck(caster.deck);
+            drawCards(caster, 1);
+            if (!monster.usedSkills) monster.usedSkills = {};
+            monster.usedSkills.marronActivatedThisTurn = true;
+            setLog(`📖 [มารอน] นำ "${picked.name}" จากนรกเรากลับเข้ากอง และเราได้จั่วการ์ด 1 ใบ!`);
+            renderGame();
+          }
+        }));
+        showChoiceModal('📖 มารอน: เลือกการ์ดจากนรกเรา', 'เลือกการ์ด 1 ใบที่จะนำกลับเข้ากอง:', cardChoices);
+      }
+    });
+  }
+
+  if (oppGrave.length > 0) {
+    zoneChoices.push({
+      label: `💀 เลือกการ์ดจากนรกอีกฝ่าย (${oppGrave.length} ใบ) -> นำกลับกองอีกฝ่าย แล้วอีกฝ่ายจั่ว 1 ใบ`,
+      color: '#dc2626',
+      onSelect: () => {
+        const cardChoices = oppGrave.map((c, idx) => ({
+          label: `นำ "${c.name}" (${c.type}) กลับเข้ากอง`,
+          color: '#dc2626',
+          onSelect: () => {
+            const picked = oppGrave.splice(idx, 1)[0];
+            resetCardStateForZoneChange(picked);
+            opp.deck.push(picked);
+            opp.deck = shuffleDeck(opp.deck);
+            drawCards(opp, 1);
+            if (!monster.usedSkills) monster.usedSkills = {};
+            monster.usedSkills.marronActivatedThisTurn = true;
+            setLog(`📖 [มารอน] นำ "${picked.name}" จากนรกอีกฝ่ายกลับเข้ากอง และอีกฝ่ายได้จั่วการ์ด 1 ใบ!`);
+            renderGame();
+          }
+        }));
+        showChoiceModal('📖 มารอน: เลือกการ์ดจากนรกอีกฝ่าย', 'เลือกการ์ด 1 ใบที่จะนำกลับเข้ากอง:', cardChoices);
+      }
+    });
+  }
+
+  zoneChoices.push({ label: '❌ ยกเลิก', color: '#475569', onSelect: () => renderGame() });
+  showChoiceModal('📖 นักวางแผนน้อย มารอน: สั่งใช้งาน/1 เทิร์น', 'เลือกนรกฝั่งที่ต้องการนำการ์ด 1 ใบกลับเข้ากอง:', zoneChoices);
+}
+
+// 🍀 เอโพน่า (RP10): ร่ายปกติจากมือ ทิ้งการ์ดจากกอง 1 ใบ เลือกยูนิทเรา 1 ใบ พลัง +2
+function executeEponaHandSkill(caster, spellCard, handIndex) {
+  if (caster.deck.length === 0) {
+    setLog('❌ กองการ์ดของคุณหมดแล้ว ไม่สามารถทิ้งการ์ดจากกองได้!');
+    return;
+  }
+  const friendlyMonsters = [];
+  caster.board.forEach((m, idx) => {
+    if (m !== null) friendlyMonsters.push(idx);
+  });
+  if (friendlyMonsters.length === 0) {
+    setLog('❌ ไม่มีมอนสเตอร์บนสนามของคุณให้เลือกเพิ่มพลัง!');
+    return;
+  }
+
+  const isAI = (caster !== gameState.player);
+  if (isAI) {
+    const spell = caster.hand.splice(handIndex, 1)[0];
+    caster.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    caster.graveyard.push(spell);
+
+    const milled = caster.deck.pop();
+    resetCardStateForZoneChange(milled);
+    caster.graveyard.push(milled);
+
+    let bestSlot = friendlyMonsters[0];
+    let maxP = -1;
+    friendlyMonsters.forEach(s => {
+      const p = getEffectivePower(caster.board[s], caster);
+      if (p > maxP) { maxP = p; bestSlot = s; }
+    });
+    const targetM = caster.board[bestSlot];
+    targetM.permPowerMod = (targetM.permPowerMod || 0) + 2;
+    showCardShowcaseBanner(spell, 'AI ร่ายเวทมนตร์ เอโพน่า!', `🍀 ทิ้ง "${milled.name}" -> บัฟ "${targetM.name}" พลัง +2!`, '#2563eb', 1300);
+    setLog(`🍀 [AI เอโพน่า] ทิ้ง "${milled.name}" จากกองลงนรก -> "${targetM.name}" พลังโจมตีเพิ่ม +2 (เป็น ${getEffectivePower(targetM, caster)})!`);
+    renderGame();
+    return;
+  }
+
+  const choices = friendlyMonsters.map(s => ({
+    label: `เลือก "${caster.board[s].name}" (ช่อง ${s + 1}) พลัง +2`,
+    color: '#2563eb',
+    onSelect: () => {
+      const curIdx = caster.hand.findIndex(c => c.uid === spellCard.uid);
+      if (curIdx === -1) return;
+      const spell = caster.hand.splice(curIdx, 1)[0];
+      caster.spellQuota.normalUsed += 1;
+      resetCardStateForZoneChange(spell);
+      caster.graveyard.push(spell);
+
+      const milled = caster.deck.pop();
+      resetCardStateForZoneChange(milled);
+      caster.graveyard.push(milled);
+
+      const targetM = caster.board[s];
+      targetM.permPowerMod = (targetM.permPowerMod || 0) + 2;
+      showCardShowcaseBanner(spell, 'ร่ายเวทมนตร์ เอโพน่า!', `🍀 ทิ้ง "${milled.name}" -> บัฟ "${targetM.name}" พลัง +2!`, '#2563eb', 1300);
+      setLog(`🍀 [เอโพน่า] ทิ้ง "${milled.name}" จากกองลงนรก -> "${targetM.name}" พลังโจมตีเพิ่ม +2 (เป็น ${getEffectivePower(targetM, caster)})!`);
+      renderGame();
+    }
+  }));
+
+  showChoiceModal('🍀 ผู้นำพาความโชคดี เอโพน่า: เลือกยูนิทเป้าหมาย', 'เลือกยูนิทบนสนามของคุณ 1 ใบที่จะเพิ่มพลังโจมตี +2:', choices);
+}
+
+// 🍀 เอโพน่า (RP10): สั่งใช้งานในนรก / 1 เกม เมื่อเลือด <= 3 ส่งไปมิติมืด เพื่อจั่ว 2 ใบ
+function executeEponaGraveSkill(contestant, card) {
+  if (isGraveyardSkillLockedByOpponent(contestant)) {
+    setLog('🔒 ไม่สามารถใช้ความสามารถของการ์ดในนรกได้ (ฝ่ายตรงข้ามมี บลาสเตอร์ เบลด และมือมากกว่า)!');
+    return;
+  }
+  const curIdx = contestant.graveyard.findIndex(c => c && c.uid === card.uid);
+  if (curIdx === -1 || contestant.eponaUsedThisGame) return;
+  contestant.eponaUsedThisGame = true;
+  const epona = contestant.graveyard.splice(curIdx, 1)[0];
+  resetCardStateForZoneChange(epona);
+  contestant.darkDimension.push(epona);
+  drawCards(contestant, 2);
+  showCardShowcaseBanner(epona, 'เอโพน่า สั่งใช้งานจากนรก!', '🌌 นำเข้ามิติมืด เพื่อจั่วการ์ด 2 ใบ!', '#2563eb', 1300);
+  setLog(`🍀 [เอโพน่า - ในนรก] ส่ง "เอโพน่า" ไปมิติมืด -> จั่วการ์ด 2 ใบ สำเร็จ!`);
+  renderGame();
+}
+
+// 🌿 มิโกะต้นไม้แห่งชีวิต เอเลน (RP11): นำการ์ดจากนรก 2 ใบกลับเข้ากอง สลับกอง แล้วจั่ว 2 ใบ ทิ้งมือ 1 ใบ
+function executeElenHandSkill(caster, spellCard, handIndex) {
+  if (!Array.isArray(caster.graveyard) || caster.graveyard.length < 2) {
+    setLog('❌ ต้องมีการ์ดในกองนรกของคุณอย่างน้อย 2 ใบเพื่อนำกลับเข้ากอง!');
+    return;
+  }
+
+  const isAI = (caster !== gameState.player);
+  if (isAI) {
+    const spell = caster.hand.splice(handIndex, 1)[0];
+    caster.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    caster.graveyard.push(spell);
+
+    for (let i = 0; i < 2; i++) {
+      const c = caster.graveyard.pop();
+      resetCardStateForZoneChange(c);
+      caster.deck.push(c);
+    }
+    caster.deck = shuffleDeck(caster.deck);
+    drawCards(caster, 2);
+    if (caster.hand.length > 0) {
+      const discarded = caster.hand.pop();
+      resetCardStateForZoneChange(discarded);
+      caster.graveyard.push(discarded);
+      checkDiscardTriggers(caster, discarded);
+    }
+    showCardShowcaseBanner(spell, 'AI ร่ายเวทมนตร์ เอเลน!', '🌿 รีไซเคิลการ์ดจากนรก 2 ใบ จั่ว 2 และทิ้ง 1!', '#2563eb', 1300);
+    setLog(`🌿 [AI เอเลน] นำการ์ดจากนรก 2 ใบกลับเข้ากอง สลับกอง แล้วจั่ว 2 ใบ จากนั้นทิ้งมือ 1 ใบ!`);
+    renderGame();
+    return;
+  }
+
+  // Player
+  const curIdx = caster.hand.findIndex(c => c.uid === spellCard.uid);
+  if (curIdx === -1) return;
+  const spell = caster.hand.splice(curIdx, 1)[0];
+  caster.spellQuota.normalUsed += 1;
+  resetCardStateForZoneChange(spell);
+  caster.graveyard.push(spell);
+
+  // นำการ์ด 2 ใบล่าสุดจากนรกกลับเข้ากอง
+  const c1 = caster.graveyard.pop();
+  resetCardStateForZoneChange(c1);
+  caster.deck.push(c1);
+
+  const c2 = caster.graveyard.pop();
+  resetCardStateForZoneChange(c2);
+  caster.deck.push(c2);
+
+  caster.deck = shuffleDeck(caster.deck);
+  drawCards(caster, 2);
+  setLog(`🌿 [เอเลน] นำ "${c1.name}" และ "${c2.name}" จากนรกกลับเข้ากอง สลับกอง และได้จั่ว 2 ใบ!`);
+
+  // ให้เลือกทิ้งการ์ดบนมือ 1 ใบ
+  if (caster.hand.length > 0) {
+    const discardChoices = caster.hand.map((card, idx) => ({
+      label: `ทิ้ง "${card.name}"`,
+      color: '#dc2626',
+      onSelect: () => {
+        const discarded = caster.hand.splice(idx, 1)[0];
+        resetCardStateForZoneChange(discarded);
+        caster.graveyard.push(discarded);
+        setLog(`🌿 [เอเลน] ทิ้ง "${discarded.name}" 1 ใบจากมือลงนรกเรียบร้อย!`);
+        checkDiscardTriggers(caster, discarded);
+        renderGame();
+      }
+    }));
+    showChoiceModal('🌿 มิโกะต้นไม้แห่งชีวิต เอเลน: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:', discardChoices);
+  } else {
+    renderGame();
+  }
+}
+
 function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.turnsTaken += 1;
   contestant.attacksThisTurn = 0;
@@ -6145,6 +6949,13 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
 
   if (contestant.leader && contestant.leader.id === 'L08') {
     triggerKageroLeaderStartTurn(contestant, () => {
+      triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
+    });
+    return;
+  }
+
+  if (contestant.leader && contestant.leader.id === 'L09') {
+    triggerRoyalPaladinLeaderStartTurn(contestant, () => {
       triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
     });
     return;
@@ -6233,6 +7044,49 @@ function executeEndPhaseCleanup(activeContestant) {
       setLog(`🔥 "${m.name}" ถูกทำลายเมื่อจบเทิร์นตามเงื่อนไขความสามารถ!`);
     }
   });
+
+  // 👑 รอยัล พาลาดิน (L09): ออโต้จบเทิร์น สแตนด์ยูนิทบนสนามฝั่งเรา 1 ใบ
+  if (activeContestant.leader && activeContestant.leader.id === 'L09') {
+    const restedSlots = [];
+    activeContestant.board.forEach((m, idx) => {
+      if (m && m.state === 'Rest') restedSlots.push(idx);
+    });
+    if (restedSlots.length > 0) {
+      if (activeContestant !== gameState.player) {
+        let bestSlot = restedSlots[0];
+        let maxP = -1;
+        restedSlots.forEach(s => {
+          const p = getEffectivePower(activeContestant.board[s], activeContestant);
+          if (p > maxP) { maxP = p; bestSlot = s; }
+        });
+        activeContestant.board[bestSlot].state = 'Stand';
+        showCardShowcaseBanner(activeContestant.board[bestSlot], 'AI สกิลลีดเดอร์ รอยัล พาลาดิน!', '👑 สแตนด์ยูนิทเมื่อจบเทิร์น 1 ใบ!', '#2563eb', 1200);
+        setLog(`👑 [ออโต้จบเทิร์น - รอยัล พาลาดิน] สแตนด์ "${activeContestant.board[bestSlot].name}" บนสนาม!`);
+      } else {
+        if (restedSlots.length === 1) {
+          const s = restedSlots[0];
+          activeContestant.board[s].state = 'Stand';
+          showCardShowcaseBanner(activeContestant.board[s], 'สกิลลีดเดอร์ รอยัล พาลาดิน!', '👑 สแตนด์ยูนิทเมื่อจบเทิร์น 1 ใบ!', '#2563eb', 1200);
+          setLog(`👑 [ออโต้จบเทิร์น - รอยัล พาลาดิน] สแตนด์ "${activeContestant.board[s].name}" บนสนาม!`);
+        } else {
+          showChoiceModal(
+            '👑 รอยัล พาลาดิน: สแตนด์ยูนิทจบเทิร์น',
+            'เลือกยูนิทบนสนามของคุณ 1 ตัวเพื่อเปลี่ยนเป็น Stand:',
+            restedSlots.map(s => ({
+              label: `สแตนด์ "${activeContestant.board[s].name}" (ช่อง ${s + 1})`,
+              color: '#2563eb',
+              onSelect: () => {
+                activeContestant.board[s].state = 'Stand';
+                showCardShowcaseBanner(activeContestant.board[s], 'สกิลลีดเดอร์ รอยัล พาลาดิน!', '👑 สแตนด์ยูนิทเมื่อจบเทิร์น 1 ใบ!', '#2563eb', 1200);
+                setLog(`👑 [ออโต้จบเทิร์น - รอยัล พาลาดิน] สแตนด์ "${activeContestant.board[s].name}" สำเร็จ!`);
+                renderGame();
+              }
+            }))
+          );
+        }
+      }
+    }
+  }
 
   [gameState.player, gameState.ai].forEach(side => {
     side.board.forEach(m => {
@@ -6484,6 +7338,27 @@ function handleHandCardClick(handIndex) {
         setLog('🕵️ เลือก "สายลับไพร่เหนือ" แล้ว — คลิกที่ช่องว่างบนสนามของฝ่ายตรงข้าม (ด้านบน) เพื่อวางสายลับ!');
         renderGame();
       });
+      return;
+    }
+
+    // 5.5 โซลเซฟเวอร์ ดราก้อน (RP01)
+    if (clickedCard.id === 'RP01') {
+      const myGrave = player.graveyard ? player.graveyard.length : 0;
+      const oppGrave = ai.graveyard ? ai.graveyard.length : 0;
+      const canCast = myGrave >= 8 && oppGrave >= 8 && player.board.some(m => m === null);
+      showChoiceModal(
+        '🐉 โซลเซฟเวอร์ ดราก้อน',
+        `การ์ดใบนี้ไม่สามารถอัญเชิญแบบปกติได้\nสั่งใช้งานจากบนมือ: นำการ์ดจากนรกของแต่ละฝั่ง 8 ใบกลับเข้ากองแล้วสลับกองการ์ด เพื่ออัญเชิญยูนิทนี้\n(ปัจจุบัน: นรกเรา ${myGrave}/8 ใบ, นรกอีกฝ่าย ${oppGrave}/8 ใบ)`,
+        [
+          {
+            label: `🐉 สั่งใช้งานจากบนมือ (นำการ์ดจากนรกแต่ละฝั่ง 8 ใบกลับเข้ากอง เพื่ออัญเชิญ)`,
+            disabled: !canCast,
+            color: '#2563eb',
+            onSelect: () => activateSoulSaverDragonHand(player, handIndex)
+          },
+          { label: '❌ ยกเลิก', color: '#475569', onSelect: () => renderGame() }
+        ]
+      );
       return;
     }
 
@@ -7724,7 +8599,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (demonCountOnDefenderBoard >= 1)
     && (defender.spellQuota.reactionUsed < 1);
 
-  const canUseTheXInGrave = defender.graveyard.some(c => c && (c.id === 'KG04' || (c.name && c.name.toLowerCase().includes('the x'))))
+  const canUseTheXInGrave = !isGraveyardSkillLockedByOpponent(defender)
+    && defender.graveyard.some(c => c && (c.id === 'KG04' || (c.name && c.name.toLowerCase().includes('the x'))))
     && !defender.kg04UsedThisGame;
 
   const canUseNagisa = defender.hand.some(c => c && c.id === 'MD07')
@@ -7744,11 +8620,49 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   const canUseBarry = (kg09InHandIdx !== -1)
     && (defender.spellQuota.reactionUsed < 1);
 
+  const rp09InHandIdx = defender.hand.findIndex(c => c && c.id === 'RP09');
+  const canUseIseult = (rp09InHandIdx !== -1)
+    && (defender.hand.length >= 2)
+    && (defender.spellQuota.reactionUsed < 1);
+
   // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ (ระดับ EASY จะไม่ใช้เวทรีแอคซับซ้อน)
   if (!isLocalDefender) {
     if (aiConfig.difficulty === 'EASY') {
       continueNormalAttackFlow();
       return;
+    }
+
+    if (canUseIseult && (targetType === 'leader' || attackingMonster.power >= 2)) {
+      const curIdx = defender.hand.findIndex(c => c && c.id === 'RP09');
+      if (curIdx !== -1) {
+        const spellCard = defender.hand.splice(curIdx, 1)[0];
+        defender.spellQuota.reactionUsed += 1;
+        resetCardStateForZoneChange(spellCard);
+        defender.graveyard.push(spellCard);
+
+        let minPIdx = 0, minP = 999;
+        defender.hand.forEach((c, i) => {
+          const p = c.type === 'Monster' ? (c.power || 0) : 1;
+          if (p < minP) { minP = p; minPIdx = i; }
+        });
+        const discarded = defender.hand.splice(minPIdx, 1)[0];
+        resetCardStateForZoneChange(discarded);
+        defender.graveyard.push(discarded);
+        checkDiscardTriggers(defender, discarded);
+
+        const isRP = hasCardTribe(discarded, 'รอยัล พาลาดิน') || (discarded.id && discarded.id.startsWith('RP'));
+        if (isRP) {
+          destroyBoardMonster(attacker, attackerSlot, false, true);
+          showCardShowcaseBanner(spellCard, 'AI ร่ายเวท โล่แสง อิโซลท์!', `🛡️ ทิ้ง "${discarded.name}" (รอยัล พาลาดิน) -> ยกเลิกการโจมตีและทำลาย "${attackingMonster.name}"!`, '#2563eb', 1300);
+          setLog(`🛡️ [AI โล่แสง อิโซลท์] ทิ้ง "${discarded.name}" (เผ่ารอยัล พาลาดิน) -> ยกเลิกการโจมตี และทำลาย "${attackingMonster.name}" สำเร็จ!`);
+        } else {
+          showCardShowcaseBanner(spellCard, 'AI ร่ายเวท โล่แสง อิโซลท์!', `🛡️ ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตี!`, '#2563eb', 1300);
+          setLog(`🛡️ [AI โล่แสง อิโซลท์] ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตีสำเร็จ!`);
+        }
+        renderGame();
+        if (onCompleteCallback) onCompleteCallback();
+        return;
+      }
     }
 
     if (canUseTheXInGrave && (targetType === 'leader' || attackingMonster.power >= 2)) {
@@ -7934,7 +8848,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   }
 
   // 👤 กรณีเราเป็นฝ่ายถูกโจมตี: เด้งถามเฉพาะการ์ดของเราเอง
-  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry) {
+  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUseIseult) {
     const options = [];
 
     if (canUseForbiddenWarning) {
@@ -8295,6 +9209,48 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
       });
     }
 
+    if (canUseIseult) {
+      options.push({
+        label: '🛡️ ร่าย "โล่แสง อิโซลท์": ทิ้งการ์ด 1 ใบ ยกเลิกการโจมตี (ถ้าเป็นการ์ดรอยัล พาลาดิน ทำลายยูนิทที่โจมตีด้วย!)',
+        color: '#2563eb',
+        onSelect: () => {
+          const curIdx = defender.hand.findIndex(c => c && c.id === 'RP09');
+          if (curIdx === -1) {
+            continueNormalAttackFlow();
+            return;
+          }
+          const spellCard = defender.hand.splice(curIdx, 1)[0];
+          defender.spellQuota.reactionUsed += 1;
+          resetCardStateForZoneChange(spellCard);
+          defender.graveyard.push(spellCard);
+
+          const discardChoices = defender.hand.map((card, idx) => ({
+            label: `ทิ้ง "${card.name}" ${hasCardTribe(card, 'รอยัล พาลาดิน') || card.id.startsWith('RP') ? '(👑 เผ่ารอยัล พาลาดิน -> ทำลายยูนิทที่โจมตี!)' : ''}`,
+            color: '#2563eb',
+            onSelect: () => {
+              const discarded = defender.hand.splice(idx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              defender.graveyard.push(discarded);
+              checkDiscardTriggers(defender, discarded);
+
+              const isRP = hasCardTribe(discarded, 'รอยัล พาลาดิน') || (discarded.id && discarded.id.startsWith('RP'));
+              if (isRP) {
+                destroyBoardMonster(attacker, attackerSlot, false, true);
+                showCardShowcaseBanner(spellCard, 'ร่ายเวท โล่แสง อิโซลท์!', `🛡️ ทิ้ง "${discarded.name}" (รอยัล พาลาดิน) -> ยกเลิกการโจมตีและทำลาย "${attackingMonster.name}"!`, '#2563eb', 1300);
+                setLog(`🛡️ [โล่แสง อิโซลท์] ทิ้ง "${discarded.name}" (เผ่ารอยัล พาลาดิน) -> ยกเลิกการโจมตี และทำลาย "${attackingMonster.name}" สำเร็จ!`);
+              } else {
+                showCardShowcaseBanner(spellCard, 'ร่ายเวท โล่แสง อิโซลท์!', `🛡️ ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตี!`, '#2563eb', 1300);
+                setLog(`🛡️ [โล่แสง อิโซลท์] ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตีสำเร็จ!`);
+              }
+              renderGame();
+              if (onCompleteCallback) onCompleteCallback();
+            }
+          }));
+          showChoiceModal('🛡️ โล่แสง อิโซลท์: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:', discardChoices);
+        }
+      });
+    }
+
     options.push({
       label: 'ไม่ใช้ (ดำเนินการป้องกันตามปกติ)',
       color: '#475569',
@@ -8317,7 +9273,7 @@ function checkLeaderDamagedTriggers(damagedContestant) {
 
   // 🐉 ดราโกนิค โอเวอร์ลอร์ด The end (KG02): สั่งใช้งานในนรก/1 เทิร์น: เมื่อลีดเดอร์สูญเสียพลังชีวิต สามารถอัญเชิญยูนิทนี้ลงบนสนามได้
   const theEndIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
-  if (theEndIdx !== -1 && !damagedContestant.theEndRevivedThisTurn) {
+  if (theEndIdx !== -1 && !damagedContestant.theEndRevivedThisTurn && !isGraveyardSkillLockedByOpponent(damagedContestant)) {
     const isPvpRemoteDamaged = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && damagedContestant !== gameState.player);
     if (isPvpRemoteDamaged) {
       requestPvpChoice(
@@ -8450,6 +9406,154 @@ function checkLeaderDamagedTriggers(damagedContestant) {
           }
         ]
       );
+    }
+  }
+
+  // 🛡️ อัศวินแห่งความจริง กอร์ดอน (RP07): สั่งใช้งานในนรก / 1 เกม: เมื่อลีดเดอร์สูญเสียพลังชีวิต สามารถอัญเชิญยูนิทนี้ลงบนสนามฝั่งเรา และฟื้นฟูพลังชีวิตลีดเดอร์ 1 หน่วย
+  const rp07Idx = damagedContestant.graveyard.findIndex(c => c && c.id === 'RP07');
+  if (rp07Idx !== -1 && !damagedContestant.rp07RevivedThisGame) {
+    if (isGraveyardSkillLockedByOpponent(damagedContestant)) {
+      setLog('🔒 ไม่สามารถสั่งใช้งานกอร์ดอนจากนรกได้ (ฝ่ายตรงข้ามมี บลาสเตอร์ เบลด และมือมากกว่า)!');
+    } else {
+      const isPvpRemoteDamaged = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && damagedContestant !== gameState.player);
+      if (isPvpRemoteDamaged) {
+        requestPvpChoice(
+          '🛡️ สั่งใช้งานในนรก: อัศวินแห่งความจริง กอร์ดอน',
+          'ลีดเดอร์ของคุณสูญเสียพลังชีวิต!\nต้องการสั่งใช้งาน "กอร์ดอน" จากนรก เพื่ออัญเชิญลงสนาม และฮีลเลือด 1 หน่วย (1 ครั้ง/เกม) หรือไม่?',
+          [
+            { label: '🛡️ สั่งใช้งาน: อัญเชิญ "กอร์ดอน" + ฮีล 1 HP', color: '#2563eb' },
+            { label: 'ไม่ใช้ (เก็บไว้ในนรกก่อน)', color: '#475569' }
+          ],
+          (optIdx) => {
+            if (optIdx !== 0) {
+              renderGame();
+              return;
+            }
+            const curIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'RP07');
+            if (curIdx === -1 || damagedContestant.rp07RevivedThisGame) return;
+            const emptySlot = damagedContestant.board.findIndex(m => m === null);
+            if (emptySlot !== -1) {
+              damagedContestant.rp07RevivedThisGame = true;
+              const gordon = damagedContestant.graveyard.splice(curIdx, 1)[0];
+              resetCardStateForZoneChange(gordon);
+              gordon.state = 'Stand';
+              damagedContestant.board[emptySlot] = gordon;
+              damagedContestant.leader.hp = Math.min(6, damagedContestant.leader.hp + 1);
+              setLog(`🛡️ [กอร์ดอน - ในนรก] ฝ่ายตรงข้ามอัญเชิญ "กอร์ดอน" ลงช่องที่ ${emptySlot + 1} และฟื้นฟูเลือด 1 หน่วย (เหลือ ${damagedContestant.leader.hp}/6)!`);
+              renderGame();
+            } else {
+              const slotOpts = damagedContestant.board.map((m, sIdx) => ({
+                label: `💀 วางทับ "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" (ช่อง ${sIdx + 1})`,
+                color: '#2563eb'
+              }));
+              requestPvpChoice(
+                '🛡️ สนามเต็ม 3 ช่อง: เลือกช่องที่จะวาง "กอร์ดอน" ทับ',
+                'เลือกช่องบนสนามของคุณ 1 ช่องเพื่อวาง "กอร์ดอน" ทับ:',
+                slotOpts,
+                (slotChoice) => {
+                  const idx2 = damagedContestant.graveyard.findIndex(c => c && c.id === 'RP07');
+                  if (idx2 === -1 || damagedContestant.rp07RevivedThisGame) return;
+                  const targetS = (slotChoice >= 0 && slotChoice < 3) ? slotChoice : 0;
+                  damagedContestant.rp07RevivedThisGame = true;
+                  const gordon = damagedContestant.graveyard.splice(idx2, 1)[0];
+                  resetCardStateForZoneChange(gordon);
+                  gordon.state = 'Stand';
+                  if (damagedContestant.board[targetS]) sendOverwrittenMonsterToGrave(damagedContestant, targetS);
+                  damagedContestant.board[targetS] = gordon;
+                  damagedContestant.leader.hp = Math.min(6, damagedContestant.leader.hp + 1);
+                  setLog(`🛡️ [กอร์ดอน - ในนรก] ฝ่ายตรงข้ามอัญเชิญ "กอร์ดอน" ลงช่องที่ ${targetS + 1} และฟื้นฟูเลือด 1 หน่วย (เหลือ ${damagedContestant.leader.hp}/6)!`);
+                  renderGame();
+                }
+              );
+            }
+          }
+        );
+      } else if (damagedContestant !== gameState.player) {
+        if (aiConfig.difficulty !== 'EASY') {
+          const emptySlot = damagedContestant.board.findIndex(m => m === null);
+          if (emptySlot !== -1) {
+            damagedContestant.rp07RevivedThisGame = true;
+            const gordon = damagedContestant.graveyard.splice(rp07Idx, 1)[0];
+            resetCardStateForZoneChange(gordon);
+            gordon.state = 'Stand';
+            damagedContestant.board[emptySlot] = gordon;
+            damagedContestant.leader.hp = Math.min(6, damagedContestant.leader.hp + 1);
+            showCardShowcaseBanner(gordon, 'AI ใช้สกิลกอร์ดอนจากนรก!', '🛡️ ลีดเดอร์เสีย HP -> อัญเชิญกอร์ดอน & ฮีล 1 HP!', '#2563eb', 1200);
+            setLog(`🛡️ [AI กอร์ดอน - ในนรก] ลีดเดอร์สูญเสีย HP -> อัญเชิญ "อัศวินแห่งความจริง กอร์ดอน" ลงช่องที่ ${emptySlot + 1} และฟื้นฟู 1 HP (เหลือ ${damagedContestant.leader.hp}/6)!`);
+            renderGame();
+          } else {
+            damagedContestant.rp07RevivedThisGame = true;
+            const gordon = damagedContestant.graveyard.splice(rp07Idx, 1)[0];
+            resetCardStateForZoneChange(gordon);
+            gordon.state = 'Stand';
+            const overwritten = sendOverwrittenMonsterToGrave(damagedContestant, 0);
+            damagedContestant.board[0] = gordon;
+            damagedContestant.leader.hp = Math.min(6, damagedContestant.leader.hp + 1);
+            showCardShowcaseBanner(gordon, 'AI ใช้สกิลกอร์ดอนจากนรก!', `🛡️ ลีดเดอร์เสีย HP -> อัญเชิญกอร์ดอน วางทับ "${overwritten.name}" & ฮีล 1 HP!`, '#2563eb', 1200);
+            setLog(`🛡️ [AI กอร์ดอน - ในนรก] ลีดเดอร์สูญเสีย HP -> อัญเชิญ "อัศวินแห่งความจริง กอร์ดอน" วางทับ "${overwritten.name}" และฟื้นฟู 1 HP (เหลือ ${damagedContestant.leader.hp}/6)!`);
+            renderGame();
+          }
+        }
+      } else {
+        showChoiceModal(
+          '🛡️ สั่งใช้งานในนรก: อัศวินแห่งความจริง กอร์ดอน',
+          'ลีดเดอร์ของคุณสูญเสียพลังชีวิต!\nต้องการสั่งใช้งาน "กอร์ดอน" จากนรก เพื่ออัญเชิญลงสนาม และฟื้นฟูพลังชีวิต 1 หน่วย (1 ครั้ง/เกม) หรือไม่?',
+          [
+            {
+              label: '🛡️ สั่งใช้งาน: อัญเชิญ "กอร์ดอน" + ฮีล 1 HP!',
+              color: '#2563eb',
+              onSelect: () => {
+                const curIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'RP07');
+                if (curIdx === -1 || damagedContestant.rp07RevivedThisGame) return;
+                const emptySlot = damagedContestant.board.findIndex(m => m === null);
+                if (emptySlot !== -1) {
+                  damagedContestant.rp07RevivedThisGame = true;
+                  const gordon = damagedContestant.graveyard.splice(curIdx, 1)[0];
+                  resetCardStateForZoneChange(gordon);
+                  gordon.state = 'Stand';
+                  damagedContestant.board[emptySlot] = gordon;
+                  damagedContestant.leader.hp = Math.min(6, damagedContestant.leader.hp + 1);
+                  setLog(`🛡️ [กอร์ดอน - ในนรก] อัญเชิญ "อัศวินแห่งความจริง กอร์ดอน" ลงช่องที่ ${emptySlot + 1} และฟื้นฟู 1 HP (เหลือ ${damagedContestant.leader.hp}/6)!`);
+                  renderGame();
+                } else {
+                  const replaceChoices = damagedContestant.board.map((m, sIdx) => ({
+                    label: `💀 วางทับ "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" (ช่อง ${sIdx + 1})`,
+                    color: '#2563eb',
+                    onSelect: () => {
+                      const idx2 = damagedContestant.graveyard.findIndex(c => c && c.id === 'RP07');
+                      if (idx2 === -1 || damagedContestant.rp07RevivedThisGame) return;
+                      damagedContestant.rp07RevivedThisGame = true;
+                      const gordon = damagedContestant.graveyard.splice(idx2, 1)[0];
+                      resetCardStateForZoneChange(gordon);
+                      gordon.state = 'Stand';
+                      if (damagedContestant.board[sIdx]) sendOverwrittenMonsterToGrave(damagedContestant, sIdx);
+                      damagedContestant.board[sIdx] = gordon;
+                      damagedContestant.leader.hp = Math.min(6, damagedContestant.leader.hp + 1);
+                      setLog(`🛡️ [กอร์ดอน - ในนรก] อัญเชิญ "อัศวินแห่งความจริง กอร์ดอน" วางทับช่องที่ ${sIdx + 1} และฟื้นฟู 1 HP (เหลือ ${damagedContestant.leader.hp}/6)!`);
+                      renderGame();
+                    }
+                  }));
+                  replaceChoices.push({
+                    label: 'ยกเลิก (เก็บไว้ในนรกก่อน)',
+                    color: '#475569',
+                    onSelect: () => renderGame()
+                  });
+                  showChoiceModal(
+                    '🛡️ สนามเต็ม 3 ช่อง: เลือกช่องที่จะวาง "กอร์ดอน" ทับ',
+                    'เลือกยูนิทบนสนามของคุณ 1 ตัวเพื่อส่งลงนรก แล้วอัญเชิญ "กอร์ดอน" ลงแทนที่:',
+                    replaceChoices
+                  );
+                }
+              }
+            },
+            {
+              label: 'ไม่ใช้ (เก็บไว้ในนรกก่อน)',
+              color: '#475569',
+              onSelect: () => renderGame()
+            }
+          ]
+        );
+      }
     }
   }
 }
@@ -8991,14 +10095,14 @@ const AI_CONFIG_STORAGE_KEY = 'bof_ai_config_v1';
 
 const aiConfig = (function () {
   const defaults = {
-    deckChoice: 'RANDOM', // 'RANDOM' | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06' | 'L07' | 'L08'
+    deckChoice: 'RANDOM', // 'RANDOM' | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06' | 'L07' | 'L08' | 'L09'
     difficulty: 'NORMAL', // 'EASY' | 'NORMAL' | 'HARD'
     stepDelayMs: 1150
   };
   try {
     const saved = JSON.parse(localStorage.getItem(AI_CONFIG_STORAGE_KEY));
     if (saved) {
-      if (['RANDOM', 'L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08'].includes(saved.deckChoice)) {
+      if (['RANDOM', 'L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09'].includes(saved.deckChoice)) {
         defaults.deckChoice = saved.deckChoice;
       }
       if (['EASY', 'NORMAL', 'HARD'].includes(saved.difficulty)) {
@@ -9034,7 +10138,8 @@ const AI_DECK_CATALOG = [
   { id: 'L05', name: 'เด็คปีศาจ', leader: 'ปีศาจ', desc: 'สะสมมิติมืดและใช้พลังบาปทั้ง 7 พิชิตชัย', color: '#c084fc', img: 'images/เด็คปีศาจ/1.png' },
   { id: 'L06', name: 'เด็คโอ็ต', leader: 'ไอโอ๊ตบ้าทุกสิ่ง', desc: 'เปิดท็อปกองคอลพรรคพวกสายบ้าลงสนาม', color: '#fb923c', img: 'images/เด็คโอ๊ต/1.png' },
   { id: 'L07', name: 'เด็คมาโดกะ', leader: 'มาโดกะ', desc: 'ค้นหา Soul Gem และอัญเชิญสาวน้อยเวทมนตร์', color: '#f472b6', img: 'images/มาโดกะ/1.png' },
-  { id: 'L08', name: 'เด็คคาเงโร่', leader: 'คาเงโร่', desc: 'ทิ้งการ์ดทำลายยูนิทและบังคับสูญเสียพลังชีวิต', color: '#ef4444', img: 'images/เด็คคาเงโร่/1.png' }
+  { id: 'L08', name: 'เด็คคาเงโร่', leader: 'คาเงโร่', desc: 'ทิ้งการ์ดทำลายยูนิทและบังคับสูญเสียพลังชีวิต', color: '#ef4444', img: 'images/เด็คคาเงโร่/1.png' },
+  { id: 'L09', name: 'เด็ครอยัล พาลาดิน', leader: 'รอยัล พาลาดิน', desc: 'ค้นหายูนิตเข้ามือ เสริมพลังตามการ์ดบนมือ และสแตนด์ยูนิตจบเทิร์น', color: '#2563eb', img: 'images/รอยัล พาลาดิน/1.png' }
 ];
 
 function openAISetupModal() {
@@ -9490,6 +10595,22 @@ function performSingleAIMainAction() {
       return true;
     }
 
+    // 1.06 อัญเชิญ โซลเซฟเวอร์ ดราก้อน จากมือ (RP01)
+    const soulSaverIdx = ai.hand.findIndex(c => c && c.id === 'RP01');
+    if (soulSaverIdx !== -1 && ai.board.some(m => m === null) && (ai.graveyard || []).length >= 8 && (player.graveyard || []).length >= 8) {
+      activateSoulSaverDragonHand(ai, soulSaverIdx);
+      return true;
+    }
+
+    // 1.07 สั่งใช้งาน เอโพน่า จากนรก (RP10)
+    if (!ai.eponaUsedThisGame && ai.leader.hp <= 3 && !isGraveyardSkillLockedByOpponent(ai) && Array.isArray(ai.graveyard)) {
+      const eponaGraveCard = ai.graveyard.find(c => c && c.id === 'RP10');
+      if (eponaGraveCard) {
+        executeEponaGraveSkill(ai, eponaGraveCard);
+        return true;
+      }
+    }
+
     // 1.0 อัญเชิญไฮบริดไดโนจากมือ (DN06 / DN07)
     const emptySlotForHybrid = ai.board.findIndex(m => m === null);
     if (emptySlotForHybrid !== -1) {
@@ -9682,6 +10803,14 @@ function performSingleAIMainAction() {
         showCardShowcaseBanner(m, 'AI ใช้สกิลเวโลซิแรปเตอร์!', `🦖 Rest ตัวเอง บัฟพลังให้ "${otherDino.name}" +2 จนจบเทิร์น!`, '#16a34a');
         setLog(`🦖 [AI เวโลซิแรปเตอร์] Rest ตัวเองเพื่อเพิ่มพลังให้ "${otherDino.name}" +2 จนจบเทิร์น!`);
         renderGame();
+        playSlotAnimation(false, slotIdx, 'fx-skill-glow');
+        return true;
+      }
+    }
+
+    // 3.0.3 นักวางแผนน้อย มารอน (RP08) สั่งใช้งานบนสนาม (1 ครั้ง/เทิร์น)
+    if (m.id === 'RP08' && (!m.usedSkills || !m.usedSkills.marronActivatedThisTurn)) {
+      if (handleMarronBoardActivation(ai, slotIdx)) {
         playSlotAnimation(false, slotIdx, 'fx-skill-glow');
         return true;
       }
@@ -10134,6 +11263,44 @@ function aiCastBestNormalSpell(ai, player, diff) {
     showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', `💖 ส่ง "${sentNames.join(', ')}" ลงนรก & จั่ว 1 ใบ!`, '#f472b6');
     setLog(`💖 AI ใช้เวทย์ "หัวใจของสาวน้อยเวทมนตร์" ส่ง "${sentNames.join(', ')}" ลงนรก สับกอง แล้วจั่ว 1 ใบ!`);
     renderGame();
+    return true;
+  }
+
+  // 10. ผู้นำพาความโชคดี เอโพน่า (RP10)
+  const rp10Idx = ai.hand.findIndex(c => c && c.id === 'RP10');
+  if (rp10Idx !== -1 && ai.deck.length > 0 && ai.board.some(m => m !== null)) {
+    const spell = ai.hand.splice(rp10Idx, 1)[0];
+    ai.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    ai.graveyard.push(spell);
+
+    const milled = ai.deck.shift();
+    if (milled) {
+      resetCardStateForZoneChange(milled);
+      ai.graveyard.push(milled);
+    }
+
+    let bestTarget = null;
+    let maxP = -1;
+    ai.board.forEach(m => {
+      if (m) {
+        const p = getEffectivePower(m, ai);
+        if (p > maxP) { maxP = p; bestTarget = m; }
+      }
+    });
+    if (bestTarget) {
+      bestTarget.tempPowerMod += 2;
+    }
+    showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์ เอโพน่า!', `🍀 โม่การ์ด 1 ใบ และเพิ่มพลังให้ "${bestTarget ? bestTarget.name : 'ยูนิท'}" +2 จนจบเทิร์น!`, '#2563eb');
+    setLog(`🍀 [AI เอโพน่า] ทิ้งท็อปกอง 1 ใบ ("${milled ? milled.name : '-'}") -> เพิ่มพลังให้ "${bestTarget ? bestTarget.name : 'ยูนิท'}" +2 หน่วยจนจบเทิร์น!`);
+    renderGame();
+    return true;
+  }
+
+  // 11. มิโกะต้นไม้แห่งชีวิต เอเลน (RP11)
+  const rp11Idx = ai.hand.findIndex(c => c && c.id === 'RP11');
+  if (rp11Idx !== -1 && (ai.graveyard || []).length >= 2) {
+    executeElenHandSkill(ai, ai.hand[rp11Idx], rp11Idx);
     return true;
   }
 
@@ -11401,6 +12568,10 @@ function renderDeckBuilder() {
           alert('การ์ด "มังกรมารผู้ใช้เวทย์ แรคช่า" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "คาเงโร่" เท่านั้น!');
           return;
         }
+        if (card.id.startsWith('RP') && card.id !== 'RP01' && currentDeckConfig.leaderId !== 'L09') {
+          alert(`การ์ด "${card.name}" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "รอยัล พาลาดิน" เท่านั้น!`);
+          return;
+        }
         if (currentDeckConfig.mainDeck.length >= 20) {
           alert('การ์ดใน Main Deck ครบ 20 ใบแล้ว! กรุณาคลิกเอาใบอื่นออกก่อน');
           return;
@@ -11492,7 +12663,7 @@ function initGame() {
   const scrollbox = document.getElementById('action-log-scrollbox');
   if (scrollbox) scrollbox.innerHTML = '';
 
-  const allLeaderIds = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08'];
+  const allLeaderIds = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09'];
   const chosenAiLeaderId = (aiConfig.deckChoice === 'RANDOM')
     ? allLeaderIds[Math.floor(Math.random() * allLeaderIds.length)]
     : aiConfig.deckChoice;

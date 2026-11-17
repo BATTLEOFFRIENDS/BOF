@@ -16,6 +16,7 @@
     { key: 'oat', leaderId: 'L06', name: 'เด็คโอ็ต', style: 'เปิดท็อปกองคอลพรรคพวกสายบ้าลงสนามและถล่มด้วยคอมโบสุดปั่น' },
     { key: 'madoka', leaderId: 'L07', name: 'เด็คมาโดกะ', style: 'อัญเชิญสาวน้อยเวทมนตร์และปลดปล่อยพลังมิติมืด' },
     { key: 'kagero', leaderId: 'L08', name: 'เด็คคาเงโร่', style: 'มังกรเพลิงทำลายล้างสนามและสแตนด์บุกโจมตีต่อเนื่อง' },
+    { key: 'royal_paladin', leaderId: 'L09', name: 'เด็ครอยัล พาลาดิน', style: 'ค้นหายูนิตเข้ามือ เสริมพลังตามการ์ดบนมือ และสแตนด์ยูนิตจบเทิร์น' },
   ];
 
   const byId = id => CARD_DATABASE.find(c => c.id === id);
@@ -57,8 +58,8 @@
   /* ---------------- การแสดงผล (ล็อบบี้เกมหน้าจอเดียว v0.8) ---------------- */
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
-  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#ef4444' };
-  const STANDARD = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08'];
+  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#ef4444', L09: '#2563eb' };
+  const STANDARD = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09'];
   const small = () => matchMedia('(max-width: 767px)').matches;
   const wallSize = () => (small() ? { cols: 6, rows: 6 } : { cols: 12, rows: 5 });
 

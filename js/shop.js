@@ -1524,6 +1524,15 @@
       color: '#ef4444',
       image: 'images/เด็คคาเงโร่/1.png',
       price: 2000
+    },
+    {
+      id: 'deck_royal_paladin',
+      leaderId: 'L09',
+      name: 'เด็ครอยัล พาลาดิน',
+      sub: 'ค้นหายูนิตเข้ามือ เสริมพลังตามการ์ดบนมือ และสแตนด์ยูนิตจบเทิร์น',
+      color: '#2563eb',
+      image: 'images/รอยัล พาลาดิน/1.png',
+      price: 2000
     }
   ];
 
