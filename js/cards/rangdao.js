@@ -9,7 +9,7 @@ CARD_DATABASE.push(
     power: 2,
     image: 'images/รางดาว/2.png',
     ability: 'TRAILBLAZER_SKILL',
-    desc: 'ออโต้ : เมื่อลงสนาม จั่วการ์ด 2 ใบ\nสั่งใช้งาน / 1 เทิร์น : นำการ์ดจากนรกไม่เกิน 2 ใบ กลับเข้ากอง',
+    desc: 'ออโต้ : เมื่อลงสนาม จั่วการ์ด 2 ใบ\nสั่งใช้งาน / 1 เทิร์น : นำการ์ดจากนรกเราไม่เกิน 2 ใบ กลับเข้ากอง',
     effects: [
       {
         id: 'rd01_on_summon',
@@ -17,6 +17,12 @@ CARD_DATABASE.push(
         steps: [
           { block: 'DRAW', side: 'SELF', count: 2 }
         ]
+      },
+      {
+        id: 'rd01_recycle',
+        label: 'นำการ์ดจากนรกเราไม่เกิน 2 ใบ กลับเข้ากอง',
+        trigger: 'ACTIVATE_MAIN',
+        oncePerTurn: true
       }
     ]
   },
@@ -78,17 +84,8 @@ CARD_DATABASE.push(
     rarity: 'R',
     power: 1,
     image: 'images/รางดาว/5.png',
-    ability: 'DAN_HENG_IL_IMMUNITY',
-    desc: 'ต่อเนื่อง : ถ้ายูนิทนี้อยู่บนสนาม ยูนิททุกใบฝั่งเราจะไม่ถูกทำลายจากความสามารถ\nออโต้ : เมื่อจบเทิร์น สแตร์นยูนิทนี้',
-    effects: [
-      {
-        id: 'rd04_stand_self',
-        trigger: 'ON_BATTLE_DESTROY',
-        steps: [
-          { block: 'STAND_SELF' }
-        ]
-      }
-    ]
+    ability: 'DAN_HENG_IL',
+    desc: 'ต่อเนื่อง : ถ้ายูนิทนี้อยู่บนสนาม ยูนิททุกใบฝั่งเราจะไม่ถูกทำลายจากความสามารถ\nออโต้ : เมื่อจบเทิร์นเรา สแตร์นยูนิทนี้'
   },
   {
     id: 'RD05',
@@ -145,16 +142,7 @@ CARD_DATABASE.push(
     power: 1,
     image: 'images/รางดาว/8.png',
     ability: 'SUNDAY_ORDER',
-    desc: 'ต่อเนื่อง : ถ้าการ์ดใบนี้อยู่ในนรก ยูนิทบนสนามฝั่งเราทุกใบพลังโจมตีเพิ่ม 1 หน่วย\nออโต้ : เมื่อการ์ดใบนี้ถูกทิ้งจากบนมือ นำยูนิทไม่เกิน 1 ใบ จากนรกนำขึ้นมือ',
-    effects: [
-      {
-        id: 'rd07_recover',
-        trigger: 'ON_SUMMON',
-        steps: [
-          { block: 'RECOVER_FROM_GRAVE', filterType: 'MONSTER', count: 1 }
-        ]
-      }
-    ]
+    desc: 'ต่อเนื่อง : ถ้าการ์ดใบนี้อยู่ในนรก ยูนิทบนสนามฝั่งเราทุกใบพลังโจมตีเพิ่ม 1 หน่วย\nออโต้ : เมื่อการ์ดใบนี้ถูกทิ้งจากบนมือ นำยูนิทไม่เกิน 1 ใบ จากนรกนำขึ้นมือ'
   },
   {
     id: 'RD08',
@@ -192,11 +180,11 @@ CARD_DATABASE.push(
   },
   {
     id: 'RD10',
-    name: 'โล่แสง อิโชลท์',
+    name: 'POM POM',
     type: 'ReactionSpell',
     rarity: 'R',
     image: 'images/รางดาว/11.png',
-    ability: 'SPELL_RANGDAO_SHIELD',
+    ability: 'SPELL_POM_POM',
     desc: 'เมื่อยูนิทหรือลีดเดอร์ของเราถูกโจมตี สามารถทิ้งการ์ด 1 ใบจากมือ ยกเลิกการโจมตีนั้น และถ้าการ์ดที่ถูกทิ้งเป็นการ์ดเผ่า “รางดาว” เพิ่มพลังชีวิต 1 หน่วย'
   }
 );

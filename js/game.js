@@ -248,6 +248,11 @@ function getEffectivePower(card, ownerContestant) {
       }
     }
 
+    // 0.6 SUNDAY (RD07) ในนรก: ถ้าการ์ดใบนี้อยู่ในนรก ยูนิทบนสนามฝั่งเราทุกใบพลังโจมตีเพิ่ม 1 หน่วย
+    if (Array.isArray(owner.graveyard) && owner.graveyard.some(c => c && c.id === 'RD07')) {
+      total += 1;
+    }
+
     // 0.1 ดราโกนิค โอเวอร์ลอร์ด (KG01): เมื่อมือเราน้อยกว่าอีกฝ่าย พลัง +1
     if (!isSilencedByEla && card.id === 'KG01' && typeof gameState !== 'undefined') {
       const opp = (owner === gameState.player) ? gameState.ai : gameState.player;
@@ -475,12 +480,21 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   const monster = boardOwner.board[slotIndex];
   if (!monster) return { destroyed: false, reason: 'empty' };
 
-  if (isByEnemyEffect && monster.immuneToEnemyEffectsUntilEndOfTurn) {
+  const opp = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
+  const oppHasWelt = opp && Array.isArray(opp.board) && opp.board.some(m => m !== null && m.id === 'RD06');
+  const hasDanHengIL = Array.isArray(boardOwner.board) && boardOwner.board.some(m => m !== null && m.id === 'RD04');
+
+  if (isByEnemyEffect && hasDanHengIL && !oppHasWelt) {
+    setLog(`🛡️ [DAN HENG จ้าวทรนงคงปฐพี] ปกป้อง "${monster.name}" จากการถูกทำลายด้วยความสามารถ!`);
+    return { destroyed: false, reason: 'dan_heng_protection', monster };
+  }
+
+  if (isByEnemyEffect && monster.immuneToEnemyEffectsUntilEndOfTurn && !oppHasWelt) {
     setLog(`🛡️ "${monster.name}" ไม่ได้รับผลจากความสามารถของการ์ดฝ่ายตรงข้ามในเทิร์นนี้!`);
     return { destroyed: false, reason: 'immune', monster };
   }
 
-  if (monster.indestructibleUntilNextTurn) {
+  if (monster.indestructibleUntilNextTurn && !oppHasWelt) {
     setLog(`🛡️ "${monster.name}" ไม่สามารถถูกทำลายได้จนเริ่มเทิร์นถัดไป!`);
     return { destroyed: false, reason: 'indestructible', monster };
   }
@@ -2587,6 +2601,7 @@ const EffectEngine = {
 
         if (effectDef.trigger === 'CAST_SPELL' || sourceCard.type === 'NSpell' || sourceCard.type === 'NormalSpell' || sourceCard.type === 'RSpell' || sourceCard.type === 'ReactionSpell') {
           isSpell = true;
+          if (typeof triggerHimekoSpellBuff === 'function') triggerHimekoSpellBuff(caster);
           const isR = sourceCard.type === 'RSpell' || sourceCard.type === 'ReactionSpell' || effectDef.isReaction;
           bannerTitle = isR ? `⚡ เวทรีแอค (${sidePrefix})` : `✨ ร่ายเวทมนตร์ (${sidePrefix})`;
           bannerColor = isR ? '#ec4899' : '#38bdf8';
@@ -4343,6 +4358,12 @@ function activateLeaderSkillPlayer() {
     return;
   }
 
+  // 🌌 รางดาว (L10): สั่งใช้งาน / 1 เทิร์น : นำการ์ดเวทมนตร์ไม่เกิน 1 ใบ จากกองหรือนรกขึ้นมือ
+  if (player.leader.id === 'L10') {
+    handleRangdaoLeaderActivation(player);
+    return;
+  }
+
   const leaderEffects = (player.leader.effects || []).filter(e => e.trigger === 'ACTIVATE_LEADER');
   if (leaderEffects.length === 0) {
     setLog(`ℹ️ ลีดเดอร์ "${player.leader.name}" เป็นความสามารถต่อเนื่อง/ออโต้ (คลิกขวาเพื่อดูรายละเอียดการ์ด)`);
@@ -4374,6 +4395,12 @@ function activateMonsterOnBoardPlayer(slotIndex) {
   const player = gameState.player;
   const monster = player.board[slotIndex];
   if (!monster) return;
+
+  // 🌌 TRAILBLAZER (RD01): สั่งใช้งานบนสนาม 1/เทิร์น นำการ์ดจากนรกเราไม่เกิน 2 ใบ กลับเข้ากอง
+  if (monster.id === 'RD01') {
+    handleTrailblazerBoardActivation(player, slotIndex);
+    return;
+  }
 
   // 📖 มารอน (RP08): สั่งใช้งานบนสนาม 1/เทิร์น
   if (monster.id === 'RP08') {
@@ -4469,6 +4496,10 @@ function initiatePlayerSpell(handIndex) {
   }
   if (spell.id === 'RP09') {
     setLog('ℹ️ "โล่แสง อิโซลท์" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อถูกโจมตี)');
+    return;
+  }
+  if (spell.id === 'RD10') {
+    setLog('ℹ️ "POM POM" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อยูนิทหรือลีดเดอร์ถูกโจมตี)');
     return;
   }
   if (spell.id === 'RP10') {
@@ -5920,6 +5951,53 @@ function checkDiscardTriggers(contestant, card) {
   if (!card) return;
   const other = (contestant === gameState.player) ? gameState.ai : gameState.player;
 
+  // 🕊️ SUNDAY (RD07): เมื่อถูกทิ้งจากบนมือ นำยูนิทไม่เกิน 1 ใบ จากนรกนำขึ้นมือ
+  if (card.id === 'RD07') {
+    const graveMonsters = (contestant.graveyard || []).filter(c => c && c.type === 'Monster' && c.uid !== card.uid);
+    if (graveMonsters.length > 0) {
+      if (contestant !== gameState.player) {
+        let bestMonster = graveMonsters[0];
+        let maxP = -1;
+        graveMonsters.forEach(m => {
+          const p = m.power || 0;
+          if (p > maxP) { maxP = p; bestMonster = m; }
+        });
+        const gIdx = contestant.graveyard.indexOf(bestMonster);
+        if (gIdx !== -1) {
+          const rec = contestant.graveyard.splice(gIdx, 1)[0];
+          resetCardStateForZoneChange(rec);
+          contestant.hand.push(rec);
+          showCardShowcaseBanner(card, 'AI ออโต้ SUNDAY!', `🕊️ ถูกทิ้ง -> นำยูนิท "${rec.name}" จากนรกขึ้นมือ!`, '#38bdf8', 1200);
+          setLog(`🕊️ [AI ออโต้ - SUNDAY] ถูกทิ้ง -> นำยูนิท "${rec.name}" จากนรกขึ้นมือ!`);
+          renderGame();
+        }
+      } else {
+        const choices = graveMonsters.map(m => ({
+          label: `นำยูนิท "${m.name}" (Power ${m.power || 0}) ขึ้นมือ`,
+          color: '#2563eb',
+          card: m,
+          cardId: m.id,
+          onSelect: () => {
+            const gIdx = contestant.graveyard.indexOf(m);
+            if (gIdx !== -1) {
+              const rec = contestant.graveyard.splice(gIdx, 1)[0];
+              resetCardStateForZoneChange(rec);
+              contestant.hand.push(rec);
+              setLog(`🕊️ [ออโต้ - SUNDAY] ถูกทิ้ง -> นำยูนิท "${rec.name}" จากนรกขึ้นมือ!`);
+              renderGame();
+            }
+          }
+        }));
+        choices.push({
+          label: 'ไม่นำการ์ดยูนิทขึ้นมือ',
+          color: '#64748b',
+          onSelect: () => {}
+        });
+        showChoiceModal('🕊️ ออโต้: SUNDAY (ถูกทิ้งจากบนมือ)', 'SUNDAY ถูกทิ้งลงนรก!\nเลือกยูนิท 1 ใบจากนรกเพื่อนำขึ้นมือ (ไม่เกิน 1 ใบ):', choices);
+      }
+    }
+  }
+
   // DM05 (ซึรุรุ): ทำงานเฉพาะเมื่อถูกทิ้งจากสกิลของ "โอนามิ ผู้ทำลายโลก" (DM01) เท่านั้น (จัดการใน EffectEngine / AI Onami)
 
   // KG01 (ดราโกนิค โอเวอร์ลอร์ด): เมื่อถูกทิ้ง สามารถอัญเชิญลงสนาม
@@ -6809,6 +6887,235 @@ function triggerMarronSearchSpell(caster, isAI, onDone) {
   showChoiceModal('📖 นักวางแผนน้อย มารอน: สกิลเมื่อลงสนาม', 'เลือกการ์ดเวทมนตร์ 1 ใบจากกองการ์ดขึ้นมือ:', choices);
 }
 
+// 🛰️ HIMEKO (RD05): ออโต้ เมื่อเราร่ายเวทมนตร์ ยูนิทนี้พลังโจมตีเพิ่ม 2 หน่วยจนจบเทิร์น
+function triggerHimekoSpellBuff(caster) {
+  if (!caster || !Array.isArray(caster.board)) return;
+  caster.board.forEach(m => {
+    if (m && m.id === 'RD05') {
+      m.tempPowerMod = (m.tempPowerMod || 0) + 2;
+      setLog(`🛰️ [ออโต้ - HIMEKO] ร่ายเวทมนตร์ -> "${m.name}" พลังโจมตี +2 จนจบเทิร์น!`);
+    }
+  });
+}
+
+// 🌌 TRAILBLAZER (RD01): สั่งใช้งาน / 1 เทิร์น : นำการ์ดจากนรกเราไม่เกิน 2 ใบ กลับเข้ากอง
+function handleTrailblazerBoardActivation(caster, slotIndex) {
+  const monster = caster.board[slotIndex];
+  if (!monster) return;
+  if (monster.usedSkills && monster.usedSkills.trailblazerActivatedThisTurn) {
+    setLog('⚠️ "TRAILBLAZER" ใช้สกิลในเทิร์นนี้ไปแล้ว (ใช้ได้ 1 ครั้ง/เทิร์น)!');
+    return;
+  }
+  const myGrave = Array.isArray(caster.graveyard) ? caster.graveyard : [];
+  if (myGrave.length === 0) {
+    setLog('⚠️ ไม่มีนรกให้เลือกการ์ดนำกลับเข้ากอง!');
+    return false;
+  }
+  const isAI = (caster !== gameState.player);
+  if (isAI) {
+    const toReturnCount = Math.min(2, myGrave.length);
+    const returnedNames = [];
+    for (let i = 0; i < toReturnCount; i++) {
+      const picked = myGrave.pop();
+      resetCardStateForZoneChange(picked);
+      caster.deck.push(picked);
+      returnedNames.push(picked.name);
+    }
+    caster.deck = shuffleDeck(caster.deck);
+    if (!monster.usedSkills) monster.usedSkills = {};
+    monster.usedSkills.trailblazerActivatedThisTurn = true;
+    showCardShowcaseBanner(monster, 'AI ใช้สกิล TRAILBLAZER!', `🌌 นำการ์ดจากนรก (${returnedNames.join(', ')}) กลับเข้ากอง!`, '#2563eb', 1200);
+    setLog(`🌌 [AI TRAILBLAZER] นำการ์ดจากนรก (${returnedNames.join(', ')}) กลับเข้ากอง!`);
+    renderGame();
+    return true;
+  }
+
+  // Player selection (up to 2 cards)
+  const finishTrailblazer = (selectedCards) => {
+    selectedCards.forEach(c => {
+      const idx = myGrave.indexOf(c);
+      if (idx !== -1) myGrave.splice(idx, 1);
+      resetCardStateForZoneChange(c);
+      caster.deck.push(c);
+    });
+    caster.deck = shuffleDeck(caster.deck);
+    if (!monster.usedSkills) monster.usedSkills = {};
+    monster.usedSkills.trailblazerActivatedThisTurn = true;
+    const names = selectedCards.map(c => `"${c.name}"`).join(', ');
+    setLog(`🌌 [TRAILBLAZER] นำการ์ดจากนรก ${names} (${selectedCards.length} ใบ) กลับเข้ากองและสับกองเรียบร้อย!`);
+    renderGame();
+  };
+
+  const pickCardStep = (selectedSoFar = []) => {
+    const remainingGrave = myGrave.filter(c => !selectedSoFar.includes(c));
+    const choices = remainingGrave.map((c) => ({
+      label: `นำ "${c.name}" (${c.type}) กลับเข้ากอง`,
+      color: '#2563eb',
+      card: c,
+      cardId: c.id,
+      onSelect: () => {
+        selectedSoFar.push(c);
+        if (selectedSoFar.length < 2 && remainingGrave.length > 1) {
+          showChoiceModal(
+            '🌌 TRAILBLAZER: เลือกใบที่ 2 หรือเสร็จสิ้น',
+            `เลือกแล้ว 1 ใบ: "${c.name}"\nต้องการเลือกการ์ดจากนรกเพิ่มอีก 1 ใบ หรือนำกลับเข้ากองทันที?`,
+            [
+              {
+                label: '➕ เลือกการ์ดใบที่ 2 เพิ่ม',
+                color: '#2563eb',
+                onSelect: () => pickCardStep(selectedSoFar)
+              },
+              {
+                label: '✅ พอแล้ว นำ 1 ใบนี้กลับเข้ากองและสับกอง',
+                color: '#16a34a',
+                onSelect: () => finishTrailblazer(selectedSoFar)
+              }
+            ]
+          );
+        } else {
+          finishTrailblazer(selectedSoFar);
+        }
+      }
+    }));
+    showChoiceModal(
+      `🌌 TRAILBLAZER: เลือกการ์ดจากนรก (ใบที่ ${selectedSoFar.length + 1}/2)`,
+      'เลือกการ์ด 1 ใบจากนรกเพื่อนำกลับเข้ากอง:',
+      choices
+    );
+  };
+
+  pickCardStep([]);
+  return true;
+}
+
+// 🌌 ลีดเดอร์ รางดาว (L10): สั่งใช้งาน / 1 เทิร์น : นำการ์ดเวทมนตร์ไม่เกิน 1 ใบ จากกองหรือนรกขึ้นมือ
+function handleRangdaoLeaderActivation(caster) {
+  if (gameState.phase !== 'Main Phase') {
+    setLog('⚠️ สกิลลีดเดอร์ รางดาว กดใช้ได้ใน Main Phase เท่านั้น!');
+    return false;
+  }
+  if (caster.leader.abilityUsedThisTurn) {
+    setLog('⚠️ ลีดเดอร์ "รางดาว" ใช้ความสามารถในเทิร์นนี้ไปแล้ว (ใช้ได้ 1 ครั้ง/เทิร์น)!');
+    return false;
+  }
+
+  const isSpell = (c) => c && (c.type === 'NormalSpell' || c.type === 'ReactionSpell' || c.type === 'NSpell' || c.type === 'RSpell');
+  const deckSpells = (caster.deck || []).filter(isSpell);
+  const graveSpells = (caster.graveyard || []).filter(isSpell);
+
+  if (deckSpells.length === 0 && graveSpells.length === 0) {
+    setLog('⚠️ ไม่มีเวทมนตร์ในกองการ์ดหรือนรกที่จะนำขึ้นมือ!');
+    return false;
+  }
+
+  const isAI = (caster !== gameState.player);
+  if (isAI) {
+    if (graveSpells.length > 0) {
+      const picked = graveSpells[0];
+      const gIdx = caster.graveyard.indexOf(picked);
+      if (gIdx !== -1) caster.graveyard.splice(gIdx, 1);
+      resetCardStateForZoneChange(picked);
+      caster.hand.push(picked);
+      caster.leader.abilityUsedThisTurn = true;
+      showCardShowcaseBanner(caster.leader, 'AI ใช้สกิล Leader รางดาว!', `🌌 นำเวท "${picked.name}" จากนรกขึ้นมือ!`, '#8b5cf6', 1200);
+      setLog(`🌌 [AI ลีดเดอร์ รางดาว] นำการ์ดเวทมนตร์ "${picked.name}" จากนรกขึ้นมือ!`);
+      renderGame();
+      return true;
+    } else if (deckSpells.length > 0) {
+      const picked = deckSpells[0];
+      const dIdx = caster.deck.indexOf(picked);
+      if (dIdx !== -1) caster.deck.splice(dIdx, 1);
+      resetCardStateForZoneChange(picked);
+      caster.hand.push(picked);
+      caster.deck = shuffleDeck(caster.deck);
+      caster.leader.abilityUsedThisTurn = true;
+      showCardShowcaseBanner(caster.leader, 'AI ใช้สกิล Leader รางดาว!', `🌌 นำเวท "${picked.name}" จากกองการ์ดขึ้นมือ!`, '#8b5cf6', 1200);
+      setLog(`🌌 [AI ลีดเดอร์ รางดาว] นำการ์ดเวทมนตร์ "${picked.name}" จากกองการ์ดขึ้นมือ และสับกองเรียบร้อย!`);
+      renderGame();
+      return true;
+    }
+    return false;
+  }
+
+  const pickFromDeck = () => {
+    const choices = deckSpells.map((c) => ({
+      label: `นำ "${c.name}" (${c.type === 'ReactionSpell' ? 'เวทรีแอค' : 'เวทปกติ'}) ขึ้นมือ`,
+      color: '#8b5cf6',
+      card: c,
+      cardId: c.id,
+      onSelect: () => {
+        const dIdx = caster.deck.indexOf(c);
+        if (dIdx !== -1) caster.deck.splice(dIdx, 1);
+        resetCardStateForZoneChange(c);
+        caster.hand.push(c);
+        caster.deck = shuffleDeck(caster.deck);
+        caster.leader.abilityUsedThisTurn = true;
+        setLog(`🌌 [ลีดเดอร์ รางดาว] นำการ์ดเวทมนตร์ "${c.name}" จากกองการ์ดขึ้นมือ และสับกองเรียบร้อย!`);
+        renderGame();
+      }
+    }));
+    choices.push({
+      label: '❌ ยกเลิก (ไม่นำการ์ดขึ้นมือ)',
+      color: '#475569',
+      onSelect: () => {}
+    });
+    showChoiceModal('🌌 ลีดเดอร์ รางดาว: เลือกเวทมนตร์จากกองการ์ด', 'เลือกการ์ดเวทมนตร์ 1 ใบจากกองการ์ดเพื่อนำขึ้นมือ:', choices);
+  };
+
+  const pickFromGrave = () => {
+    const choices = graveSpells.map((c) => ({
+      label: `นำ "${c.name}" (${c.type === 'ReactionSpell' ? 'เวทรีแอค' : 'เวทปกติ'}) ขึ้นมือ`,
+      color: '#8b5cf6',
+      card: c,
+      cardId: c.id,
+      onSelect: () => {
+        const gIdx = caster.graveyard.indexOf(c);
+        if (gIdx !== -1) caster.graveyard.splice(gIdx, 1);
+        resetCardStateForZoneChange(c);
+        caster.hand.push(c);
+        caster.leader.abilityUsedThisTurn = true;
+        setLog(`🌌 [ลีดเดอร์ รางดาว] นำการ์ดเวทมนตร์ "${c.name}" จากนรกขึ้นมือ!`);
+        renderGame();
+      }
+    }));
+    choices.push({
+      label: '❌ ยกเลิก (ไม่นำการ์ดขึ้นมือ)',
+      color: '#475569',
+      onSelect: () => {}
+    });
+    showChoiceModal('🌌 ลีดเดอร์ รางดาว: เลือกเวทมนตร์จากนรก', 'เลือกการ์ดเวทมนตร์ 1 ใบจากนรกเพื่อนำขึ้นมือ:', choices);
+  };
+
+  if (deckSpells.length > 0 && graveSpells.length > 0) {
+    showChoiceModal(
+      '🌌 สกิลลีดเดอร์ รางดาว',
+      'ต้องการนำการ์ดเวทมนตร์จากโซนใดขึ้นมือ (ไม่เกิน 1 ใบ)?',
+      [
+        {
+          label: `🎴 ค้นหาจากกองการ์ด (${deckSpells.length} ใบ)`,
+          color: '#8b5cf6',
+          onSelect: pickFromDeck
+        },
+        {
+          label: `🪦 เลือกจากกองนรก (${graveSpells.length} ใบ)`,
+          color: '#ec4899',
+          onSelect: pickFromGrave
+        },
+        {
+          label: '❌ ยกเลิก',
+          color: '#475569',
+          onSelect: () => {}
+        }
+      ]
+    );
+  } else if (deckSpells.length > 0) {
+    pickFromDeck();
+  } else {
+    pickFromGrave();
+  }
+  return true;
+}
+
 // 📖 มารอน (RP08): สั่งใช้งานบนสนาม 1/เทิร์น นำการ์ดจากนรกฝั่งใดก็ได้ 1 ใบกลับเข้ากอง แล้วเจ้าของจั่ว 1 ใบ
 function handleMarronBoardActivation(caster, slotIndex) {
   const monster = caster.board[slotIndex];
@@ -6919,6 +7226,7 @@ function executeEponaHandSkill(caster, spellCard, handIndex) {
   if (isAI) {
     const spell = caster.hand.splice(handIndex, 1)[0];
     caster.spellQuota.normalUsed += 1;
+    triggerHimekoSpellBuff(caster);
     resetCardStateForZoneChange(spell);
     caster.graveyard.push(spell);
 
@@ -6997,6 +7305,7 @@ function executeElenHandSkill(caster, spellCard, handIndex) {
     const curIdx = caster.hand.findIndex(c => c.uid === spellCard.uid);
     const spell = curIdx !== -1 ? caster.hand.splice(curIdx, 1)[0] : spellCard;
     caster.spellQuota.normalUsed += 1;
+    triggerHimekoSpellBuff(caster);
     resetCardStateForZoneChange(spell);
     caster.graveyard.push(spell);
 
@@ -7019,6 +7328,7 @@ function executeElenHandSkill(caster, spellCard, handIndex) {
       }
     }
     caster.deck = shuffleDeck(caster.deck);
+    triggerHimekoSpellBuff(caster);
     drawCards(caster, 2);
     if (caster.hand.length > 0) {
       const discarded = caster.hand.pop();
@@ -7066,6 +7376,7 @@ function executeElenHandSkill(caster, spellCard, handIndex) {
       }
     }
     caster.deck = shuffleDeck(caster.deck);
+    triggerHimekoSpellBuff(caster);
     drawCards(caster, 2);
     setLog(`🌿 [เอเลน] นำ ${selectedCards.map(c => `"${c.name}"`).join(' และ ')} จากนรกกลับเข้ากอง สลับกอง และได้จั่ว 2 ใบ!`);
     renderGame();
@@ -7222,6 +7533,14 @@ function executeEndPhaseCleanup(activeContestant) {
         }
       });
     }
+
+    // 🐉 DAN HENG จ้าวทรนงคงปฐพี (RD04): ออโต้จบเทิร์นเรา สแตร์นยูนิทนี้
+    activeContestant.board.forEach(m => {
+      if (m && m.id === 'RD04' && m.state === 'Rest') {
+        m.state = 'Stand';
+        setLog(`🐉 [ออโต้จบเทิร์น - DAN HENG จ้าวทรนงคงปฐพี] สแตร์นตัวเองบนสนาม!`);
+      }
+    });
   }
 
   activeContestant.board.forEach((m, idx) => {
@@ -8833,6 +9152,11 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (defender.hand.length >= 2)
     && (defender.spellQuota.reactionUsed < 1);
 
+  const rd10InHandIdx = defender.hand.findIndex(c => c && c.id === 'RD10');
+  const canUsePomPom = (rd10InHandIdx !== -1)
+    && (defender.hand.length >= 2)
+    && (defender.spellQuota.reactionUsed < 1);
+
   // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ (ระดับ EASY จะไม่ใช้เวทรีแอคซับซ้อน)
   if (!isLocalDefender) {
     if (aiConfig.difficulty === 'EASY') {
@@ -8866,6 +9190,41 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         } else {
           showCardShowcaseBanner(spellCard, 'AI ร่ายเวท โล่แสง อิโซลท์!', `🛡️ ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตี!`, '#2563eb', 1300);
           setLog(`🛡️ [AI โล่แสง อิโซลท์] ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตีสำเร็จ!`);
+        }
+        renderGame();
+        if (onCompleteCallback) onCompleteCallback();
+        return;
+      }
+    }
+
+    if (canUsePomPom && (targetType === 'leader' || attackingMonster.power >= 2)) {
+      const curIdx = defender.hand.findIndex(c => c && c.id === 'RD10');
+      if (curIdx !== -1) {
+        const spellCard = defender.hand.splice(curIdx, 1)[0];
+        defender.spellQuota.reactionUsed += 1;
+        resetCardStateForZoneChange(spellCard);
+        defender.graveyard.push(spellCard);
+        triggerHimekoSpellBuff(defender);
+
+        let minPIdx = 0, minP = 999;
+        defender.hand.forEach((c, i) => {
+          const p = c.type === 'Monster' ? (c.power || 0) : 1;
+          if (p < minP) { minP = p; minPIdx = i; }
+        });
+        const discarded = defender.hand.splice(minPIdx, 1)[0];
+        resetCardStateForZoneChange(discarded);
+        defender.graveyard.push(discarded);
+        checkDiscardTriggers(defender, discarded);
+
+        const isRD = hasCardTribe(discarded, 'รางดาว') || (discarded.id && discarded.id.startsWith('RD'));
+        if (isRD) {
+          const oldHp = defender.leader.hp;
+          defender.leader.hp = Math.min(defender.leader.maxHp, defender.leader.hp + 1);
+          showCardShowcaseBanner(spellCard, 'AI ร่ายเวท POM POM!', `🚂 ทิ้ง "${discarded.name}" (เผ่ารางดาว) -> ยกเลิกการโจมตี และฟื้นฟู HP ลีดเดอร์ +1!`, '#ec4899', 1300);
+          setLog(`🚂 [AI POM POM] ทิ้ง "${discarded.name}" (เผ่ารางดาว) -> ยกเลิกการโจมตี และฟื้นฟู HP ลีดเดอร์ +1 (${oldHp} -> ${defender.leader.hp})!`);
+        } else {
+          showCardShowcaseBanner(spellCard, 'AI ร่ายเวท POM POM!', `🚂 ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตี!`, '#ec4899', 1300);
+          setLog(`🚂 [AI POM POM] ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตีสำเร็จ!`);
         }
         renderGame();
         if (onCompleteCallback) onCompleteCallback();
@@ -9539,6 +9898,68 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           });
 
           showChoiceModal('🛡️ โล่แสง อิโซลท์: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:', discardChoices);
+        }
+      });
+    }
+
+    if (canUsePomPom) {
+      options.push({
+        cardId: 'RD10',
+        label: '🚂 ร่าย "POM POM": ทิ้งการ์ด 1 ใบ ยกเลิกการโจมตี (ถ้าเป็นการ์ดเผ่ารางดาว ฟื้นฟู HP ลีดเดอร์ +1!)',
+        color: '#ec4899',
+        onSelect: () => {
+          const curIdx = defender.hand.findIndex(c => c && c.id === 'RD10');
+          if (curIdx === -1) {
+            continueNormalAttackFlow();
+            return;
+          }
+          const spellCard = defender.hand.splice(curIdx, 1)[0];
+          defender.spellQuota.reactionUsed += 1;
+          resetCardStateForZoneChange(spellCard);
+          defender.graveyard.push(spellCard);
+          triggerHimekoSpellBuff(defender);
+
+          const discardChoices = defender.hand.map((card, idx) => ({
+            label: `ทิ้ง "${card.name}" ${hasCardTribe(card, 'รางดาว') || card.id.startsWith('RD') ? '(🚂 เผ่ารางดาว -> ฟื้นฟู HP ลีดเดอร์ +1!)' : ''}`,
+            color: '#ec4899',
+            card: card,
+            cardId: card.id,
+            onSelect: () => {
+              const discarded = defender.hand.splice(idx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              defender.graveyard.push(discarded);
+              checkDiscardTriggers(defender, discarded);
+
+              const isRD = hasCardTribe(discarded, 'รางดาว') || (discarded.id && discarded.id.startsWith('RD'));
+              if (isRD) {
+                const oldHp = defender.leader.hp;
+                defender.leader.hp = Math.min(defender.leader.maxHp, defender.leader.hp + 1);
+                showCardShowcaseBanner(spellCard, 'ร่ายเวท POM POM!', `🚂 ทิ้ง "${discarded.name}" (เผ่ารางดาว) -> ยกเลิกการโจมตี และฟื้นฟู HP ลีดเดอร์ +1!`, '#ec4899', 1300);
+                setLog(`🚂 [POM POM] ทิ้ง "${discarded.name}" (เผ่ารางดาว) -> ยกเลิกการโจมตี และฟื้นฟู HP ลีดเดอร์ +1 (${oldHp} -> ${defender.leader.hp})!`);
+              } else {
+                showCardShowcaseBanner(spellCard, 'ร่ายเวท POM POM!', `🚂 ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตี!`, '#ec4899', 1300);
+                setLog(`🚂 [POM POM] ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตีสำเร็จ!`);
+              }
+              renderGame();
+              if (onCompleteCallback) onCompleteCallback();
+            }
+          }));
+
+          discardChoices.push({
+            label: '❌ ยกเลิก (ไม่ร่าย POM POM)',
+            color: '#475569',
+            onSelect: () => {
+              const gIdx = defender.graveyard.lastIndexOf(spellCard);
+              if (gIdx !== -1) defender.graveyard.splice(gIdx, 1);
+              defender.hand.splice(curIdx, 0, spellCard);
+              defender.spellQuota.reactionUsed = Math.max(0, defender.spellQuota.reactionUsed - 1);
+              setLog('🚂 [POM POM] ยกเลิกการร่ายเวทมนตร์ -> คืนการ์ดกลับขึ้นมือ');
+              renderGame();
+              continueNormalAttackFlow();
+            }
+          });
+
+          showChoiceModal('🚂 POM POM: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:', discardChoices);
         }
       });
     }
@@ -11117,6 +11538,14 @@ function performSingleAIMainAction() {
       }
     }
 
+    // 3.0.4 TRAILBLAZER (RD01) สั่งใช้งานบนสนาม (1 ครั้ง/เทิร์น)
+    if (m.id === 'RD01' && (!m.usedSkills || !m.usedSkills.trailblazerActivatedThisTurn) && Array.isArray(ai.graveyard) && ai.graveyard.length > 0) {
+      if (handleTrailblazerBoardActivation(ai, slotIdx)) {
+        playSlotAnimation(false, slotIdx, 'fx-skill-glow');
+        return true;
+      }
+    }
+
     // 3.1 โทโดโรจิต (M02) เก็บบาคุจิต
     if (m.id === 'M02' && !m.usedSkills.todoroRecover) {
       const bakuIdx = ai.graveyard.findIndex(c => c.id === 'M01');
@@ -11302,6 +11731,13 @@ function performSingleAIMainAction() {
       showCardShowcaseBanner(ai.leader, 'AI ใช้สกิลศูนย์วิจัยไดโน!', `🦖 นำ "${recovered.name}" จากนรกขึ้นมือ!`, '#10b981');
       setLog(`👑 [AI ศูนย์วิจัยไดโน] นำ "${recovered.name}" จากนรกขึ้นมือ!`);
       renderGame();
+      return true;
+    }
+  }
+
+  if (ai.leader.id === 'L10' && !ai.leader.abilityUsedThisTurn) {
+    if (handleRangdaoLeaderActivation(ai)) {
+      playSlotAnimation(false, 'leader', 'fx-skill-glow');
       return true;
     }
   }
