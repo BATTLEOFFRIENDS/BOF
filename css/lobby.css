@@ -441,9 +441,9 @@
 }
 
 /* หน้าต่างเลือกเด็ค: "ชั้นวางเด็ค" — แถวละเด็ค ภาพลีดเดอร์เอียง + ชื่อสีประจำเด็ค + สไตล์การเล่น · เด็คจัดเองเป็นปุ่มสล็อตกดครั้งเดียว */
-#lb-deck-picker-dialog { width: min(880px, calc(100vw - 28px)); }
+#lb-deck-picker-dialog { width: min(940px, calc(100vw - 24px)); }
 .lb-deck-picker-panel {
-  display: flex; flex-direction: column; max-height: min(88vh, 88dvh); padding: 24px 26px 16px;
+  display: flex; flex-direction: column; max-height: min(88vh, 88dvh); padding: 22px 24px 16px;
   background: linear-gradient(180deg, #171c40 0%, #0f1229 60%);
   border-radius: 20px;
   border: 1px solid rgba(160, 175, 255, 0.22);
@@ -468,38 +468,39 @@
 }
 .lb-picker-section::after { content: ''; flex: 1; height: 1px; background: rgba(160, 175, 255, .18); }
 
-.lb-deck-picker-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.lb-deck-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .lb-picker-item {
-  position: relative; display: grid; grid-template-columns: 66px minmax(0, 1fr); align-items: center; gap: 16px;
-  padding: 14px 16px; border-radius: 16px; border: 1.5px solid rgba(160, 175, 255, .16);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--item-accent) 14%, #121532) 0%, #0e1126 100%);
-  color: var(--lb-ink); text-align: left; cursor: pointer; overflow: hidden; touch-action: manipulation;
+  position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+  padding: 14px 10px 12px; border-radius: 16px; border: 1.5px solid rgba(160, 175, 255, .16);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--item-accent) 14%, #121532) 0%, #0e1126 100%);
+  color: var(--lb-ink); cursor: pointer; overflow: hidden; touch-action: manipulation;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
   transition: border-color .2s ease, transform .16s ease, box-shadow .2s ease;
 }
-.lb-picker-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--item-accent); opacity: .45; }
-.lb-picker-item:hover { border-color: var(--item-accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
-.lb-picker-item.is-selected { border-color: var(--item-accent); box-shadow: 0 0 0 1.5px var(--item-accent), 0 10px 28px rgba(0, 0, 0, .55); }
-.lb-picker-item.is-selected::before { opacity: 1; }
-.lb-picker-item:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.lb-picker-item::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--item-accent); opacity: .45; }
+.lb-picker-item:hover { border-color: var(--item-accent); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0, 0, 0, .45), 0 0 16px color-mix(in srgb, var(--item-accent) 30%, transparent); }
+.lb-picker-item.is-selected { border-color: var(--item-accent); box-shadow: 0 0 0 1.5px var(--item-accent), 0 10px 28px rgba(0, 0, 0, .55), 0 0 20px color-mix(in srgb, var(--item-accent) 40%, transparent); }
+.lb-picker-item.is-selected::before { opacity: 1; height: 4px; }
+.lb-picker-item:last-child:nth-child(odd) { grid-column: auto; }
 .lb-picker-art {
-  width: 66px; aspect-ratio: 750 / 1050; border-radius: 8px; overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, .55); transform: none; transition: transform .2s ease, box-shadow .2s ease;
+  width: 72px; aspect-ratio: 750 / 1050; border-radius: 8px; overflow: hidden;
+  border: 1.5px solid color-mix(in srgb, var(--item-accent) 50%, rgba(255, 255, 255, 0.2));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .6); transform: none; transition: transform .2s ease, box-shadow .2s ease;
 }
-.lb-picker-item:hover .lb-picker-art, .lb-picker-item.is-selected .lb-picker-art { transform: scale(1.04); box-shadow: 0 8px 20px rgba(0, 0, 0, .65); }
+.lb-picker-item:hover .lb-picker-art, .lb-picker-item.is-selected .lb-picker-art { transform: scale(1.05); box-shadow: 0 8px 22px rgba(0, 0, 0, .7), 0 0 12px color-mix(in srgb, var(--item-accent) 40%, transparent); }
 .lb-picker-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.lb-picker-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.lb-picker-item.is-selected .lb-picker-meta { padding-right: 58px; }
-.lb-picker-name { font: 700 17.5px/1.25 var(--font-display); color: var(--item-accent); letter-spacing: 0.2px; }
-.lb-picker-leader { font-size: 12.5px; color: var(--lb-ink-soft); font-weight: 500; }
+.lb-picker-meta { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; min-width: 0; }
+.lb-picker-item.is-selected .lb-picker-meta { padding-right: 0; }
+.lb-picker-name { font: 700 15.5px/1.2 var(--font-display); color: var(--item-accent); letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.lb-picker-leader { font-size: 11.5px; color: var(--lb-ink-soft); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .lb-picker-style {
-  margin-top: 5px; font-size: 12.5px; line-height: 1.45; color: #cbd5e1; opacity: .9;
+  margin-top: 4px; font-size: 11px; line-height: 1.35; color: #cbd5e1; opacity: .9;
+  background: rgba(0, 0, 0, 0.35); padding: 4px 6px; border-radius: 6px; width: 100%; box-sizing: border-box;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .lb-picker-tag {
-  position: absolute; top: 12px; right: 12px; padding: 2px 10px; border-radius: 999px;
-  background: var(--item-accent); color: var(--lb-ink-dark); font: 700 11.5px/1.4 var(--font-display);
+  position: absolute; top: 6px; right: 6px; padding: 2px 7px; border-radius: 999px;
+  background: var(--item-accent); color: var(--lb-ink-dark); font: 700 10.5px/1.3 var(--font-display);
 }
 
 /* เด็คที่จัดเอง: 5 สล็อต กดแล้วใช้ทันที */
@@ -551,10 +552,13 @@
   .lb-deck-picker-panel { padding: 16px 14px 10px; }
   .lb-deck-picker-head h2 { font-size: 20px !important; }
   .lb-deck-picker-grid { grid-template-columns: 1fr; gap: 8px; }
-  .lb-picker-item { grid-template-columns: 50px minmax(0, 1fr); gap: 12px; padding: 9px 10px 9px 12px; }
+  .lb-picker-item { display: grid; grid-template-columns: 50px minmax(0, 1fr); text-align: left; align-items: center; gap: 12px; padding: 9px 10px 9px 12px; }
+  .lb-picker-item::before { top: 0; bottom: 0; left: 0; right: auto; width: 4px; height: auto; }
   .lb-picker-art { width: 50px; }
+  .lb-picker-meta { align-items: flex-start; }
   .lb-picker-name { font-size: 16px; }
-  .lb-picker-style { margin-top: 3px; font-size: 12px; }
+  .lb-picker-style { margin-top: 3px; font-size: 12px; background: transparent; padding: 0; }
+  .lb-picker-tag { top: 10px; right: 10px; font-size: 11.5px; padding: 2px 10px; }
   .lb-slot-row { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
   .lb-slot-chip { flex: 0 0 96px; scroll-snap-align: start; }
 }

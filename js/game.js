@@ -17417,6 +17417,106 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         ];
         break;
       }
+
+      // ==================== เด็ครอยัล พาลาดิน (L09) ====================
+      case 'royal_alfred_blaster': {
+        p.board = [null, null, null];
+        p.hand = [makeCard('RP02')];
+        p.deck = [makeCard('RP03'), makeCard('RP04'), makeCard('RP05')];
+        p.graveyard = [];
+        ai.board = [makeCard('KG07'), null, null];
+        ai.leader.hp = 4;
+        steps = [
+          {
+            action: 'SUMMON_HAND',
+            cardId: 'RP02',
+            targetSlot: 0,
+            pointerText: '👆 1. คลิกเลือก "ราชาอัศวิน อัลเฟรด" บนมือ',
+            slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
+            choiceKeywords: ['บลาสเตอร์ เบลด', 'กองการ์ด'],
+            choicePointerText: '👆 3. คลิกเลือกอัญเชิญ "บลาสเตอร์ เบลด" จากกองการ์ด!',
+            title: 'สเต็ป 1/4: อัญเชิญ "ราชาอัศวิน อัลเฟรด (RP02)" ลงสู่สนาม',
+            desc: 'คลิกเลือก "ราชาอัศวิน อัลเฟรด (RP02)" บนมือ วางลงสนาม -> สกิลจะทำงาน ให้เลือกอัญเชิญ "บลาสเตอร์ เบลด" จากกองลงสนามฟรี!',
+            isDone: () => p.board.some(m => m && m.id === 'RP03')
+          },
+          {
+            action: 'CLICK_CHOICE',
+            choiceOptionIndex: 0,
+            choiceKeywords: ['ทำลาย', 'KG07'],
+            choicePointerText: '👆 คลิกทำลายยูนิตของฝ่ายตรงข้าม!',
+            title: 'สเต็ป 2/4: บลาสเตอร์ เบลด สั่งทำลายมอนสเตอร์ของ AI!',
+            desc: 'เลือกทำลายมอนสเตอร์ของ AI 1 ใบ! เมื่อบลาสเตอร์ เบลด อยู่บนสนาม อัลเฟรดจะได้รับ Power +2 กลายเป็น Power 4 ทันที!',
+            isDone: () => !isChoiceModalOpen() && ai.board.every(m => m === null)
+          },
+          {
+            action: 'NEXT_PHASE',
+            pointerText: '👆 กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase!',
+            title: 'สเต็ป 3/4: เปลี่ยนเฟสเข้าสู่ Battle Phase',
+            desc: 'กดปุ่มเปลี่ยนเฟสเพื่อเข้าสู่ Battle Phase และเตรียมสั่งอัลเฟรดโจมตี!',
+            isDone: () => gameState.phase === 'Battle Phase'
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'RP02',
+            pointerText: '👆 1. คลิกที่ "อัลเฟรด" (Power 4)',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI ปิดเกม!',
+            title: 'สเต็ป 4/4: สั่งอัลเฟรด (Power 4) โจมตีปิดเกม!',
+            desc: 'คลิกที่ "ราชาอัศวิน อัลเฟรด (RP02)" บนสนามเรา แล้วคลิกโจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะ!',
+            isDone: () => p.attacksThisTurn >= 1
+          }
+        ];
+        break;
+      }
+
+      case 'royal_hand_advantage_soulsaver': {
+        p.board = [null, null, null];
+        p.hand = [makeCard('RP11'), makeCard('RP01')];
+        p.graveyard = [makeCard('RP04'), makeCard('RP05'), makeCard('RP06'), makeCard('RP07'), makeCard('RP08'), makeCard('RP09'), makeCard('RP10'), makeCard('RP03')];
+        p.deck = [makeCard('RP02'), makeCard('RP04'), makeCard('RP06')];
+        p.leader.hp = 3;
+        ai.board = [null, null, null];
+        ai.graveyard = [makeCard('M01'), makeCard('M02'), makeCard('M03'), makeCard('M04'), makeCard('M05'), makeCard('M06'), makeCard('M07'), makeCard('M08')];
+        ai.hand = [makeCard('M01')];
+        ai.leader.hp = 4;
+        steps = [
+          {
+            action: 'CLICK_HAND',
+            cardId: 'RP11',
+            pointerText: '👆 1. คลิกร่ายเวทมนตร์ "เอเลน" บนมือ',
+            choicePointerText: '👆 2. กดยืนยันใช้งาน แล้วเลือกคืนการ์ด 2 ใบ!',
+            title: 'สเต็ป 1/4: ร่ายเวท "มิโกะต้นไม้แห่งชีวิต เอเลน (RP11)"',
+            desc: 'คลิกที่ "มิโกะต้นไม้แห่งชีวิต เอเลน (RP11)" บนมือ -> กดยืนยันใช้งาน -> เลือกการ์ดจากนรก 2 ใบกลับเข้ากอง -> แล้วเลือกทิ้งการ์ดบนมือ 1 ใบเพื่อบริหารการ์ดบนมือ!',
+            isDone: () => p.spellQuota.normalUsed >= 1 && !isChoiceModalOpen()
+          },
+          {
+            action: 'CLICK_HAND',
+            cardId: 'RP01',
+            pointerText: '👆 1. คลิกที่ "โซลเซฟเวอร์ ดราก้อน" บนมือ',
+            choiceKeywords: ['อัญเชิญสู่สนาม'],
+            choicePointerText: '👆 2. คลิกยืนยันอัญเชิญสู่สนาม!',
+            title: 'สเต็ป 2/4: อัญเชิญ "โซลเซฟเวอร์ ดราก้อน" สู่สนาม',
+            desc: 'คลิกเลือก "โซลเซฟเวอร์ ดราก้อน (RP01)" บนมือ แล้วกดยืนยันอัญเชิญสู่สนาม! (เงื่อนไขนรก 8 ใบทั้งสองฝ่ายครบถ้วน คืนการ์ดจากนรกทั้งหมดและฟื้นฟู HP ลีดเดอร์ +3 ทันที!)',
+            isDone: () => p.board.some(m => m && m.id === 'RP01')
+          },
+          {
+            action: 'NEXT_PHASE',
+            pointerText: '👆 กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase!',
+            title: 'สเต็ป 3/4: เปลี่ยนเฟสเข้าสู่ Battle Phase',
+            desc: 'กดปุ่มเปลี่ยนเฟสเพื่อเข้าสู่ Battle Phase และเตรียมสั่งโซลเซฟเวอร์ ดราก้อน โจมตี!',
+            isDone: () => gameState.phase === 'Battle Phase'
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'RP01',
+            pointerText: '👆 1. คลิกที่ "โซลเซฟเวอร์ ดราก้อน" (Power 4+)',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI ปิดเกม!',
+            title: 'สเต็ป 4/4: สั่งโซลเซฟเวอร์ ดราก้อน โจมตีปิดเกม!',
+            desc: 'คลิกที่ "โซลเซฟเวอร์ ดราก้อน (RP01)" บนสนามเรา แล้วโจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะอย่างเด็ดขาด!',
+            isDone: () => p.attacksThisTurn >= 1
+          }
+        ];
+        break;
+      }
     }
 
     guidedSession = {
@@ -17589,6 +17689,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     startComboPracticeSession,
     hideTutorialCoachBar,
     isTutorialActive: () => !!guidedSession,
+    getSession: () => guidedSession,
     // คอมโบที่ต้องให้ AI ตีสวน (liveAI) ต้องปล่อยให้ AI เล่นเทิร์นจริง
     wantsDummyAI: () => !!guidedSession && !guidedSession.liveAI
   };
