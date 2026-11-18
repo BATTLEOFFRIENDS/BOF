@@ -979,9 +979,79 @@
         });
       });
     },
+
+    // ---------------- รางดาว: รถไฟดวงดาว วาร์ปข้ามมิติ แตกเป็นดาวสี่แฉกและละอองกาแล็กซี่ ----------------
+    rangdao(c) {
+      const BLUE = '56, 189, 248', PURPLE = '168, 85, 247', WH = '240, 249, 255';
+      vignette(1800, 'rgba(8, 15, 36, .75)');
+      c.tex = cardTexture(c.el, c.W, c.H);
+      const pre = c.ghost.animate([
+        { filter: 'none', transform: 'none' },
+        { filter: 'brightness(1.8) drop-shadow(0 0 16px #38bdf8)', transform: 'scale(1.02)' },
+        { filter: 'brightness(2.4) hue-rotate(20deg) drop-shadow(0 0 24px #a855f7)', transform: 'scale(1.05)' }
+      ], { duration: 400, fill: 'forwards' });
+
+      const starPts = [...Array(7)].map(() => ({ x: c.rect.left + c.W * rnd(.15, .85), y: c.rect.top + c.H * rnd(.15, .85) }));
+      addDraw({ life: .7, draw(g, k) {
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = k < .5 ? k * 2 : 1 - (k - .5) * 2;
+        g.strokeStyle = 'rgba(56, 189, 248, .9)';
+        g.lineWidth = 1.6;
+        g.beginPath();
+        starPts.forEach((pt, i) => { i ? g.lineTo(pt.x, pt.y) : g.moveTo(pt.x, pt.y); });
+        g.stroke();
+        starPts.forEach(pt => {
+          g.fillStyle = '#fff';
+          g.beginPath(); g.arc(pt.x, pt.y, 3, 0, TAU); g.fill();
+        });
+      } });
+
+      later(420, () => {
+        settle(pre); c.ghost.style.visibility = 'hidden';
+        buzz(30); shake(true);
+        flash(c.cx, c.cy, c.W * .9, BLUE, .3);
+        shockwave(c.cx, c.cy, 6, c.W * 1.8, BLUE, .4, 4);
+        shockwave(c.cx, c.cy, 4, c.W * 2.4, PURPLE, .5, 2.5, .05);
+        spikeBurst(c.cx, c.cy, c.W * 1.3, BLUE, .35, 14, 0, WH);
+
+        const STAR_COLS = ['#38bdf8', '#a855f7', '#67e8f9', '#ffffff', '#e0f2fe'];
+        shardsOf(c.W, c.H, 4, 5).forEach(s => {
+          const a = Math.atan2(s.cy - c.H / 2, s.cx - c.W / 2);
+          const v = rnd(120, 260);
+          addPart({
+            kind: 'shard', x: c.rect.left + s.cx, y: c.rect.top + s.cy,
+            vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40,
+            drag: 2.8, life: rnd(.6, .95), size: 1, poly: s.poly,
+            cx: s.cx, cy: s.cy, tex: c.tex, rot: 0, vr: rnd(-8, 8),
+            edge: 'rgba(56, 189, 248, .95)', edgeW: 1.5, tint: 'rgba(168, 85, 247, .25)'
+          });
+        });
+
+        for (let i = 0; i < 22 * c.n; i++) {
+          const a = rnd(0, TAU), v = rnd(140, 420);
+          addPart({
+            kind: 'star', x: c.cx, y: c.cy,
+            vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30,
+            drag: 2.2, life: rnd(.5, .9), size: rnd(4, 9),
+            fill: STAR_COLS[i % STAR_COLS.length], rot: rnd(0, 6), vr: rnd(-10, 10)
+          });
+        }
+        for (let i = 0; i < 18 * c.n; i++) {
+          const a = rnd(0, TAU), v = rnd(60, 200);
+          addPart({
+            kind: 'glow', x: c.cx, y: c.cy,
+            vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+            drag: 2, life: rnd(.6, 1.1), size: rnd(2, 4.5),
+            rgb: i % 2 ? BLUE : PURPLE
+          });
+        }
+        later(900, c.done);
+      });
+    },
   };
   SCENES.kagero = SCENES.demon;
   SCENES.madoka = SCENES.doom;
+  SCENES.royal_paladin = SCENES.nuea;
 
   // ============================================================================
   // deck = ธีมของผู้ทำลาย (game.js ส่งมา) · ไม่ส่ง = ธีมของการ์ดเอง

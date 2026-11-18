@@ -3,7 +3,7 @@
 // หน้าตาอยู่ใน css/deck-themes.css · เปิด index.html?fxpreview เพื่อกดดูทุกเอฟเฟกต์บนกระดานจริง
 (function () {
   const COLORS = { L01: '#3ee08f', L02: '#f0a347', L03: '#e8c977', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#ef4444', L09: '#2563eb', L10: '#4fa3e3' };
-  const FULL_MATS = { L01: 'deku', L03: 'doom' }; // เด็คที่มีสนามเต็มรูปแบบ (ที่เหลือได้แค่ออร่าสีประจำเด็ค)
+  const FULL_MATS = { L01: 'deku', L03: 'doom', L10: 'rangdao' }; // เด็คที่มีสนามเต็มรูปแบบ (ที่เหลือได้แค่ออร่าสีประจำเด็ค)
   const DOOM_PAIR = ['DM01', 'DM02']; // โอนามิ + โรเซเลีย (คู่หู)
   const GAUGE_STEP = 25;               // บัฟฮีโร่ 1 ครั้ง = เกจฟูลคาวล์ +25%
   const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -40,6 +40,22 @@
     <line class="hand hour" x1="0" y1="5" x2="0" y2="-48"/>
     <line class="hand sweep" x1="0" y1="10" x2="0" y2="-82"/><circle r="4" class="pin"/></svg>`;
 
+  const RANGDAO_FX = `<svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="rangdao-stars">
+    <path class="constellation c1" d="M120 70 L280 120 L420 80 L580 160 L750 110 L880 180" stroke="#38bdf8" stroke-width="1.4" stroke-dasharray="3 5" fill="none" opacity="0.6"/>
+    <path class="constellation c2" d="M200 220 L350 170 L520 230 L690 190 L850 240" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="2 4" fill="none" opacity="0.5"/>
+    <circle cx="120" cy="70" r="3.5" fill="#e0f2fe" filter="drop-shadow(0 0 4px #38bdf8)"/>
+    <circle cx="280" cy="120" r="4.5" fill="#fff" filter="drop-shadow(0 0 6px #38bdf8)"/>
+    <circle cx="420" cy="80" r="3" fill="#e0f2fe"/>
+    <circle cx="580" cy="160" r="5" fill="#fff" filter="drop-shadow(0 0 8px #a855f7)"/>
+    <circle cx="750" cy="110" r="3.5" fill="#e0f2fe"/>
+    <circle cx="880" cy="180" r="4" fill="#fff" filter="drop-shadow(0 0 6px #38bdf8)"/>
+    <circle cx="200" cy="220" r="3" fill="#c084fc"/>
+    <circle cx="350" cy="170" r="4" fill="#fff" filter="drop-shadow(0 0 5px #38bdf8)"/>
+    <circle cx="520" cy="230" r="3.5" fill="#c084fc"/>
+    <circle cx="690" cy="190" r="4.5" fill="#fff" filter="drop-shadow(0 0 7px #a855f7)"/>
+    <circle cx="850" cy="240" r="3" fill="#e0f2fe"/>
+  </svg>`;
+
   function fxLayer(half, kind) {
     let el = half.querySelector(':scope > .deck-mat-fx');
     if (el && el.dataset.kind === kind) return el;
@@ -49,7 +65,7 @@
     el.className = 'deck-mat-fx';
     el.dataset.kind = kind;
     el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = kind === 'deku' ? DEKU_FX : DOOM_FX;
+    el.innerHTML = kind === 'deku' ? DEKU_FX : (kind === 'rangdao' ? RANGDAO_FX : DOOM_FX);
     half.prepend(el);
     return el;
   }
@@ -329,6 +345,15 @@
         }).join('')}<line class="hand big" x1="0" y1="0" x2="0" y2="-80"/><line class="hand short" x1="0" y1="0" x2="0" y2="-54"/></svg>`;
         spawn(dial, 'doom-midnight', c.x, c.y, 1500);
         setTimeout(() => spawn('', 'doom-flash big', c.x, c.y, 800, { '--s': 6 }), 900);
+        sound.chime();
+      } else if (id === 'L10') {
+        for (let n = 0; n < 10; n++) setTimeout(() => {
+          const y = Math.random() * innerHeight;
+          const beam = `<svg viewBox="0 0 1000 20" preserveAspectRatio="none"><line x1="0" y1="10" x2="1000" y2="10" stroke="${n % 2 ? '#38bdf8' : '#a855f7'}" stroke-width="${Math.random() * 3 + 2}" stroke-linecap="round" filter="drop-shadow(0 0 8px #38bdf8)"/></svg>`;
+          svgSpawn('rangdao-warp-beam', beam, 600);
+        }, n * 80);
+        setTimeout(() => spawn('🚂 ASTRAL WARP!!', 'rangdao-victory-banner', c.x, c.y, 1400), 400);
+        setTimeout(() => spawn('', 'rangdao-star-shock', c.x, c.y, 800, { '--s': 5 }), 500);
         sound.chime();
       } else {
         spawn('', 'plain-ring big', c.x, c.y, 700, { '--c': COLORS[id] || '#facc15', '--s': 5 });
