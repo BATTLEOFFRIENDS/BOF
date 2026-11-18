@@ -264,5 +264,43 @@ window.BOF_COMBO_REPLAYS = {
       { say: 'การ์ดบนมือได้เปรียบ: เสริมพลังมหาศาล สั่งโจมตีลีดเดอร์ปิดเกม!', act: [['attack', 'RP01', 'L01'], ['hp', 'opp', 0]] }
     ],
     done: 'ชนะ!', doneSay: 'ครองการ์ดบนมือ ฟื้นฟู 3 HP และปิดฉากด้วยโซลเซฟเวอร์ ดราก้อน!'
+  },
+
+  // ==================== เด็ครางดาว (L10) ====================
+  rangdao_sunday_himeko: {
+    setup: { meLeader: 'L10', oppLeader: 'L01', me: ['RD05', null, null], hand: ['RD07'], meGrave: ['RD01'], opp: ['M02', null, null], hp: { opp: 3 } },
+    steps: [
+      { say: 'แตะ <b>HIMEKO</b> บนสนามเพื่อใช้สกิลทำลายยูนิต', act: [['tap', 'RD05'], ['seal', 'RD05']] },
+      { say: 'ทิ้ง <b>SUNDAY</b> จากบนมือลงนรก เป็นค่าใช้สกิล', act: [['discard', 'RD07']] },
+      { say: 'ทำลายยูนิตของฝ่ายตรงข้าม 1 ใบ!', act: [['target', 'M02'], ['beam', 'RD05', 'M02'], ['destroy', 'M02']] },
+      { say: 'สกิลออโต้ <b>SUNDAY</b> ทำงาน: นำ <b>TRAILBLAZER</b> จากนรกกลับขึ้นมือ!', act: [['toHand', 'RD01']] },
+      { say: 'Sunday อยู่ในนรก มอบพลังโจมตีต่อเนื่องให้ Himeko +1 (กลายเป็น <b>3</b>)!', act: [['power', 'RD05', 3], ['glow', 'RD05']] },
+      { say: 'สั่ง Himeko Power 3 โจมตีใส่ลีดเดอร์ฝ่ายตรงข้าม!', act: [['attack', 'RD05', 'L01'], ['hp', 'opp', 0]] }
+    ],
+    done: 'คอมโบสำเร็จ!', doneSay: 'ทำลายยูนิตศัตรู + ได้การ์ดขึ้นมือ + พลังโจมตีทีม +1 ถาวรจากในนรก!'
+  },
+
+  rangdao_danheng_protection: {
+    setup: { meLeader: 'L10', oppLeader: 'L02', me: ['RD02', null, null], hand: ['RD04'], opp: ['NM02', null, null], hp: { opp: 3 } },
+    steps: [
+      { say: 'อัญเชิญ <b>DAN HENG จ้าวทรนงคงปฐพี</b> ลงสู่สนาม', act: [['summon', 'RD04', 1]] },
+      { say: 'ความสามารถต่อเนื่องคุ้มกันยูนิตฝั่งเรา <b>ไม่ถูกทำลายจากสกิล</b>!', act: [['glow', 'RD04'], ['glow', 'RD02']] },
+      { say: 'แตะ <b>MARCH 7TH</b> ใช้สกิลมอบเกราะป้องกัน', act: [['tap', 'RD02'], ['seal', 'RD02']] },
+      { say: 'มอบเกราะไม่ถูกทำลายจากการต่อสู้ 1 ครั้งให้ <b>DAN HENG</b>!', act: [['shield', 'RD04'], ['link', 'RD02', 'RD04']] },
+      { say: 'เมื่อจบเทิร์น DAN HENG สแตร์น (Stand) ตัวเองขึ้นมาพร้อมตั้งรับ!', act: [['stand', 'RD04']] }
+    ],
+    done: 'สนามไร้เทียมทาน!', doneSay: 'ป้องกันทั้งสกิลและการต่อสู้ พร้อมสแตร์นตัวเองเฝ้าสนาม!'
+  },
+
+  rangdao_pompom_express: {
+    setup: { meLeader: 'L10', oppLeader: 'L08', me: ['RD05', null, null], hand: ['RD10', 'RD01', 'RD09'], opp: ['KG01', null, null], hp: { me: 2, opp: 4 } },
+    steps: [
+      { say: 'เมื่อฝ่ายตรงข้ามโจมตี ร่ายเวทรีแอค <b>POM POM</b> จากบนมือ!', act: [['cast', 'RD10']] },
+      { say: 'ทิ้งการ์ดเผ่ารางดาว 1 ใบเพื่อ <b>ยกเลิกการโจมตี + ฟื้นฟูเลือด 1 HP</b>!', act: [['discard', 'RD01'], ['hp', 'me', 3], ['shield', 'L10']] },
+      { say: 'เข้าสู่เทิร์นเรา ร่ายเวทมนตร์ <b>ASTRAL EXPRESS</b>!', act: [['cast', 'RD09']] },
+      { say: 'สกิล HIMEKO ทำงานเมื่อร่ายเวท: พลัง +2 และผลเวท +1 รวมเป็น <b>5</b>!', act: [['power', 'RD05', 5], ['glow', 'RD05']] },
+      { say: 'สั่ง HIMEKO Power 5 โจมตีปิดเกมอย่างเด็ดขาด!', act: [['attack', 'RD05', 'L08'], ['hp', 'opp', 0]] }
+    ],
+    done: 'ชัยชนะ!', doneSay: 'ป้อมปราการ POM POM รอดตายกลับมาสวนกลับด้วย Astral Express Power 5!'
   }
 };

@@ -17176,7 +17176,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     if (!foundCombo || !foundDeck) return;
 
     // คอมโบที่ต้องให้ AI โจมตีสวนในเทิร์นถัดไป ต้องเปิด AI จริง (ไม่ข้ามเทิร์น AI)
-    const needsAIAttack = (comboId === 'jit_allforjit' || comboId === 'doom_maya_lock');
+    const needsAIAttack = (comboId === 'jit_allforjit' || comboId === 'doom_maya_lock' || comboId === 'rangdao_pompom_express');
     preparePracticeArena(foundDeck.leaderId, 'L01', !needsAIAttack);
 
     const p = gameState.player;
@@ -18121,6 +18121,110 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             title: 'สเต็ป 4/4: สั่งโซลเซฟเวอร์ ดราก้อน โจมตีปิดเกม!',
             desc: 'คลิกที่ "โซลเซฟเวอร์ ดราก้อน (RP01)" บนสนามเรา แล้วโจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะอย่างเด็ดขาด!',
             isDone: () => p.attacksThisTurn >= 1
+          }
+        ];
+        break;
+      }
+
+      // ==================== เด็ครางดาว (L10) ====================
+      case 'rangdao_sunday_himeko': {
+        p.board = [makeCard('RD05'), null, null]; // HIMEKO บนสนาม
+        p.hand = [makeCard('RD07')];               // SUNDAY บนมือ
+        p.graveyard = [makeCard('RD01')];          // TRAILBLAZER ในนรก (รอซันเดย์เก็บขึ้นมือ)
+        ai.board = [makeCard('M02'), null, null];  // ยูนิตศัตรูให้ทำลาย
+        ai.leader.hp = 3;
+        steps = [
+          {
+            action: 'CLICK_BOARD_UNIT',
+            cardId: 'RD05',
+            choiceKeywords: ['ยืนยัน', 'ทิ้งการ์ด', 'ทำลายยูนิต'],
+            pointerText: '👆 1. คลิกที่ "HIMEKO" บนสนาม',
+            choicePointerText: '👆 2. คลิกยืนยันใช้สกิล HIMEKO',
+            pendingPointerText: '👆 3. คลิกเลือกทิ้ง "SUNDAY" บนมือ',
+            title: 'สเต็ป 1/2: ใช้สกิล HIMEKO ทิ้ง "SUNDAY" ทำลายยูนิตศัตรู & ทริกเกอร์สกิลซันเดย์!',
+            desc: 'คลิกที่ "HIMEKO (RD05)" บนสนาม -> กดยืนยันใช้สกิล -> คลิกทิ้ง "SUNDAY (RD07)" บนมือ -> คลิกทำลายยูนิตของ AI 1 ใบ!',
+            isDone: () => p.graveyard.some(c => c && c.id === 'RD07') && ai.board.every(m => m === null) && !gameState.pendingAction
+          },
+          {
+            action: 'CLICK_CHOICE',
+            choiceKeywords: ['TRAILBLAZER', 'นำ', 'ขึ้นมือ'],
+            choicePointerText: '👆 คลิกเลือกนำ "TRAILBLAZER" จากนรกกลับขึ้นมือ!',
+            title: 'สเต็ป 2/2: สกิลออโต้ของ SUNDAY ทำงาน! ดึงยูนิตจากนรกกลับขึ้นมือ & พลังทีม +1 ถาวร!',
+            desc: 'เมื่อ Sunday ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที! ให้คลิกเลือกนำ "TRAILBLAZER (RD01)" จากนรกกลับขึ้นมือ (และสังเกตว่า HIMEKO จะได้รับพลังโจมตี +1 จากสกิลต่อเนื่องของ Sunday ในนรกด้วย)!',
+            isDone: () => p.hand.some(c => c && c.id === 'RD01')
+          }
+        ];
+        break;
+      }
+
+      case 'rangdao_danheng_protection': {
+        p.board = [makeCard('RD02'), null, null]; // MARCH 7TH บนสนาม
+        p.hand = [makeCard('RD04')];               // DAN HENG จ้าวทรนง บนมือ
+        ai.board = [makeCard('M02'), null, null];
+        ai.leader.hp = 2;
+        steps = [
+          {
+            action: 'SUMMON_HAND',
+            cardId: 'RD04',
+            pointerText: '👆 1. คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี" บนมือ',
+            slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
+            title: 'สเต็ป 1/3: อัญเชิญ DAN HENG จ้าวทรนงคงปฐพี ป้องกันสกิลทำลายยกแผง!',
+            desc: 'คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี (RD04)" บนมือ แล้ววางลงสนาม -> ความสามารถต่อเนื่องจะคุ้มกันยูนิตฝั่งเราทุกใบไม่ให้ถูกทำลายด้วยสกิลการ์ด!',
+            isDone: () => p.board.some(m => m && m.id === 'RD04')
+          },
+          {
+            action: 'CLICK_BOARD_UNIT',
+            cardId: 'RD02',
+            choiceKeywords: ['ยืนยัน', 'ไม่ถูกทำลาย', 'เกราะ'],
+            pointerText: '👆 1. คลิกที่ "MARCH 7TH" บนสนาม',
+            choicePointerText: '👆 2. คลิกยืนยันใช้สกิลมอบเกราะ',
+            pendingPointerText: '👆 3. คลิกเลือก "DAN HENG จ้าวทรนง" เพื่อรับเกราะ!',
+            title: 'สเต็ป 2/3: ใช้สกิล MARCH 7TH มอบเกราะไม่ถูกทำลายจากการต่อสู้!',
+            desc: 'คลิกที่ "MARCH 7TH (RD02)" บนสนาม -> กดยืนยันใช้สกิล -> คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี" เพื่อมอบเกราะป้องกันการถูกทำลายจากการต่อสู้ 1 ครั้ง!',
+            isDone: () => p.board.some(m => m && m.id === 'RD04' && m.indestructibleShield)
+          },
+          {
+            action: 'NEXT_PHASE',
+            pointerText: '👆 กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase และจบเทิร์น!',
+            title: 'สเต็ป 3/3: เข้าสู่ Battle Phase และจบเทิร์นเพื่อสแตร์น DAN HENG!',
+            desc: 'กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น -> เมื่อจบเทิร์นเรา สกิลออโต้ของ "DAN HENG จ้าวทรนงคงปฐพี" จะสแตร์น (Stand) ตัวเองขึ้นมาอัตโนมัติ พร้อมตั้งรับหรือโจมตีในเทิร์นถัดไป!',
+            isDone: () => gameState.turnCount > 1 || p.board.some(m => m && m.id === 'RD04' && m.state === 'Stand' && gameState.phase === 'End Phase')
+          }
+        ];
+        break;
+      }
+
+      case 'rangdao_pompom_express': {
+        p.leader.hp = 2;
+        p.board = [makeCard('RD05'), null, null]; // HIMEKO บนสนาม
+        p.hand = [makeCard('RD10'), makeCard('RD01'), makeCard('RD09')]; // POM POM + เผ่ารางดาวไว้ทิ้ง + ASTRAL EXPRESS
+        ai.board = [makeCard('M02'), null, null]; // ยูนิต AI ไว้สั่งตี
+        ai.hand = [];
+        steps = [
+          {
+            action: 'NEXT_PHASE',
+            pointerText: '👆 กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อให้ AI โจมตีมา!',
+            title: 'สเต็ป 1/3: จบเทิร์นเพื่อล่อให้ AI โจมตีเข้ามา',
+            desc: 'ตอนนี้เรามีเวทรีแอค "POM POM (RD10)" และการ์ดเผ่ารางดาวบนมือ -> กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อรอให้ AI โจมตีเข้ามา!',
+            isDone: () => gameState.activeTurn === 'ai'
+          },
+          {
+            action: 'WAIT_REACTION',
+            choiceKeywords: ['POM POM', 'ร่าย "POM POM"'],
+            choicePointerText: '👆 คลิกเลือกร่าย "POM POM" ป้องกันการโจมตี!',
+            title: 'สเต็ป 2/3: ร่ายเวทรีแอค "POM POM" ยกเลิกการโจมตีและฟื้นฟู HP ลีดเดอร์ +1!',
+            desc: 'เมื่อ AI ประกาศโจมตี หน้าต่างเวทรีแอคจะเด้งขึ้นมา -> ให้คลิกเลือกใช้ "POM POM (RD10)" แล้วเลือกทิ้งการ์ดรางดาว 1 ใบ เพื่อยกเลิกการโจมตีและฟื้นฟู HP ลีดเดอร์เรา +1!',
+            isDone: () => p.graveyard.some(c => c && c.id === 'RD10') && gameState.activeTurn === 'player'
+          },
+          {
+            action: 'CLICK_HAND',
+            cardId: 'RD09',
+            choiceOptionIndex: 0,
+            pointerText: '👆 1. คลิกที่การ์ดเวท "ASTRAL EXPRESS" บนมือ',
+            choicePointerText: '👆 2. กดยืนยันร่ายเวทมนตร์',
+            title: 'สเต็ป 3/3: เข้าเทิร์นเรา ร่าย "ASTRAL EXPRESS" บัฟพลัง HIMEKO ปิดเกม!',
+            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกร่ายเวทมนตร์ "ASTRAL EXPRESS (RD09)" บนมือ -> สกิลของ HIMEKO จะเพิ่มพลังตัวเอง +2 ทันที และผลของเวทเพิ่มพลังยูนิตรางดาวอีก +1 (รวมเป็น Power 5) พร้อมโจมตีปิดเกม!',
+            isDone: () => p.spellQuota.normalUsed >= 1
           }
         ];
         break;
