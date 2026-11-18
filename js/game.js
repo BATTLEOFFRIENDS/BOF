@@ -7071,9 +7071,11 @@ function executeElenHandSkill(caster, spellCard, handIndex) {
 
     // จากนั้นทิ้งการ์ดบนมือ 1 ใบ
     if (caster.hand.length > 0) {
+      const isSoulSaverTutorial = (window.BOFTutorial && typeof window.BOFTutorial.getSession === 'function' && window.BOFTutorial.getSession()?.id === 'royal_hand_advantage_soulsaver') || (typeof guidedSession !== 'undefined' && guidedSession && guidedSession.id === 'royal_hand_advantage_soulsaver');
       const discardChoices = caster.hand.map((card, idx) => ({
-        label: `ทิ้ง "${card.name}"`,
-        color: '#dc2626',
+        label: `ทิ้ง "${card.name}"` + (isSoulSaverTutorial && card.id === 'RP01' ? ' ❌ (ห้ามทิ้งในบทเรียน)' : ''),
+        color: (isSoulSaverTutorial && card.id === 'RP01') ? '#475569' : '#dc2626',
+        disabled: !!(isSoulSaverTutorial && card.id === 'RP01'),
         card: card,
         cardId: card.id,
         onSelect: () => {
@@ -17424,7 +17426,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         p.hand = [makeCard('RP02')];
         p.deck = [makeCard('RP03'), makeCard('RP04'), makeCard('RP05')];
         p.graveyard = [];
-        ai.board = [makeCard('KG07'), null, null];
+        ai.board = [makeCard('KG06'), null, null];
         ai.leader.hp = 4;
         steps = [
           {
@@ -17442,7 +17444,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'CLICK_CHOICE',
             choiceOptionIndex: 0,
-            choiceKeywords: ['ทำลาย', 'KG07'],
+            choiceKeywords: ['ทำลาย', 'KG06', 'โคเอ็น'],
             choicePointerText: '👆 คลิกทำลายยูนิตของฝ่ายตรงข้าม!',
             title: 'สเต็ป 2/4: บลาสเตอร์ เบลด สั่งทำลายมอนสเตอร์ของ AI!',
             desc: 'เลือกทำลายมอนสเตอร์ของ AI 1 ใบ! เมื่อบลาสเตอร์ เบลด อยู่บนสนาม อัลเฟรดจะได้รับ Power +2 กลายเป็น Power 4 ทันที!',
@@ -17472,7 +17474,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         p.board = [null, null, null];
         p.hand = [makeCard('RP11'), makeCard('RP01')];
         p.graveyard = [makeCard('RP04'), makeCard('RP05'), makeCard('RP06'), makeCard('RP07'), makeCard('RP08'), makeCard('RP09'), makeCard('RP10'), makeCard('RP03')];
-        p.deck = [makeCard('RP02'), makeCard('RP04'), makeCard('RP06')];
+        p.deck = [makeCard('RP06'), makeCard('RP05'), makeCard('RP04')];
         p.leader.hp = 3;
         ai.board = [null, null, null];
         ai.graveyard = [makeCard('M01'), makeCard('M02'), makeCard('M03'), makeCard('M04'), makeCard('M05'), makeCard('M06'), makeCard('M07'), makeCard('M08')];
@@ -17482,11 +17484,12 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'CLICK_HAND',
             cardId: 'RP11',
+            choiceKeywords: ['ยืนยัน', 'กาลาทิน', 'บาร์คกัล', 'วิงกัล'],
             pointerText: '👆 1. คลิกร่ายเวทมนตร์ "เอเลน" บนมือ',
-            choicePointerText: '👆 2. กดยืนยันใช้งาน แล้วเลือกคืนการ์ด 2 ใบ!',
+            choicePointerText: '👆 2. กดยืนยันใช้งาน แล้วเลือกทิ้งการ์ดยูนิตอื่น (เก็บโซลเซฟเวอร์ ดราก้อน ไว้ลงสนาม!)',
             title: 'สเต็ป 1/4: ร่ายเวท "มิโกะต้นไม้แห่งชีวิต เอเลน (RP11)"',
-            desc: 'คลิกที่ "มิโกะต้นไม้แห่งชีวิต เอเลน (RP11)" บนมือ -> กดยืนยันใช้งาน -> เลือกการ์ดจากนรก 2 ใบกลับเข้ากอง -> แล้วเลือกทิ้งการ์ดบนมือ 1 ใบเพื่อบริหารการ์ดบนมือ!',
-            isDone: () => p.spellQuota.normalUsed >= 1 && !isChoiceModalOpen()
+            desc: 'คลิกที่ "มิโกะต้นไม้แห่งชีวิต เอเลน (RP11)" บนมือ -> กดยืนยันใช้งาน -> เลือกการ์ดจากนรก 2 ใบกลับเข้ากอง -> แล้วเลือกทิ้งการ์ดใบอื่นบนมือ (เก็บโซลเซฟเวอร์ ดราก้อน ไว้ลงสนาม!)',
+            isDone: () => p.spellQuota.normalUsed >= 1 && p.hand.some(c => c && c.id === 'RP01') && !isChoiceModalOpen()
           },
           {
             action: 'CLICK_HAND',
