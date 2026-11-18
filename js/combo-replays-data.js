@@ -281,25 +281,26 @@ window.BOF_COMBO_REPLAYS = {
   },
 
   rangdao_danheng_protection: {
-    setup: { meLeader: 'L10', oppLeader: 'L02', me: ['RD02', null, null], hand: ['RD04'], opp: ['NM02', null, null], hp: { opp: 3 } },
+    setup: { meLeader: 'L10', oppLeader: 'L04', me: ['RD02', null, null], hand: ['RD04'], opp: ['DN03', null, null], hp: { opp: 5 } },
     steps: [
       { say: 'อัญเชิญ <b>DAN HENG จ้าวทรนงคงปฐพี</b> ลงสู่สนาม', act: [['summon', 'RD04', 1]] },
       { say: 'ความสามารถต่อเนื่องคุ้มกันยูนิตฝั่งเรา <b>ไม่ถูกทำลายจากสกิล</b>!', act: [['glow', 'RD04'], ['glow', 'RD02']] },
       { say: 'แตะ <b>MARCH 7TH</b> ใช้สกิลมอบเกราะป้องกัน', act: [['tap', 'RD02'], ['seal', 'RD02']] },
       { say: 'มอบเกราะไม่ถูกทำลายจากการต่อสู้ 1 ครั้งให้ <b>DAN HENG</b>!', act: [['shield', 'RD04'], ['link', 'RD02', 'RD04']] },
-      { say: 'เมื่อจบเทิร์น DAN HENG สแตร์น (Stand) ตัวเองขึ้นมาพร้อมตั้งรับ!', act: [['stand', 'RD04']] }
+      { say: 'สั่ง DAN HENG โจมตีใส่ Leader ของคู่แข่ง → ยูนิตเข้าสู่สภาพ <b>Rest</b>!', act: [['attack', 'RD04', 'L04'], ['rest', 'RD04'], ['hp', 'opp', 4]] },
+      { say: 'เมื่อจบเทิร์นเรา สกิลออโต้จะ <b>Stand</b> DAN HENG ขึ้นมาพร้อมตั้งรับ!', act: [['stand', 'RD04'], ['glow', 'RD04']] }
     ],
-    done: 'สนามไร้เทียมทาน!', doneSay: 'ป้องกันทั้งสกิลและการต่อสู้ พร้อมสแตร์นตัวเองเฝ้าสนาม!'
+    done: 'สนามไร้เทียมทาน!', doneSay: 'ป้องกันทั้งสกิลและการต่อสู้ โจมตีแล้วยังลุกขึ้นมา Stand เฝ้าสนามได้อีก!'
   },
 
   rangdao_pompom_express: {
-    setup: { meLeader: 'L10', oppLeader: 'L08', me: ['RD05', null, null], hand: ['RD10', 'RD01', 'RD09'], opp: ['KG01', null, null], hp: { me: 2, opp: 4 } },
+    setup: { meLeader: 'L10', oppLeader: 'L04', me: ['RD05', null, null], hand: ['RD10', 'RD01', 'RD09'], opp: ['DN03', null, null], hp: { me: 2, opp: 4 } },
     steps: [
-      { say: 'เมื่อฝ่ายตรงข้ามโจมตี ร่ายเวทรีแอค <b>POM POM</b> จากบนมือ!', act: [['cast', 'RD10']] },
+      { say: 'เมื่อฝ่ายตรงข้ามสั่ง <b>ไทรเซราทอปส์</b> โจมตี ร่ายเวทรีแอค <b>POM POM</b> จากบนมือ!', act: [['cast', 'RD10']] },
       { say: 'ทิ้งการ์ดเผ่ารางดาว 1 ใบเพื่อ <b>ยกเลิกการโจมตี + ฟื้นฟูเลือด 1 HP</b>!', act: [['discard', 'RD01'], ['hp', 'me', 3], ['shield', 'L10']] },
       { say: 'เข้าสู่เทิร์นเรา ร่ายเวทมนตร์ <b>ASTRAL EXPRESS</b>!', act: [['cast', 'RD09']] },
       { say: 'สกิล HIMEKO ทำงานเมื่อร่ายเวท: พลัง +2 และผลเวท +1 รวมเป็น <b>5</b>!', act: [['power', 'RD05', 5], ['glow', 'RD05']] },
-      { say: 'สั่ง HIMEKO Power 5 โจมตีปิดเกมอย่างเด็ดขาด!', act: [['attack', 'RD05', 'L08'], ['hp', 'opp', 0]] }
+      { say: 'สั่ง HIMEKO Power 5 โจมตีปิดเกมอย่างเด็ดขาด!', act: [['attack', 'RD05', 'L04'], ['hp', 'opp', 0]] }
     ],
     done: 'ชัยชนะ!', doneSay: 'ป้อมปราการ POM POM รอดตายกลับมาสวนกลับด้วย Astral Express Power 5!'
   }

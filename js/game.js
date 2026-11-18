@@ -16644,11 +16644,12 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         {
           id: 'rangdao_danheng_protection',
           title: '🛡️ คอมโบ 2: เกราะมาร์ช เซเว่นท์ + DAN HENG จ้าวทรนง ป้องกันสนามยกแผง!',
-          cards: ['RD02', 'RD04', 'RD03'],
+          cards: ['RD02', 'RD04'],
           steps: [
             '1. อัญเชิญ "DAN HENG จ้าวทรนงคงปฐพี (RD04)" ลงสนาม → ยูนิตทุกใบฝั่งเราจะไม่ถูกทำลายจากความสามารถการ์ด',
-            '2. คลิกใช้สกิลของ "MARCH 7TH (RD02)" บนสนาม → เลือกยูนิตเรา 1 ใบเพื่อมอบเกราะไม่ถูกทำลายจากการต่อสู้ 1 ครั้ง จนจบเทิร์นคู่แข่ง',
-            '3. เมื่อจบเทิร์นเรา DAN HENG จ้าวทรนงคงปฐพี จะสแตร์น (Stand) ตัวเองขึ้นมาพร้อมบล็อกหรือโจมตีสวนในเทิร์นถัดไป!'
+            '2. คลิกใช้สกิลของ "MARCH 7TH (RD02)" บนสนาม → เลือกมอบเกราะไม่ถูกทำลายจากการต่อสู้ 1 ครั้งให้ DAN HENG',
+            '3. เข้าสู่ Battle Phase สั่ง DAN HENG โจมตี → ยูนิตจะเข้าสู่สภาพเรสต์ (Rest)',
+            '4. เมื่อจบเทิร์นเรา สกิลออโต้จะทำงานอัตโนมัติ สแตร์น (Stand) DAN HENG ขึ้นมาพร้อมตั้งรับในเทิร์นคู่แข่ง!'
           ]
         },
         {
@@ -16657,8 +16658,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           cards: ['RD10', 'RD05', 'RD09'],
           steps: [
             '1. เมื่อคู่แข่งประกาศโจมตี ให้กดร่ายเวทรีแอค "POM POM (RD10)" จากบนมือ → ทิ้งการ์ดเผ่ารางดาว 1 ใบเพื่อยกเลิกการโจมตีนั้น และฟื้นฟู HP ลีดเดอร์เรา +1!',
-            '2. เมื่อเข้าเทิร์นเรา ร่ายเวทมนตร์ "ASTRAL EXPRESS (RD09)" → สกิลของ HIMEKO จะทำงานอัตโนมัติ เพิ่มพลังโจมตีตัวเอง +2 ทันทีที่ร่ายเวท',
-            '3. ผลของ ASTRAL EXPRESS จะเพิ่มพลังโจมตีให้ยูนิตเผ่ารางดาวทุกใบอีก +1 รวมเป็นพลังโจมตีมหาศาลปิดเกม!'
+            '2. เมื่อเข้าเทิร์นเรา ร่ายเวทมนตร์ "ASTRAL EXPRESS (RD09)" → สกิลของ HIMEKO จะเพิ่มพลังโจมตีตัวเอง +2 ทันที และผลของเวทเพิ่มพลังยูนิตรางดาวอีก +1 (รวม Power 5)',
+            '3. เข้าสู่ Battle Phase สั่ง HIMEKO โจมตีปิดเกมคว้าชัยชนะอย่างเด็ดขาด!'
           ]
         }
       ]
@@ -16766,6 +16767,11 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
 
     // 1. หากหน้าต่าง Choice Modal เปิดอยู่ ให้ชี้ไปที่ปุ่มตัวเลือกที่ต้องกดทันที
     if (isChoiceModalOpen()) {
+      const confirmBtn = document.getElementById('um-card-confirm-btn');
+      if (confirmBtn && !confirmBtn.disabled && confirmBtn.offsetParent !== null) {
+        attachGuidedPointer(confirmBtn, '👆 คลิกยืนยันตรงนี้!');
+        return;
+      }
       const targetBtn = findGuidedChoiceButton(step);
       if (targetBtn) {
         // ปุ่มที่ choice-ui แปลงเป็นรูปการ์ดถูกซ่อน: ชี้ที่รูปการ์ดแทน
@@ -16865,6 +16871,11 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     }
 
     if (step.action === 'ATTACK_MONSTER') {
+      if (gameState.phase !== 'Battle Phase') {
+        const nextPhaseBtn = document.getElementById('btn-pass-turn-inline') || document.getElementById('btn-next-phase');
+        attachGuidedPointer(nextPhaseBtn, '👆 เปลี่ยนเฟสเข้าสู่ Battle Phase ก่อนโจมตี!');
+        return;
+      }
       if (gameState.selectedAttackerSlot === null) {
         const slotEl = getBoardSlotElement(true, (m) => m && m.state === 'Stand' && (!step.cardId || m.id === step.cardId))
           || getBoardSlotElement(true, (m) => m && m.state === 'Stand');
@@ -16877,6 +16888,11 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     }
 
     if (step.action === 'ATTACK_LEADER') {
+      if (gameState.phase !== 'Battle Phase') {
+        const nextPhaseBtn = document.getElementById('btn-pass-turn-inline') || document.getElementById('btn-next-phase');
+        attachGuidedPointer(nextPhaseBtn, '👆 เปลี่ยนเฟสเข้าสู่ Battle Phase ก่อนโจมตี!');
+        return;
+      }
       if (gameState.selectedAttackerSlot === null) {
         const slotEl = getBoardSlotElement(true, (m) => m && m.state === 'Stand' && (!step.cardId || m.id === step.cardId))
           || getBoardSlotElement(true, (m) => m && m.state === 'Stand');
@@ -17177,7 +17193,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
 
     // คอมโบที่ต้องให้ AI โจมตีสวนในเทิร์นถัดไป ต้องเปิด AI จริง (ไม่ข้ามเทิร์น AI)
     const needsAIAttack = (comboId === 'jit_allforjit' || comboId === 'doom_maya_lock' || comboId === 'rangdao_pompom_express');
-    preparePracticeArena(foundDeck.leaderId, 'L01', !needsAIAttack);
+    const targetAILeaderId = (comboId === 'rangdao_pompom_express' || comboId === 'rangdao_danheng_protection') ? 'L04' : 'L01';
+    preparePracticeArena(foundDeck.leaderId, targetAILeaderId, !needsAIAttack);
 
     const p = gameState.player;
     const ai = gameState.ai;
@@ -18131,7 +18148,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         p.board = [makeCard('RD05'), null, null]; // HIMEKO บนสนาม
         p.hand = [makeCard('RD07')];               // SUNDAY บนมือ
         p.graveyard = [makeCard('RD01')];          // TRAILBLAZER ในนรก (รอซันเดย์เก็บขึ้นมือ)
-        ai.board = [makeCard('M02'), null, null];  // ยูนิตศัตรูให้ทำลาย
+        ai.board = [makeCard('DN02'), null, null]; // ยูนิตศัตรูให้ทำลาย (ไดโนเสาร์)
         ai.leader.hp = 3;
         steps = [
           {
@@ -18160,15 +18177,19 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       case 'rangdao_danheng_protection': {
         p.board = [makeCard('RD02'), null, null]; // MARCH 7TH บนสนาม
         p.hand = [makeCard('RD04')];               // DAN HENG จ้าวทรนง บนมือ
-        ai.board = [makeCard('M02'), null, null];
-        ai.leader.hp = 2;
+        ai.board = [makeCard('DN03'), null, null]; // ยูนิต AI (ไทรเซราทอปส์ ไม่มีสกิลกวน)
+        ai.board[0].state = 'Rest';                // พักอยู่เพื่อไม่ให้ Intercept ขัดขวาง
+        ai.leader.hp = 5;
+        ai.hand = [];
+        ai.deck = [];
+        ai.leader.abilityUsedThisTurn = true;
         steps = [
           {
             action: 'SUMMON_HAND',
             cardId: 'RD04',
             pointerText: '👆 1. คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
-            title: 'สเต็ป 1/3: อัญเชิญ DAN HENG จ้าวทรนงคงปฐพี ป้องกันสกิลทำลายยกแผง!',
+            title: 'สเต็ป 1/4: อัญเชิญ DAN HENG จ้าวทรนงคงปฐพี ป้องกันสกิลทำลายยกแผง!',
             desc: 'คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี (RD04)" บนมือ แล้ววางลงสนาม -> ความสามารถต่อเนื่องจะคุ้มกันยูนิตฝั่งเราทุกใบไม่ให้ถูกทำลายด้วยสกิลการ์ด!',
             isDone: () => p.board.some(m => m && m.id === 'RD04')
           },
@@ -18179,16 +18200,25 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "MARCH 7TH" บนสนาม',
             choicePointerText: '👆 2. คลิกยืนยันใช้สกิลมอบเกราะ',
             pendingPointerText: '👆 3. คลิกเลือก "DAN HENG จ้าวทรนง" เพื่อรับเกราะ!',
-            title: 'สเต็ป 2/3: ใช้สกิล MARCH 7TH มอบเกราะไม่ถูกทำลายจากการต่อสู้!',
+            title: 'สเต็ป 2/4: ใช้สกิล MARCH 7TH มอบเกราะไม่ถูกทำลายจากการต่อสู้!',
             desc: 'คลิกที่ "MARCH 7TH (RD02)" บนสนาม -> กดยืนยันใช้สกิล -> คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี" เพื่อมอบเกราะป้องกันการถูกทำลายจากการต่อสู้ 1 ครั้ง!',
-            isDone: () => p.board.some(m => m && m.id === 'RD04' && m.indestructibleShield)
+            isDone: () => p.board.some(m => m && m.id === 'RD04' && (m.indestructibleUntilNextTurn || m.indestructibleShield))
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'RD04',
+            pointerText: '👆 1. คลิกที่ "DAN HENG จ้าวทรนงคงปฐพี"',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI!',
+            title: 'สเต็ป 3/4: สั่ง DAN HENG โจมตีเพื่อเปลี่ยนเป็นสภาพเรสต์ (Rest)',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "DAN HENG จ้าวทรนงคงปฐพี (RD04)" สั่งโจมตีใส่ Leader ของ AI -> ยูนิตจะโจมตีและเปลี่ยนสภาพเป็นเรสต์ (Rest)!',
+            isDone: () => p.attacksThisTurn >= 1 && p.board.some(m => m && m.id === 'RD04' && m.state === 'Rest')
           },
           {
             action: 'NEXT_PHASE',
-            pointerText: '👆 กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase และจบเทิร์น!',
-            title: 'สเต็ป 3/3: เข้าสู่ Battle Phase และจบเทิร์นเพื่อสแตร์น DAN HENG!',
-            desc: 'กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น -> เมื่อจบเทิร์นเรา สกิลออโต้ของ "DAN HENG จ้าวทรนงคงปฐพี" จะสแตร์น (Stand) ตัวเองขึ้นมาอัตโนมัติ พร้อมตั้งรับหรือโจมตีในเทิร์นถัดไป!',
-            isDone: () => gameState.turnCount > 1 || p.board.some(m => m && m.id === 'RD04' && m.state === 'Stand' && gameState.phase === 'End Phase')
+            pointerText: '👆 กดปุ่มเปลี่ยนเฟสจบเทิร์น เพื่อดูสกิลออโต้ทำงาน!',
+            title: 'สเต็ป 4/4: จบเทิร์นเราเพื่อสแตร์น DAN HENG กลับขึ้นมาอัตโนมัติ!',
+            desc: 'กดปุ่มเปลี่ยนเฟสจบเทิร์นเรา -> สกิลออโต้ของ "DAN HENG จ้าวทรนงคงปฐพี" จะทำงานทันที สแตร์น (Stand) ตัวเองกลับขึ้นมาอัตโนมัติ พร้อมตั้งรับหรือบล็อกในเทิร์นคู่แข่ง!',
+            isDone: () => p.board.some(m => m && m.id === 'RD04' && m.state === 'Stand') && (gameState.turnCount > 1 || gameState.activeTurn === 'ai' || gameState.phase === 'End Phase')
           }
         ];
         break;
@@ -18198,23 +18228,26 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         p.leader.hp = 2;
         p.board = [makeCard('RD05'), null, null]; // HIMEKO บนสนาม
         p.hand = [makeCard('RD10'), makeCard('RD01'), makeCard('RD09')]; // POM POM + เผ่ารางดาวไว้ทิ้ง + ASTRAL EXPRESS
-        ai.board = [makeCard('M02'), null, null]; // ยูนิต AI ไว้สั่งตี
+        ai.board = [makeCard('DN03'), null, null]; // ยูนิต AI (ไทรเซราทอปส์ Power 2 ไม่มีสกิลกดใช้)
         ai.hand = [];
+        ai.deck = [];
+        ai.leader.abilityUsedThisTurn = true;
+        ai.leader.hp = 4;
         steps = [
           {
             action: 'NEXT_PHASE',
             pointerText: '👆 กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อให้ AI โจมตีมา!',
-            title: 'สเต็ป 1/3: จบเทิร์นเพื่อล่อให้ AI โจมตีเข้ามา',
+            title: 'สเต็ป 1/4: จบเทิร์นเพื่อล่อให้ AI โจมตีเข้ามา',
             desc: 'ตอนนี้เรามีเวทรีแอค "POM POM (RD10)" และการ์ดเผ่ารางดาวบนมือ -> กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อรอให้ AI โจมตีเข้ามา!',
             isDone: () => gameState.activeTurn === 'ai'
           },
           {
             action: 'WAIT_REACTION',
-            choiceKeywords: ['POM POM', 'ร่าย "POM POM"'],
+            choiceKeywords: ['POM POM', 'TRAILBLAZER', 'รางดาว'],
             choicePointerText: '👆 คลิกเลือกร่าย "POM POM" ป้องกันการโจมตี!',
-            title: 'สเต็ป 2/3: ร่ายเวทรีแอค "POM POM" ยกเลิกการโจมตีและฟื้นฟู HP ลีดเดอร์ +1!',
-            desc: 'เมื่อ AI ประกาศโจมตี หน้าต่างเวทรีแอคจะเด้งขึ้นมา -> ให้คลิกเลือกใช้ "POM POM (RD10)" แล้วเลือกทิ้งการ์ดรางดาว 1 ใบ เพื่อยกเลิกการโจมตีและฟื้นฟู HP ลีดเดอร์เรา +1!',
-            isDone: () => p.graveyard.some(c => c && c.id === 'RD10') && gameState.activeTurn === 'player'
+            title: 'สเต็ป 2/4: ร่ายเวทรีแอค "POM POM" ยกเลิกการโจมตีและฟื้นฟู HP ลีดเดอร์ +1!',
+            desc: 'เมื่อ AI ประกาศโจมตี หน้าต่างเวทรีแอคจะเด้งขึ้นมา -> ให้คลิกเลือกใช้ "POM POM (RD10)" แล้วเลือกทิ้งการ์ดรางดาว "TRAILBLAZER (RD01)" ในหน้าต่างถัดไป เพื่อยกเลิกการโจมตีและฟื้นฟูเลือดลีดเดอร์เรา +1!',
+            isDone: () => p.graveyard.some(c => c && c.id === 'RD10') && (gameState.activeTurn === 'player' || gameState.phase === 'Main Phase')
           },
           {
             action: 'CLICK_HAND',
@@ -18222,9 +18255,18 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             pointerText: '👆 1. คลิกที่การ์ดเวท "ASTRAL EXPRESS" บนมือ',
             choicePointerText: '👆 2. กดยืนยันร่ายเวทมนตร์',
-            title: 'สเต็ป 3/3: เข้าเทิร์นเรา ร่าย "ASTRAL EXPRESS" บัฟพลัง HIMEKO ปิดเกม!',
-            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกร่ายเวทมนตร์ "ASTRAL EXPRESS (RD09)" บนมือ -> สกิลของ HIMEKO จะเพิ่มพลังตัวเอง +2 ทันที และผลของเวทเพิ่มพลังยูนิตรางดาวอีก +1 (รวมเป็น Power 5) พร้อมโจมตีปิดเกม!',
-            isDone: () => p.spellQuota.normalUsed >= 1
+            title: 'สเต็ป 3/4: เข้าเทิร์นเรา ร่าย "ASTRAL EXPRESS" บัฟพลัง HIMEKO พุ่งสูง!',
+            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกร่ายเวทมนตร์ "ASTRAL EXPRESS (RD09)" บนมือ -> สกิลของ HIMEKO จะเพิ่มพลังตัวเอง +2 ทันที และผลของเวทเพิ่มพลังยูนิตรางดาวอีก +1 (รวมเป็น Power 5)!',
+            isDone: () => p.spellQuota.normalUsed >= 1 && gameState.activeTurn === 'player'
+          },
+          {
+            action: 'ATTACK_LEADER',
+            cardId: 'RD05',
+            pointerText: '👆 1. คลิกที่ "HIMEKO" (Power 5)',
+            targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI ปิดเกม!',
+            title: 'สเต็ป 4/4: สั่ง HIMEKO (Power 5) โจมตีปิดเกม!',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "HIMEKO (RD05)" บนสนามเรา โจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะอย่างเด็ดขาด!',
+            isDone: () => p.attacksThisTurn >= 1 || gameState.gameOver || gameState.ai.leader.hp <= 0
           }
         ];
         break;
@@ -18386,6 +18428,12 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       };
       showChoiceModal._bofGuidedWrapped = true;
     }
+
+    document.addEventListener('click', (e) => {
+      if (guidedSession && (e.target.closest('#choice-modal') || e.target.closest('#custom-choice-modal') || e.target.closest('#um-card-grid') || e.target.closest('.choice-modal-box'))) {
+        setTimeout(updateGuidedVisualPointer, 20);
+      }
+    }, true);
   }
 
   if (typeof document !== 'undefined') {
