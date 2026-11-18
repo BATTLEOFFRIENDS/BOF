@@ -249,8 +249,11 @@ function getEffectivePower(card, ownerContestant) {
     }
 
     // 0.6 SUNDAY (RD07) ในนรก: ถ้าการ์ดใบนี้อยู่ในนรก ยูนิทบนสนามฝั่งเราทุกใบพลังโจมตีเพิ่ม 1 หน่วย
-    if (Array.isArray(owner.graveyard) && owner.graveyard.some(c => c && c.id === 'RD07')) {
-      total += 1;
+    const sundayCount = Array.isArray(owner.graveyard)
+      ? owner.graveyard.filter(c => c && (c.id === 'RD07' || (c.name && c.name.toUpperCase().includes('SUNDAY')))).length
+      : 0;
+    if (sundayCount > 0) {
+      total += sundayCount;
     }
 
     // 0.1 ดราโกนิค โอเวอร์ลอร์ด (KG01): เมื่อมือเราน้อยกว่าอีกฝ่าย พลัง +1
@@ -2686,6 +2689,7 @@ const EffectEngine = {
           const d = caster.hand.pop();
           resetCardStateForZoneChange(d);
           caster.graveyard.push(d);
+          if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(caster, d);
           if (isFromOnami && d.id === 'DM05' && opponent.hand.length > 0) {
             if (typeof showCardShowcaseBanner === 'function') {
               showCardShowcaseBanner(d, 'สกิลซึรุรุทำงาน!', '🍬 ถูกทิ้งจากสกิลโอนามิ -> บังคับอีกฝ่ายเลือกทิ้งมือ 1 ใบ!', '#a855f7', 1300);
@@ -2708,6 +2712,7 @@ const EffectEngine = {
           resetCardStateForZoneChange(discarded);
           caster.graveyard.push(discarded);
           setLog(`🗑️ ทิ้ง "${discarded.name}" จากมือลงนรก`);
+          if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(caster, discarded);
 
           if (isFromOnami && discarded.id === 'DM05' && opponent.hand.length > 0) {
             if (typeof showCardShowcaseBanner === 'function') {
@@ -5952,8 +5957,12 @@ function checkDiscardTriggers(contestant, card) {
   const other = (contestant === gameState.player) ? gameState.ai : gameState.player;
 
   // 🕊️ SUNDAY (RD07): เมื่อถูกทิ้งจากบนมือ นำยูนิทไม่เกิน 1 ใบ จากนรกนำขึ้นมือ
-  if (card.id === 'RD07') {
-    const graveMonsters = (contestant.graveyard || []).filter(c => c && c.type === 'Monster' && c.uid !== card.uid);
+  if (card.id === 'RD07' || (card.name && card.name.toUpperCase().includes('SUNDAY'))) {
+    if (typeof isGraveyardSkillLockedByOpponent === 'function' && isGraveyardSkillLockedByOpponent(contestant)) {
+      setLog(`🕊️ [ออโต้ - SUNDAY] สกิลในนรกถูกล็อคโดยฝ่ายตรงข้าม!`);
+      return;
+    }
+    const graveMonsters = (contestant.graveyard || []).filter(c => c && c.type === 'Monster');
     if (graveMonsters.length > 0) {
       if (contestant !== gameState.player) {
         let bestMonster = graveMonsters[0];
@@ -5983,6 +5992,7 @@ function checkDiscardTriggers(contestant, card) {
               const rec = contestant.graveyard.splice(gIdx, 1)[0];
               resetCardStateForZoneChange(rec);
               contestant.hand.push(rec);
+              showCardShowcaseBanner(card, 'ออโต้: SUNDAY!', `🕊️ ถูกทิ้ง -> นำยูนิท "${rec.name}" จากนรกขึ้นมือ!`, '#38bdf8', 1200);
               setLog(`🕊️ [ออโต้ - SUNDAY] ถูกทิ้ง -> นำยูนิท "${rec.name}" จากนรกขึ้นมือ!`);
               renderGame();
             }
@@ -9415,7 +9425,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   }
 
   // 👤 กรณีเราเป็นฝ่ายถูกโจมตี: เด้งถามเฉพาะการ์ดของเราเอง
-  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUseIseult) {
+  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUseIseult || canUsePomPom) {
     const options = [];
 
     if (canUseForbiddenWarning) {
@@ -13344,6 +13354,7 @@ function cardMatchesDeckTheme(card, themeKey, currentLeaderId) {
   }
 
   const id = String(card.futureBaseId || card.id || '');
+  if (themeKey === 'rangdao') return /^RD/i.test(id) || id === 'L10' || hasCardTribe(card, 'รางดาว');
   if (themeKey === 'royal_paladin') return /^RP/i.test(id) || hasCardTribe(card, 'รอยัล พาลาดิน');
   if (themeKey === 'kagero') return /^KG/i.test(id) || id === 'BT01_06' || hasCardTribe(card, 'คาเงโร่');
   if (themeKey === 'madoka') return /^MD/i.test(id) || hasCardTribe(card, 'สาวน้อยเวทมนตร์');
@@ -14801,12 +14812,19 @@ if (typeof document !== 'undefined') {
 function updateCardDetailPanel(card) {
   if (!card) return;
   const desc = card.desc || (typeof getCardDescription === 'function' ? getCardDescription(card) : '');
+  let powerText = '';
+  if (card.power !== undefined) {
+    const curPwr = (typeof getEffectivePower === 'function') ? getEffectivePower(card) : card.power;
+    powerText = (curPwr !== card.power) ? `⚔️ ${curPwr} (พื้นฐาน ${card.power})` : `⚔️ ${card.power}`;
+  } else {
+    powerText = card.type || '';
+  }
   const html = `
     <div style="display:flex;gap:6px;align-items:flex-start;">
       <img src="${card.image || ''}" style="width:38px;aspect-ratio:750/1050;border-radius:4px;border:1px solid #64748b;object-fit:cover;" alt="">
       <div style="flex:1;min-width:0;">
         <div style="font-size:11.5px;font-weight:bold;color:#fde047;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${card.name}</div>
-        <div style="font-size:10px;color:#94a3b8;">${card.tribe ? `[${card.tribe}]` : ''} ${card.power !== undefined ? `⚔️ ${card.power}` : (card.type || '')}</div>
+        <div style="font-size:10px;color:#94a3b8;">${card.tribe ? `[${card.tribe}]` : ''} ${powerText}</div>
       </div>
     </div>
     <div style="font-size:10px;color:#e2e8f0;margin-top:4px;line-height:1.35;max-height:92px;overflow-y:auto;white-space:pre-line;">${desc || 'ไม่มีความสามารถ'}</div>
@@ -16493,6 +16511,44 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             '1. ใช้สกิลลีดเดอร์ รอยัล พาลาดิน หยิบยูนิตเข้ามือทุกเทิร์น ร่วมกับ "วิงกัล (RP04)" ค้นหาการ์ดขึ้นมือ และ "มิโกะต้นไม้แห่งชีวิต เอเลน (RP11)" คืนการ์ดจั่ว 2 ทิ้ง 1',
             '2. เมื่อการ์ดบนมือของเรามากกว่าอีกฝ่าย ยูนิตทั้งหมดในสนามจะได้รับพลัง +1 และฝ่ายตรงข้ามจะไม่สามารถใช้สกิลการ์ดจากนรกได้',
             '3. ร่าย "โซลเซฟเวอร์ ดราก้อน (RP01)" คืนการ์ดจากนรกทั้งสองฝั่ง 8 ใบ เพิ่ม HP ลีดเดอร์เรา +3 และบุกโจมตีด้วย Power มหาศาลปิดเกม!'
+          ]
+        }
+      ]
+    },
+    {
+      leaderId: 'L10',
+      deckName: '🚂 เด็ครางดาว (รถไฟสายอวกาศ)',
+      overview: 'จุดเด่น: บุกทะลวงด้วย Dan Heng จ้าวทรนงที่สแตร์นตัวเอง คุ้มกันยูนิตเราไม่ให้ถูกทำลายด้วยสกิล พร้อมเกราะอมตะจาก March 7th ทริกเกอร์การทิ้งการ์ดมือเพื่อสร้างความได้เปรียบ และ Sunday บัฟพลังต่อเนื่องจากในนรก!',
+      combos: [
+        {
+          id: 'rangdao_sunday_himeko',
+          title: '🕊️ คอมโบ 1: ทริกเกอร์ทิ้ง SUNDAY คืนชีพยูนิต & ฮิเมโกะทำลายยูนิตศัตรู!',
+          cards: ['RD05', 'RD07', 'RD01'],
+          steps: [
+            '1. มี "HIMEKO (RD05)" บนสนาม และมี "SUNDAY (RD07)" บนมือ',
+            '2. คลิกที่ "HIMEKO" บนสนามเพื่อใช้สกิล → เลือกทิ้ง "SUNDAY (RD07)" บนมือ 1 ใบเพื่อทำลายยูนิตฝั่งตรงข้าม 1 ใบ',
+            '3. เมื่อ Sunday ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที! → เลือกนำยูนิตจากนรก 1 ใบกลับขึ้นมือ ทำให้ไม่เสียเปรียบจำนวนการ์ด',
+            '4. และขณะที่ Sunday อยู่ในนรก สกิลต่อเนื่องจะมอบพลังโจมตี +1 ให้ยูนิตบนสนามฝั่งเราทุกใบตลอดเวลา!'
+          ]
+        },
+        {
+          id: 'rangdao_danheng_protection',
+          title: '🛡️ คอมโบ 2: เกราะมาร์ช เซเว่นท์ + DAN HENG จ้าวทรนง ป้องกันสนามยกแผง!',
+          cards: ['RD02', 'RD04', 'RD03'],
+          steps: [
+            '1. อัญเชิญ "DAN HENG จ้าวทรนงคงปฐพี (RD04)" ลงสนาม → ยูนิตทุกใบฝั่งเราจะไม่ถูกทำลายจากความสามารถการ์ด',
+            '2. คลิกใช้สกิลของ "MARCH 7TH (RD02)" บนสนาม → เลือกยูนิตเรา 1 ใบเพื่อมอบเกราะไม่ถูกทำลายจากการต่อสู้ 1 ครั้ง จนจบเทิร์นคู่แข่ง',
+            '3. เมื่อจบเทิร์นเรา DAN HENG จ้าวทรนงคงปฐพี จะสแตร์น (Stand) ตัวเองขึ้นมาพร้อมบล็อกหรือโจมตีสวนในเทิร์นถัดไป!'
+          ]
+        },
+        {
+          id: 'rangdao_pompom_express',
+          title: '☕ คอมโบ 3: POM POM ป้องกันฉุกเฉิน & ฮิเมโกะเร่งพลังโจมตีร่ายเวท!',
+          cards: ['RD10', 'RD05', 'RD09'],
+          steps: [
+            '1. เมื่อคู่แข่งประกาศโจมตี ให้กดร่ายเวทรีแอค "POM POM (RD10)" จากบนมือ → ทิ้งการ์ดเผ่ารางดาว 1 ใบเพื่อยกเลิกการโจมตีนั้น และฟื้นฟู HP ลีดเดอร์เรา +1!',
+            '2. เมื่อเข้าเทิร์นเรา ร่ายเวทมนตร์ "ASTRAL EXPRESS (RD09)" → สกิลของ HIMEKO จะทำงานอัตโนมัติ เพิ่มพลังโจมตีตัวเอง +2 ทันทีที่ร่ายเวท',
+            '3. ผลของ ASTRAL EXPRESS จะเพิ่มพลังโจมตีให้ยูนิตเผ่ารางดาวทุกใบอีก +1 รวมเป็นพลังโจมตีมหาศาลปิดเกม!'
           ]
         }
       ]

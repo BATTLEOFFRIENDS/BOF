@@ -1911,7 +1911,8 @@
     { key: 'OAT', label: 'โอ๊ต', dir: 'เด็คโอ๊ต', c: '#fb923c' },
     { key: 'MADOKA', label: 'มาโดกะ', dir: 'มาโดกะ', c: '#f472b6' },
     { key: 'KAGERO', label: 'คาเงโร่', dir: 'เด็คคาเงโร่', c: '#ef4444' },
-    { key: 'ROYAL', label: 'รอยัล พาลาดิน', dir: 'รอยัล พาลาดิน', c: '#38bdf8' }
+    { key: 'ROYAL', label: 'รอยัล พาลาดิน', dir: 'รอยัล พาลาดิน', c: '#38bdf8' },
+    { key: 'RANGDAO', label: 'รางดาว', dir: 'รางดาว', c: '#38bdf8' }
   ];
   const RARITY_FILTERS = [
     { key: 'ALL', label: 'ทุกระดับ', c: '#f3c969' },
@@ -1925,6 +1926,7 @@
     if (card.tribe === 'ฮีโร่') return DECK_FILTERS.find(d => d.key === 'JIT') || DECK_FILTERS[0];
     if (card.tribe === 'คาเงโร่') return DECK_FILTERS.find(d => d.key === 'KAGERO') || DECK_FILTERS[0];
     if (card.tribe === 'รอยัล พาลาดิน' || (card.id && card.id.startsWith('RP'))) return DECK_FILTERS.find(d => d.key === 'ROYAL') || DECK_FILTERS[0];
+    if (card.tribe === 'รางดาว' || (card.id && card.id.startsWith('RD')) || card.id === 'L10') return DECK_FILTERS.find(d => d.key === 'RANGDAO') || DECK_FILTERS[0];
     return DECK_FILTERS.find(d => d.dir && String(card.image || '').includes(`/${d.dir}/`)) || DECK_FILTERS[0];
   };
   const maxKeepOf = card => (card.type === 'Leader' ? 1 : (card.maxCopies || 2));

@@ -92,6 +92,7 @@
       if (state.deck === 'DOOM') return D.deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
       if (state.deck === 'MADOKA') return D.deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
       if (state.deck === 'ROYAL') return D.deckOfCard(c).key === 'ROYAL';
+      if (state.deck === 'RANGDAO') return D.deckOfCard(c).key === 'RANGDAO';
       return D.deckOfCard(c).key === state.deck;
     });
     const have = inDeck.filter(c => Number(own[c.id] || 0) > 0).length;
