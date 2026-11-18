@@ -324,22 +324,22 @@ function getEffectivePower(card, ownerContestant) {
         if (!cond) {
           total += (eff.amount || 0);
         } else if (cond.type === 'ALLY_ON_BOARD') {
-          if (ownerContestant.board.some(m => m !== null && m.id === cond.cardId)) {
+          if (owner.board.some(m => m !== null && m.id === cond.cardId)) {
             total += (eff.amount || 0);
           }
         } else if (cond.type === 'PER_OTHER_ALLY_TRIBE') {
-          const count = ownerContestant.board.filter(m =>
+          const count = owner.board.filter(m =>
             m !== null && m.uid !== card.uid && hasCardTribe(m, cond.tribe)
           ).length;
           total += count * (eff.amountPerUnit || 1);
         } else if (cond.type === 'PER_OTHER_ALLY_NAME') {
-          const count = ownerContestant.board.filter(m =>
+          const count = owner.board.filter(m =>
             m !== null && m.uid !== card.uid && hasCardName(m, cond.nameKeyword)
           ).length;
           total += count * (eff.amountPerUnit || 1);
         } else if (cond.type === 'PER_GRAVE_COUNT') {
           const divisor = Math.max(1, cond.divisor || 3);
-          const graveLen = Array.isArray(ownerContestant.graveyard) ? ownerContestant.graveyard.length : 0;
+          const graveLen = Array.isArray(owner.graveyard) ? owner.graveyard.length : 0;
           const stacks = Math.floor(graveLen / divisor);
           total += stacks * (eff.amountPerUnit || 1);
         }
@@ -347,16 +347,16 @@ function getEffectivePower(card, ownerContestant) {
     }
 
     // 2. บล็อก CONTINUOUS_BOARD_AURA จาก Leader (เช่น ขุนเหนือ L02)
-    if (ownerContestant.leader && Array.isArray(ownerContestant.leader.effects)) {
-      ownerContestant.leader.effects.filter(e => e.trigger === 'CONTINUOUS_BOARD_AURA').forEach(aura => {
+    if (owner && owner.leader && Array.isArray(owner.leader.effects)) {
+      owner.leader.effects.filter(e => e.trigger === 'CONTINUOUS_BOARD_AURA').forEach(aura => {
         const matchesTargetTribe = !aura.targetTribe || hasCardTribe(card, aura.targetTribe);
         const matchesTargetName = !aura.targetNameKeyword || hasCardName(card, aura.targetNameKeyword);
         if (matchesTargetTribe && matchesTargetName) {
           if (aura.condition && aura.condition.type === 'MIN_TRIBE_COUNT') {
-            const cnt = ownerContestant.board.filter(m => m !== null && hasCardTribe(m, aura.condition.tribe)).length;
+            const cnt = owner.board.filter(m => m !== null && hasCardTribe(m, aura.condition.tribe)).length;
             if (cnt >= aura.condition.count) total += (aura.amount || 0);
           } else if (aura.condition && aura.condition.type === 'MIN_NAME_COUNT') {
-            const cnt = ownerContestant.board.filter(m => m !== null && hasCardName(m, aura.condition.nameKeyword)).length;
+            const cnt = owner.board.filter(m => m !== null && hasCardName(m, aura.condition.nameKeyword)).length;
             if (cnt >= aura.condition.count) total += (aura.amount || 0);
           }
         }
@@ -507,7 +507,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'beelzebub_buff', monster };
   }
 
-  if (monster.oatShieldAvailable && !monster.oatShieldUsedThisTurn) {
+  if (monster.oatShieldAvailable && !monster.oatShieldUsedThisTurn && !oppHasWelt) {
     monster.oatShieldUsedThisTurn = true;
     setLog(`🛡️ [ออโต้/1 เทิร์น - ${monster.name}] การ์ดใบนี้ไม่ถูกทำลายหรือนำลงนรก!`);
     return { destroyed: false, reason: 'oat_shield', monster };
@@ -516,26 +516,26 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   // เพื่อนร่วมเดินทาง มิวเท็น (BT01_09): ยูนิทฝั่งเราทุกใบจะไม่ถูกทำลายจากความสามารถ
   const oppOfBoardOwner = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
   const isOwnerSilencedByEla = oppOfBoardOwner && Array.isArray(oppOfBoardOwner.board) && oppOfBoardOwner.board.some(m => m && m.id === 'BT01_08');
-  if (!isOwnerSilencedByEla && !isFromBattle && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT01_09')) {
+  if (!isOwnerSilencedByEla && !isFromBattle && !oppHasWelt && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT01_09')) {
     setLog(`🛡️ [ต่อเนื่อง - มิวเท็น] ยูนิทฝั่งเราไม่ถูกทำลายจากความสามารถ!`);
     return { destroyed: false, reason: 'muten_protection', monster };
   }
 
   // ความรักที่แท้จริง (BT01_12): ยูนิทบนสนามเราจะไม่ถูกทำลายจากความสามารถของอีกฝั่งจนจบเกม
   const isEnemyEffect = isByEnemyEffect || (!isFromBattle && typeof gameState !== 'undefined' && gameState.activeTurn !== (boardOwner === gameState.player ? 'player' : 'ai'));
-  if (isEnemyEffect && Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(c => c && c.id === 'BT01_12')) {
+  if (isEnemyEffect && !oppHasWelt && Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(c => c && c.id === 'BT01_12')) {
     setLog(`🌌 [ความรักที่แท้จริง] ยูนิทบนสนามได้รับการปกป้องจากมิติมืด ไม่ถูกทำลายจากความสามารถของอีกฝ่าย!`);
     return { destroyed: false, reason: 'true_love_protection', monster };
   }
 
   // ดราโกนิค โอเวอร์ลอร์ด (KG01): ไม่ถูกทำลายจากความสามารถของการ์ด
-  if (monster.id === 'KG01' && !isFromBattle) {
+  if (monster.id === 'KG01' && !isFromBattle && !oppHasWelt) {
     setLog(`🛡️ [ออโต้ - ${monster.name}] ไม่ถูกทำลายจากความสามารถของการ์ด!`);
     return { destroyed: false, reason: 'effect_immune', monster };
   }
 
   // 🛡️ ราชาอัศวิน อัลเฟรด (RP02): เมื่อมี "บลาสเตอร์ เบลด" บนสนามเรา ไม่ถูกทำลายจากความสามารถ
-  if (monster.id === 'RP02' && !isFromBattle) {
+  if (monster.id === 'RP02' && !isFromBattle && !oppHasWelt) {
     const hasBlasterBlade = Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && (m.id === 'RP03' || (m.name && m.name.includes('บลาสเตอร์ เบลด'))));
     if (hasBlasterBlade) {
       setLog(`🛡️ [ต่อเนื่อง - ${monster.name}] มี "บลาสเตอร์ เบลด" บนสนาม ไม่ถูกทำลายจากความสามารถของการ์ด!`);
@@ -544,7 +544,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   }
 
   // 🛡️ โซลเซฟเวอร์ ดราก้อน (RP01): มือมากกว่าอีกฝ่าย -> ยูนิทเราทุกใบไม่ถูกทำลายจากความสามารถ
-  if (!isFromBattle && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'RP01')) {
+  if (!isFromBattle && !oppHasWelt && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'RP01')) {
     const opp = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
     if (opp && Array.isArray(opp.hand) && Array.isArray(boardOwner.hand) && boardOwner.hand.length > opp.hand.length) {
       setLog(`🛡️ [ต่อเนื่อง - โซลเซฟเวอร์ ดราก้อน] มีการ์ดบนมือมากกว่าอีกฝ่าย -> "${monster.name}" ไม่ถูกทำลายจากความสามารถของการ์ด!`);
@@ -553,7 +553,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   }
 
   // 🛡️ อัศวินแห่งความจริง กอร์ดอน (RP07): มือมากกว่าอีกฝ่าย -> ไม่ถูกทำลายจากการป้องกัน
-  if (isFromBattle && monster.id === 'RP07' && typeof gameState !== 'undefined') {
+  if (isFromBattle && monster.id === 'RP07' && !oppHasWelt && typeof gameState !== 'undefined') {
     const isDefending = gameState.activeTurn !== (boardOwner === gameState.player ? 'player' : 'ai');
     const opp = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
     if (isDefending && opp && Array.isArray(opp.hand) && Array.isArray(boardOwner.hand) && boardOwner.hand.length > opp.hand.length) {
@@ -563,7 +563,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   }
 
   // ดราโกนิค เบลดมาสเตอร์ไทเท็น (BT01_04): เมื่อมี "ดราโกนิค เบลดมาสเตอร์" ในนรก 2 ใบขึ้นไป ไม่ถูกทำลายจากความสามารถ
-  if (monster.id === 'BT01_04' && !isFromBattle) {
+  if (monster.id === 'BT01_04' && !isFromBattle && !oppHasWelt) {
     const blademasterGraveCount = (Array.isArray(boardOwner.graveyard) ? boardOwner.graveyard : []).filter(c => c && c.name && c.name.includes('ดราโกนิค เบลดมาสเตอร์')).length;
     if (blademasterGraveCount >= 2) {
       setLog(`🛡️ [ต่อเนื่อง - ${monster.name}] มี "ดราโกนิค เบลดมาสเตอร์" ในนรก ${blademasterGraveCount} ใบ ไม่ถูกทำลายจากความสามารถของการ์ด!`);
@@ -572,13 +572,13 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   }
 
   // Ultimate Madoka (MD09): การ์ดใบนี้ไม่สามารถถูกทำลาย
-  if (monster.id === 'MD09' || monster.isUltimateMadoka) {
+  if ((monster.id === 'MD09' || monster.isUltimateMadoka) && !oppHasWelt) {
     setLog(`✨ [ออโต้ - ${monster.name}] ไม่สามารถถูกทำลายได้!`);
     return { destroyed: false, reason: 'ultimate_madoka', monster };
   }
 
   // กฎแห่งวัฏจักร (MD12): ป้องกันไม่ออกจากสนาม 1 ครั้ง
-  if (monster.protectedOnce) {
+  if (monster.protectedOnce && !oppHasWelt) {
     delete monster.protectedOnce;
     if (typeof showCardShowcaseBanner === 'function') {
       showCardShowcaseBanner(monster, '🛡️ กฎแห่งวัฏจักร!', `ป้องกันไม่ให้ "${monster.name}" ถูกทำลาย 1 ครั้ง!`, '#ec4899', 1100);
@@ -914,16 +914,33 @@ const gameState = {
   ai: null
 };
 
+function isChoiceModalOpen() {
+  const m = document.getElementById('custom-choice-modal');
+  return !!m && m.style.display !== 'none' && m.style.display !== '';
+}
+
+function isInterceptModalOpen() {
+  const m = document.getElementById('intercept-modal');
+  return !!m && m.style.display !== 'none' && m.style.display !== '';
+}
+
 // ตรวจสอบว่ากำลังมีหน้าต่างตัวเลือก, รอเลือกเป้าหมาย, ยูนิตกำลังโจมตี หรือรอการตัดสินใจของสกิลอยู่หรือไม่
 function isInteractionBlocked() {
   if (gameState.gameOver) return false;
+  const choiceVisible = isChoiceModalOpen();
+  const interceptVisible = isInterceptModalOpen();
+
+  // ป้องกันสถานะเคว้ง: หากไม่มี Modal เปิดอยู่และไม่มีระบบ PVP กำลังรอตัวเลือก ให้เคลียร์ isWaitingForChoice ที่อาจค้าง
+  if (!choiceVisible && !interceptVisible && (!window.pvpState || !window.pvpState.pendingChoiceResolver)) {
+    if (gameState.isWaitingForChoice) {
+      gameState.isWaitingForChoice = false;
+    }
+  }
+
+  if (choiceVisible || interceptVisible) return true;
   if (gameState.isAttacking) return true;
   if (gameState.pendingAction) return true;
   if (gameState.isWaitingForChoice) return true;
-  const choiceModal = document.getElementById('custom-choice-modal');
-  if (choiceModal && choiceModal.style.display !== 'none' && choiceModal.style.display !== '') return true;
-  const interceptModal = document.getElementById('intercept-modal');
-  if (interceptModal && interceptModal.style.display !== 'none' && interceptModal.style.display !== '') return true;
   return false;
 }
 
@@ -3549,9 +3566,9 @@ const EffectEngine = {
             }
           }));
 
-          if (step.upTo && pickNumber > 1) {
+          if (step.upTo) {
             options.push({
-              label: `✅ พอแค่นี้ (เลือกแล้ว ${pickedNames.length} ใบ)`,
+              label: pickNumber > 1 ? `✅ พอแค่นี้ (เลือกแล้ว ${pickedNames.length} ใบ)` : '❌ ไม่นำขึ้นมือ (ข้ามการค้นหา)',
               color: '#475569',
               onSelect: () => finishSearch()
             });
@@ -6987,6 +7004,15 @@ function handleTrailblazerBoardActivation(caster, slotIndex) {
         }
       }
     }));
+    if (selectedSoFar.length === 0) {
+      choices.push({
+        label: '❌ ยกเลิก (ไม่ใช้สกิล)',
+        color: '#6b7280',
+        onSelect: () => {
+          setLog('ยกเลิกการใช้สกิล TRAILBLAZER');
+        }
+      });
+    }
     showChoiceModal(
       `🌌 TRAILBLAZER: เลือกการ์ดจากนรก (ใบที่ ${selectedSoFar.length + 1}/2)`,
       'เลือกการ์ด 1 ใบจากนรกเพื่อนำกลับเข้ากอง:',
@@ -11235,13 +11261,31 @@ function aiTurnAborted() {
   return gameState.gameOver || gameState.activeTurn !== 'ai';
 }
 
+let _aiStartTurnBlockedCount = 0;
 function startAITurn() {
   if (gameState.gameOver) return;
   flushAllCastingZones();
+  if (!isChoiceModalOpen() && !isInterceptModalOpen()) {
+    if (gameState.isAttacking) {
+      gameState.isAttacking = false;
+      if (gameState._attackingTimeout) {
+        clearTimeout(gameState._attackingTimeout);
+        gameState._attackingTimeout = null;
+      }
+    }
+  }
   if (isInteractionBlocked()) {
+    _aiStartTurnBlockedCount++;
+    if (_aiStartTurnBlockedCount > 8 && !isChoiceModalOpen() && !isInterceptModalOpen()) {
+      gameState.isAttacking = false;
+      gameState.pendingAction = null;
+      gameState.isWaitingForChoice = false;
+      _aiStartTurnBlockedCount = 0;
+    }
     setTimeout(startAITurn, 400);
     return;
   }
+  _aiStartTurnBlockedCount = 0;
   if (window.BOFSandbox && window.BOFSandbox.isDummyAIEnabled()) {
     gameState.activeTurn = 'player';
     gameState.turnCount += 1;
@@ -11278,16 +11322,34 @@ function onAIMainPhaseDone() {
 }
 
 // ⏳ สมองกล AI ช่วง Main Phase แบบทีละสเต็ป (ทำ 1 อย่าง -> แสดงเอฟเฟกต์ -> รอ 1.2 วินาที -> ทำอย่างถัดไป)
+let _aiMainPhaseBlockedCount = 0;
 function aiPlayMainPhase(onMainComplete) {
-  if (aiTurnAborted()) return;
+  if (aiTurnAborted()) {
+    _aiMainPhaseBlockedCount = 0;
+    return;
+  }
   // ถ้ามีหน้าต่างคำถาม หรือกำลังรอผู้เล่นเลือกผลของสกิล (เช่น แมมมอน บาปความโลภ) ให้ AI หยุดรอจนกว่าจะเลือกเสร็จสิ้น
   if (isInteractionBlocked()) {
+    _aiMainPhaseBlockedCount++;
+    if (_aiMainPhaseBlockedCount > 10 && !isChoiceModalOpen() && !isInterceptModalOpen()) {
+      gameState.isAttacking = false;
+      gameState.pendingAction = null;
+      gameState.isWaitingForChoice = false;
+      _aiMainPhaseBlockedCount = 0;
+    }
     setTimeout(() => {
       aiPlayMainPhase(onMainComplete);
     }, 400);
     return;
   }
-  const didAction = performSingleAIMainAction();
+  _aiMainPhaseBlockedCount = 0;
+  let didAction = false;
+  try {
+    didAction = performSingleAIMainAction();
+  } catch (err) {
+    console.error('[AI Error in performSingleAIMainAction]', err);
+    didAction = false;
+  }
   if (didAction) {
     setTimeout(() => {
       aiPlayMainPhase(onMainComplete);
@@ -12051,19 +12113,72 @@ function aiCastBestNormalSpell(ai, player, diff) {
     return true;
   }
 
+  // 12. WARP TRACKER (RD08)
+  const rd08Idx = ai.hand.findIndex(c => c && c.id === 'RD08');
+  if (rd08Idx !== -1 && ai.deck.some(c => c && c.type === 'Monster' && hasCardTribe(c, 'รางดาว'))) {
+    const spell = ai.hand.splice(rd08Idx, 1)[0];
+    ai.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    ai.graveyard.push(spell);
+    triggerHimekoSpellBuff(ai);
+    const picked = [];
+    for (let i = 0; i < 2; i++) {
+      const dIdx = ai.deck.findIndex(c => c && c.type === 'Monster' && hasCardTribe(c, 'รางดาว'));
+      if (dIdx === -1) break;
+      const card = ai.deck.splice(dIdx, 1)[0];
+      resetCardStateForZoneChange(card);
+      ai.hand.push(card);
+      picked.push(card.name);
+    }
+    ai.deck = shuffleDeck(ai.deck);
+    showCardShowcaseBanner(spell, 'AI ใช้เวทมนตร์ WARP TRACKER!', `🌌 ค้นหายูนิทรางดาว (${picked.join(', ')}) ขึ้นมือ!`, '#38bdf8');
+    setLog(`🌌 [AI WARP TRACKER] ค้นหายูนิทรางดาว (${picked.join(', ')}) จากกองขึ้นมือ!`);
+    renderGame();
+    return true;
+  }
+
+  // 13. ASTRAL EXPRESS (RD09)
+  const rd09Idx = ai.hand.findIndex(c => c && c.id === 'RD09');
+  if (rd09Idx !== -1 && ai.board.some(m => m !== null && hasCardTribe(m, 'รางดาว'))) {
+    const spell = ai.hand.splice(rd09Idx, 1)[0];
+    ai.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    ai.graveyard.push(spell);
+    triggerHimekoSpellBuff(ai);
+    ai.board.forEach(m => {
+      if (m && hasCardTribe(m, 'รางดาว')) m.tempPowerMod += 1;
+    });
+    showCardShowcaseBanner(spell, 'AI ใช้เวทมนตร์ ASTRAL EXPRESS!', '🚂 ยูนิทเผ่ารางดาวทุกใบพลัง +1 จนจบเทิร์น!', '#38bdf8');
+    setLog('🚂 [AI ASTRAL EXPRESS] ยูนิทเผ่ารางดาวบนสนามทุกใบพลังโจมตี +1 จนจบเทิร์น!');
+    renderGame();
+    return true;
+  }
+
   return false;
 }
 
 // 🧠 สมองกล AI ช่วง Battle Phase (เว้นจังหวะการตีแต่ละตัวให้ผู้เล่นมองเห็นชัดเจน)
+let _aiBattlePhaseBlockedCount = 0;
 function aiPlayBattlePhase(slotIndex) {
-  if (aiTurnAborted()) return;
+  if (aiTurnAborted()) {
+    _aiBattlePhaseBlockedCount = 0;
+    return;
+  }
   // ถ้ามีหน้าต่างคำถาม หรือกำลังรอผลของสกิล ให้ AI หยุดรอก่อนโจมตี
   if (isInteractionBlocked()) {
+    _aiBattlePhaseBlockedCount++;
+    if (_aiBattlePhaseBlockedCount > 10 && !isChoiceModalOpen() && !isInterceptModalOpen()) {
+      gameState.isAttacking = false;
+      gameState.pendingAction = null;
+      gameState.isWaitingForChoice = false;
+      _aiBattlePhaseBlockedCount = 0;
+    }
     setTimeout(() => {
       aiPlayBattlePhase(slotIndex);
     }, 400);
     return;
   }
+  _aiBattlePhaseBlockedCount = 0;
   const ai = gameState.ai;
   const player = gameState.player;
   const diff = aiConfig.difficulty;
@@ -12663,11 +12778,6 @@ if (btnConfirmMulliganEl) {
   });
 }
 
-// หน้าต่างเลือก (เช่น ขุนเหนือ) เปิดค้างโดยไม่ตั้ง pendingAction → ห้ามสับไพ่ใต้หน้าต่างนั้น
-function isChoiceModalOpen() {
-  const m = document.getElementById('custom-choice-modal');
-  return !!m && m.style.display !== 'none';
-}
 
 function startPlayerTurn() {
   if (gameState.gameOver) return;
