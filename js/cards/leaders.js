@@ -118,5 +118,32 @@ CARD_DATABASE.push(
     image: 'images/รอยัล พาลาดิน/1.png',
     ability: 'LEADER_ROYAL_PALADIN',
     desc: 'ออโต้: เมื่อเข้าเทิร์น นำการ์ดยูนิทจากกองขึ้นมือไม่เกิน 1 ใบ\nออโต้: เมื่อจบเทิร์นสแตนด์ยูนิทบนสนามฝั่งเรา 1 ใบ'
+  },
+  {
+    id: 'L10',
+    name: 'รางดาว',
+    type: 'Leader',
+    rarity: 'SSR',
+    maxHp: 6,
+    image: 'images/รางดาว/1.png',
+    ability: 'LEADER_RANGDAO',
+    desc: 'ต่อเนื่อง : ถ้าบนสนามเรามียูนิทเผ่า “รางดาว” 3 ใบ ยูนิททุกพลังโจมตีเพิ่ม 1 หน่วย\nสั่งใช้งาน / 1 เทิร์น : นำการ์ดเวทมนตร์ไม่เกิน 1 ใบ จากกองหรือนรกขึ้นมือไม่เกิน 1 ใบ',
+    effects: [
+      {
+        id: 'leader_l10_aura',
+        trigger: 'CONTINUOUS_BOARD_AURA',
+        condition: { type: 'MIN_TRIBE_COUNT', tribe: 'รางดาว', count: 3 },
+        amount: 1
+      },
+      {
+        id: 'leader_l10_search_spell',
+        label: 'นำการ์ดเวทมนตร์ไม่เกิน 1 ใบ จากกองหรือนรกขึ้นมือ',
+        trigger: 'ACTIVATE_LEADER',
+        oncePerTurn: true,
+        steps: [
+          { block: 'SEARCH_DECK_OR_GRAVE', destination: 'HAND', filterType: 'SPELL', optional: true, minCount: 0, maxCount: 1 }
+        ]
+      }
+    ]
   }
 );

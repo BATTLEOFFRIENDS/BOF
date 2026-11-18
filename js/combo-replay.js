@@ -459,7 +459,7 @@
   }, { threshold: [0, .25, .5, .75, 1] }) : null;
 
   // ---------- จัดหน้าการ์ดคอมโบที่ game.js สร้าง ----------
-  const DECK_COLOR = { L01: '#ff8a3d', L02: '#9fd36b', L03: '#b892ff', L04: '#3fd6b4', L05: '#ff5d73', L06: '#ff7ac8', L07: '#f472b6', L08: '#ef4444', L09: '#3b82f6' };
+  const DECK_COLOR = { L01: '#ff8a3d', L02: '#9fd36b', L03: '#b892ff', L04: '#3fd6b4', L05: '#ff5d73', L06: '#ff7ac8', L07: '#f472b6', L08: '#ef4444', L09: '#3b82f6', L10: '#4fa3e3' };
 
   function enhance() {
     players.forEach(p => { if (!p.wrap.isConnected) { p.tl.kill(); io && io.unobserve(p.stage); vis.delete(p); players.delete(p); } });

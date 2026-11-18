@@ -12,6 +12,7 @@ const DEFAULT_OAT_DECK_LIST = DECK_LISTS.L06;
 const DEFAULT_MADOKA_DECK_LIST = DECK_LISTS.L07;
 const DEFAULT_KAGERO_DECK_LIST = DECK_LISTS.L08;
 const DEFAULT_ROYAL_PALADIN_DECK_LIST = DECK_LISTS.L09;
+const DEFAULT_RANGDAO_DECK_LIST = DECK_LISTS.L10;
 
 function isSpellCard(card) {
   return !!(card && (card.type === 'NormalSpell' || card.type === 'ReactionSpell' || card.type === 'LandSpell'));
@@ -10394,14 +10395,14 @@ const AI_CONFIG_STORAGE_KEY = 'bof_ai_config_v1';
 
 const aiConfig = (function () {
   const defaults = {
-    deckChoice: 'RANDOM', // 'RANDOM' | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06' | 'L07' | 'L08' | 'L09'
+    deckChoice: 'RANDOM', // 'RANDOM' | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06' | 'L07' | 'L08' | 'L09' | 'L10'
     difficulty: 'NORMAL', // 'EASY' | 'NORMAL' | 'HARD'
     stepDelayMs: 1150
   };
   try {
     const saved = JSON.parse(localStorage.getItem(AI_CONFIG_STORAGE_KEY));
     if (saved) {
-      if (['RANDOM', 'L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09'].includes(saved.deckChoice)) {
+      if (['RANDOM', 'L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10'].includes(saved.deckChoice)) {
         defaults.deckChoice = saved.deckChoice;
       }
       if (['EASY', 'NORMAL', 'HARD'].includes(saved.difficulty)) {
@@ -10438,7 +10439,8 @@ const AI_DECK_CATALOG = [
   { id: 'L06', name: 'เด็คโอ็ต', leader: 'ไอโอ๊ตบ้าทุกสิ่ง', desc: 'เปิดท็อปกองคอลพรรคพวกสายบ้าลงสนาม', color: '#fb923c', img: 'images/เด็คโอ๊ต/1.png' },
   { id: 'L07', name: 'เด็คมาโดกะ', leader: 'มาโดกะ', desc: 'ค้นหา Soul Gem และอัญเชิญสาวน้อยเวทมนตร์', color: '#f472b6', img: 'images/มาโดกะ/1.png' },
   { id: 'L08', name: 'เด็คคาเงโร่', leader: 'คาเงโร่', desc: 'ทิ้งการ์ดทำลายยูนิทและบังคับสูญเสียพลังชีวิต', color: '#ef4444', img: 'images/เด็คคาเงโร่/1.png' },
-  { id: 'L09', name: 'เด็ครอยัล พาลาดิน', leader: 'รอยัล พาลาดิน', desc: 'ค้นหายูนิตเข้ามือ เสริมพลังตามการ์ดบนมือ และสแตนด์ยูนิตจบเทิร์น', color: '#2563eb', img: 'images/รอยัล พาลาดิน/1.png' }
+  { id: 'L09', name: 'เด็ครอยัล พาลาดิน', leader: 'รอยัล พาลาดิน', desc: 'ค้นหายูนิตเข้ามือ เสริมพลังตามการ์ดบนมือ และสแตนด์ยูนิตจบเทิร์น', color: '#2563eb', img: 'images/รอยัล พาลาดิน/1.png' },
+  { id: 'L10', name: 'เด็ครางดาว', leader: 'รางดาว', desc: 'พลังสามัคคีขบวนรถไฟ เสริมพลังตามเผ่ารางดาว และใช้เวทมนตร์บุกตะลุย', color: '#4fa3e3', img: 'images/รางดาว/1.png' }
 ];
 
 function openAISetupModal() {
@@ -12873,7 +12875,8 @@ const DECK_BUILDER_LEADER_THEMES = {
   L06: 'oat',
   L07: 'madoka',
   L08: 'kagero',
-  L09: 'royal_paladin'
+  L09: 'royal_paladin',
+  L10: 'rangdao'
 };
 
 const deckBuilderFilterState = {
@@ -13493,7 +13496,7 @@ function initGame() {
   const scrollbox = document.getElementById('action-log-scrollbox');
   if (scrollbox) scrollbox.innerHTML = '';
 
-  const allLeaderIds = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09'];
+  const allLeaderIds = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10'];
   const chosenAiLeaderId = (aiConfig.deckChoice === 'RANDOM')
     ? allLeaderIds[Math.floor(Math.random() * allLeaderIds.length)]
     : aiConfig.deckChoice;

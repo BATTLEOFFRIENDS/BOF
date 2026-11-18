@@ -1533,6 +1533,15 @@
       color: '#2563eb',
       image: 'images/รอยัล พาลาดิน/1.png',
       price: 2000
+    },
+    {
+      id: 'deck_rangdao',
+      leaderId: 'L10',
+      name: 'เด็ครางดาว',
+      sub: 'พลังสามัคคีขบวนรถไฟ เสริมพลังตามเผ่ารางดาว และใช้เวทมนตร์บุกตะลุย',
+      color: '#4fa3e3',
+      image: 'images/รางดาว/1.png',
+      price: 2000
     }
   ];
 
