@@ -104,6 +104,16 @@
       tenPrice: TEN_PACK_PRICE
     },
     {
+      id: 'pack_killer',
+      name: 'ซองเด็คคิลเลอร์',
+      sub: 'สุ่มการ์ดสายคิลเลอร์ (มีโอกาสออก Leader ENTITY SSR!)',
+      color: '#dc2626',
+      image: 'images/Killer/1.png',
+      prefix: 'images/Killer/',
+      price: PACK_PRICE,
+      tenPrice: TEN_PACK_PRICE
+    },
+    {
       id: 'pack_bt01',
       name: 'ซองบูสเตอร์01',
       sub: 'ชุดเสริมเด็คจิต & คาเงโร่ (ลุ้น SR โทโคยาจิต & ไทเท็น)',
@@ -1542,6 +1552,15 @@
       color: '#4fa3e3',
       image: 'images/รางดาว/1.png',
       price: 2000
+    },
+    {
+      id: 'deck_killer',
+      leaderId: 'L11',
+      name: 'เด็คคิลเลอร์',
+      sub: 'ส่งการ์ดคู่ต่อสู้ลงนรก อัญเชิญฆาตกรจากขุมนรก และสร้างความเสียหายต่อลีดเดอร์',
+      color: '#dc2626',
+      image: 'images/Killer/1.png',
+      price: 2000
     }
   ];
 
@@ -1647,7 +1666,7 @@
             return `
               <div class="sh-peek-card-item r-${rar}" data-peek-card-id="${c.id}" tabindex="0" role="button" aria-label="${c.name}">
                 <div class="sh-peek-art-wrap">
-                  <img src="${thumbOf(c.image)}" alt="" onerror="this.onerror=null;this.src='${c.image}'" loading="lazy">
+                  <img src="${thumbOf(c.image)}" alt="" onerror="this.onerror=null;this.src='${c.image}${String(c.image).includes('รางดาว') ? '?v=20261120a' : ''}'" loading="lazy">
                   <span class="sh-peek-rar-tag r-${rar}">${rar}</span>
                   ${countTag}
                 </div>
@@ -1812,7 +1831,10 @@
 
   // --- มุมมอง: ซองการ์ด (สุ่มซองเสริม) ---
   let packQty = 1;
-  const thumbOf = img => String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+  const thumbOf = img => {
+    const s = String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+    return s.includes('รางดาว') ? `${s}?v=20261120a` : s;
+  };
   const buyLabel = (p, qty) => `เปิด ${qty} ซอง · <span class="sh-price">${COIN_SVG}${(qty === 10 ? p.tenPrice : p.price).toLocaleString('th-TH')}</span>`;
 
   function renderPacksView(container) {
@@ -1912,7 +1934,8 @@
     { key: 'MADOKA', label: 'มาโดกะ', dir: 'มาโดกะ', c: '#f472b6' },
     { key: 'KAGERO', label: 'คาเงโร่', dir: 'เด็คคาเงโร่', c: '#ef4444' },
     { key: 'ROYAL', label: 'รอยัล พาลาดิน', dir: 'รอยัล พาลาดิน', c: '#38bdf8' },
-    { key: 'RANGDAO', label: 'รางดาว', dir: 'รางดาว', c: '#38bdf8' }
+    { key: 'RANGDAO', label: 'รางดาว', dir: 'รางดาว', c: '#38bdf8' },
+    { key: 'KILLER', label: 'คิลเลอร์', dir: 'Killer', c: '#dc2626' }
   ];
   const RARITY_FILTERS = [
     { key: 'ALL', label: 'ทุกระดับ', c: '#f3c969' },
@@ -1927,6 +1950,7 @@
     if (card.tribe === 'คาเงโร่') return DECK_FILTERS.find(d => d.key === 'KAGERO') || DECK_FILTERS[0];
     if (card.tribe === 'รอยัล พาลาดิน' || (card.id && card.id.startsWith('RP'))) return DECK_FILTERS.find(d => d.key === 'ROYAL') || DECK_FILTERS[0];
     if (card.tribe === 'รางดาว' || (card.id && card.id.startsWith('RD')) || card.id === 'L10') return DECK_FILTERS.find(d => d.key === 'RANGDAO') || DECK_FILTERS[0];
+    if (card.tribe === 'ENTITY' || (card.id && card.id.startsWith('KL')) || card.id === 'L11') return DECK_FILTERS.find(d => d.key === 'KILLER') || DECK_FILTERS[0];
     return DECK_FILTERS.find(d => d.dir && String(card.image || '').includes(`/${d.dir}/`)) || DECK_FILTERS[0];
   };
   const maxKeepOf = card => (card.type === 'Leader' ? 1 : (card.maxCopies || 2));
@@ -1934,7 +1958,13 @@
     <button type="button" class="fx-chip" role="radio" aria-checked="${f.key === active}" ${attr}="${f.key}" style="--chip-c:${f.c}">
       <span>${f.label}</span>${counts ? `<small>${counts[f.key] || 0}</small>` : ''}
     </button>`).join('');
-  window.BOFDecks = { DECK_FILTERS, RARITY_FILTERS, deckOfCard, maxKeepOf, thumbOf: img => String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp') };
+  window.BOFDecks = {
+    DECK_FILTERS, RARITY_FILTERS, deckOfCard, maxKeepOf,
+    thumbOf: img => {
+      const s = String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+      return s.includes('รางดาว') ? `${s}?v=20261120a` : s;
+    }
+  };
 
   function renderCraftingView(container) {
     if (typeof CARD_DATABASE === 'undefined') return;

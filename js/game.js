@@ -12913,6 +12913,15 @@ function getCardLeaderLock(card) {
       };
     }
   }
+  // เด็คคิลเลอร์ (L11): การ์ด KL01-KL13 ล็อกใช้ได้เฉพาะลีดเดอร์ ENTITY
+  if (/^KL/i.test(id)) {
+    return {
+      leaderId: 'L11',
+      leaderName: 'ENTITY',
+      badgeText: '🔒 เฉพาะ ENTITY',
+      alertMsg: `การ์ด "${card.name}" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "ENTITY" เท่านั้น!`
+    };
+  }
   return null;
 }
 
@@ -13439,7 +13448,8 @@ const DECK_BUILDER_LEADER_THEMES = {
   L07: 'madoka',
   L08: 'kagero',
   L09: 'royal_paladin',
-  L10: 'rangdao'
+  L10: 'rangdao',
+  L11: 'killer'
 };
 
 const deckBuilderFilterState = {
@@ -13471,6 +13481,7 @@ function cardMatchesDeckTheme(card, themeKey, currentLeaderId) {
   }
 
   const id = String(card.futureBaseId || card.id || '');
+  if (themeKey === 'killer') return /^KL/i.test(id) || id === 'L11' || hasCardTribe(card, 'ENTITY');
   if (themeKey === 'rangdao') return /^RD/i.test(id) || id === 'L10' || hasCardTribe(card, 'รางดาว');
   if (themeKey === 'royal_paladin') return /^RP/i.test(id) || hasCardTribe(card, 'รอยัล พาลาดิน');
   if (themeKey === 'kagero') return /^KG/i.test(id) || id === 'BT01_06' || hasCardTribe(card, 'คาเงโร่');

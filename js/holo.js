@@ -395,7 +395,10 @@
   };
 
   // รูปเล็กที่ game.js ใส่ภาพเต็ม (~1MB) → ภาพย่อ WebP: รูปเด็คในหน้าตั้งค่าบอท และปุ่มการ์ดล่าสุดของคู่แข่ง
-  const thumbOf = src => String(src || '').replace(/^images\/(?!thumbs\/)(.+)\.png$/, 'images/thumbs/$1.webp');
+  const thumbOf = src => {
+    const s = String(src || '').replace(/^images\/(?!thumbs\/)(.+)\.png$/, 'images/thumbs/$1.webp');
+    return s.includes('รางดาว') ? `${s}?v=20261120a` : s;
+  };
   if (typeof AI_DECK_CATALOG !== 'undefined') AI_DECK_CATALOG.forEach(d => { d.img = thumbOf(d.img); });
   const origLastCard = window.updateLastPlayedCardWidget;
   if (origLastCard) window.updateLastPlayedCardWidget = function (info) {

@@ -25,12 +25,13 @@
   const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
   const easeOut = k => 1 - Math.pow(1 - k, 3);
   const easeIn = k => k * k * k;
-  const LEADER_DECK = { L01: 'jit', L02: 'nuea', L03: 'doom', L04: 'dino', L05: 'demon', L06: 'oat', L07: 'madoka', L08: 'kagero', L09: 'royal_paladin', L10: 'rangdao' };
+  const LEADER_DECK = { L01: 'jit', L02: 'nuea', L03: 'doom', L04: 'dino', L05: 'demon', L06: 'oat', L07: 'madoka', L08: 'kagero', L09: 'royal_paladin', L10: 'rangdao', L11: 'killer' };
   const RARITY_LVL = { N: 0, R: .3, SR: .65, SSR: 1, Legend: 1 };
 
   // ---------- เด็ค / ความแรง ----------
   function deckOf(card, owner) {
     const id = String((card && (card.futureBaseId || card.id)) || '');
+    if (/^KL/.test(id)) return 'killer';
     if (/^RD/.test(id)) return 'rangdao';
     if (/^RP/.test(id)) return 'royal_paladin';
     if (/^MD/.test(id)) return 'madoka';

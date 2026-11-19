@@ -125,7 +125,7 @@
       const max = D.maxKeepOf(c);
       return `
         <button type="button" role="listitem" class="col-card r-${c.rarity} ${n ? 'is-owned' : 'is-locked'}" data-id="${c.id}" style="--c:${D.deckOfCard(c).c}" aria-label="${esc(c.name)} ${c.rarity}${n ? ` มี ${n} ใบ` : ' ยังไม่มี'}">
-          <span class="col-art"><img src="${D.thumbOf(c.image)}" alt="" onerror="this.onerror=null;this.src='${c.image}'" loading="lazy" draggable="false"><span class="col-shine" aria-hidden="true"></span>
+          <span class="col-art"><img src="${D.thumbOf(c.image)}" alt="" onerror="this.onerror=null;this.src='${c.image}${String(c.image).includes('รางดาว') ? '?v=20261120a' : ''}'" loading="lazy" draggable="false"><span class="col-shine" aria-hidden="true"></span>
             ${n ? '' : '<span class="col-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span>'}
           </span>
           <span class="col-name">${esc(c.name)}</span>

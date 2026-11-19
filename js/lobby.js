@@ -18,6 +18,7 @@
     { key: 'kagero', leaderId: 'L08', name: 'เด็คคาเงโร่', style: 'มังกรเพลิงทำลายล้างสนามและสแตนด์บุกโจมตีต่อเนื่อง' },
     { key: 'royal_paladin', leaderId: 'L09', name: 'เด็ครอยัล พาลาดิน', style: 'ค้นหายูนิตเข้ามือ เสริมพลังตามการ์ดบนมือ และสแตนด์ยูนิตจบเทิร์น' },
     { key: 'rangdao', leaderId: 'L10', name: 'เด็ครางดาว', style: 'พลังสามัคคีขบวนรถไฟ เสริมพลังตามเผ่ารางดาว และใช้เวทมนตร์บุกตะลุย' },
+    { key: 'killer', leaderId: 'L11', name: 'เด็คคิลเลอร์', style: 'ส่งการ์ดคู่ต่อสู้ลงนรก อัญเชิญฆาตกรจากขุมนรก และสร้างความเสียหายต่อลีดเดอร์' },
   ];
 
   const byId = id => CARD_DATABASE.find(c => c.id === id);
@@ -45,7 +46,10 @@
   }
 
   // ภาพย่อ WebP (สร้างด้วย tools/make-thumbs.js): images/เด็คจิต/3.png → images/thumbs/เด็คจิต/3.webp
-  const thumbOf = card => card.image.replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+  const thumbOf = card => {
+    const s = card.image.replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+    return s.includes('รางดาว') ? `${s}?v=20261120a` : s;
+  };
 
   // เด็คมาตรฐาน (L01–L04) หรือเด็คที่ผู้เล่นบันทึกไว้ ('mine') → ลีดเดอร์ + การ์ดไม่ซ้ำ
   function cardsOfDeck(key) {
@@ -59,8 +63,8 @@
   /* ---------------- การแสดงผล (ล็อบบี้เกมหน้าจอเดียว v0.8) ---------------- */
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
-  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#ef4444', L09: '#2563eb', L10: '#4fa3e3' };
-  const STANDARD = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10'];
+  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#ef4444', L09: '#2563eb', L10: '#4fa3e3', L11: '#dc2626' };
+  const STANDARD = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10', 'L11'];
   const small = () => matchMedia('(max-width: 767px)').matches;
   const wallSize = () => (small() ? { cols: 6, rows: 6 } : { cols: 12, rows: 5 });
 
