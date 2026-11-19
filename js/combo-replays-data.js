@@ -213,62 +213,10 @@ window.BOF_COMBO_REPLAYS = {
     done: 'ชนะ!', doneSay: 'จู่โจมฉับพลันใน Battle Phase ล้างสนามพร้อมปิดเกมทันที'
   },
 
-  // ==================== เด็คคาเงโร่ ====================
-  kagero_the_end: {
-    setup: { meLeader: 'L08', oppLeader: 'L01', me: ['KG02', null, null], hand: ['KG01'], hp: { opp: 5 } },
-    steps: [
-      { say: 'สั่ง <b>ดราโกนิค โอเวอร์ลอร์ด The end</b> โจมตีลีดเดอร์', act: [['attack', 'KG02', 'L01'], ['hp', 'opp', 2]] },
-      { say: 'ทิ้ง <b>ดราโกนิค โอเวอร์ลอร์ด</b> บนมือ → The End ลุกขึ้น <b>Stand</b>!', act: [['discard', 'KG01'], ['stand', 'KG02'], ['seal', 'KG02']] },
-      { say: 'โอเวอร์ลอร์ดที่ถูกทิ้ง อัญเชิญตัวเองลงสนามฟรี!', act: [['summon', 'KG01', 1]] },
-      { say: 'สั่ง The End โจมตีซ้ำอีกรอบ ปิดเกม!', act: [['attack', 'KG02', 'L01'], ['hp', 'opp', 0]] }
-    ],
-    done: 'ชนะ!', doneSay: 'The End ตีเบิ้ล 2 ครั้ง + โอเวอร์ลอร์ดคืนสนามฟรี'
-  },
-  kagero_burnout_conroe: {
-    setup: { meLeader: 'L08', oppLeader: 'L06', hand: ['KG08', 'KG07'], meGrave: ['KG01', 'KG05'], deck: ['KG03', 'KG04', 'KG06'], hp: { opp: 3 } },
-    steps: [
-      { say: 'ร่ายเวท <b>ลิซาร์ดโซลเจอร์ คอนโร</b>', act: [['cast', 'KG08']] },
-      { say: 'ส่งมอนสเตอร์จากกองลงนรก 1 ใบ แล้วจั่วการ์ด 2 ใบ', act: [['mill', 'KG03'], ['draw', 'KG04', 'KG06']] },
-      { say: 'นรกมีมอนสเตอร์ 3 ใบ! อัญเชิญ <b>ดราโกนิค เบิร์นเอาท์</b> ลงสนาม', act: [['summon', 'KG07', 0]] },
-      { say: 'ผลต่อเนื่องทำงาน: พลังโจมตี +2 กลายเป็น <b>3</b>!', act: [['power', 'KG07', 3], ['glow', 'KG07']] },
-      { say: 'สั่งเบิร์นเอาท์โจมตีลีดเดอร์ ปิดเกม!', act: [['attack', 'KG07', 'L06'], ['hp', 'opp', 0]] }
-    ],
-    done: 'ชนะ!', doneSay: 'คอนโรเติมการ์ดในนรกและบนมือ ทำให้เบิร์นเอาท์มีพลัง 3 ทันที'
-  },
 
-  // ==================== เด็ครอยัล พาลาดิน ====================
-  royal_alfred_blaster: {
-    setup: { meLeader: 'L09', oppLeader: 'L08', hand: ['RP02'], deck: ['RP03'], opp: ['KG06', null, null], hp: { opp: 4 } },
-    steps: [
-      { say: 'อัญเชิญ <b>ราชาอัศวิน อัลเฟรด</b> ลงสู่สนาม', act: [['summon', 'RP02', 0]] },
-      { say: 'สกิลอัลเฟรดทำงาน: เรียก <b>บลาสเตอร์ เบลด</b> จากกองลงสนามฟรี!', act: [['summon', 'RP03', 1]] },
-      { say: 'บลาสเตอร์ เบลด ทำลายยูนิตฝ่ายตรงข้าม!', act: [['target', 'KG06'], ['beam', 'RP03', 'KG06'], ['destroy', 'KG06']] },
-      { say: 'มีบลาสเตอร์ เบลด เคียงข้าง! อัลเฟรดพลัง +2 กลายเป็น <b>4</b>', act: [['link', 'RP03', 'RP02'], ['power', 'RP02', 4], ['glow', 'RP02']] },
-      { say: 'สั่งอัลเฟรด Power 4 โจมตีลีดเดอร์ฝ่ายตรงข้าม ปิดเกม!', act: [['attack', 'RP02', 'L08'], ['hp', 'opp', 0]] }
-    ],
-    done: 'ชนะ!', doneSay: 'อัลเฟรดเรียกบลาสเตอร์ เบลด ทำลายยูนิตและพุ่งชนด้วย Power 4!'
-  },
-  royal_hand_advantage_soulsaver: {
-    setup: {
-      meLeader: 'L09', oppLeader: 'L01',
-      hand: ['RP11', 'RP01'],
-      meGrave: ['RP04', 'RP05', 'RP06', 'RP07', 'RP08', 'RP09', 'RP10', 'RP03'],
-      oppGrave: ['M01', 'M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M08'],
-      deck: ['RP06', 'RP05', 'RP04'],
-      hp: { me: 3, opp: 4 }
-    },
-    steps: [
-      { say: 'ร่ายเวทมนตร์ <b>มิโกะต้นไม้แห่งชีวิต เอเลน</b>', act: [['cast', 'RP11']] },
-      { say: 'คืนการ์ดจากนรก 2 ใบเข้ากอง จั่ว 2 และทิ้งยูนิตอื่น 1 ใบ (เก็บโซลเซฟเวอร์ไว้)', act: [['toDeck', 'RP04'], ['toDeck', 'RP05'], ['draw', 'RP06', 'RP05'], ['discard', 'RP06']] },
-      { say: 'นรกครบ 8 ใบ! อัญเชิญ <b>โซลเซฟเวอร์ ดราก้อน</b> ลงสนาม & ฟื้นฟู 3 HP', act: [['summon', 'RP01', 0], ['hp', 'me', 6], ['glow', 'RP01']] },
-      { say: 'การ์ดบนมือได้เปรียบ: เสริมพลังมหาศาล สั่งโจมตีลีดเดอร์ปิดเกม!', act: [['attack', 'RP01', 'L01'], ['hp', 'opp', 0]] }
-    ],
-    done: 'ชนะ!', doneSay: 'ครองการ์ดบนมือ ฟื้นฟู 3 HP และปิดฉากด้วยโซลเซฟเวอร์ ดราก้อน!'
-  },
-
-  // ==================== เด็ครางดาว (L10) ====================
+  // ==================== เด็ครางดาว (L08) ====================
   rangdao_sunday_himeko: {
-    setup: { meLeader: 'L10', oppLeader: 'L01', me: ['RD05', null, null], hand: ['RD07'], meGrave: ['RD01'], opp: ['M02', null, null], hp: { opp: 3 } },
+    setup: { meLeader: 'L08', oppLeader: 'L01', me: ['RD05', null, null], hand: ['RD07'], meGrave: ['RD01'], opp: ['M02', null, null], hp: { opp: 3 } },
     steps: [
       { say: 'แตะ <b>HIMEKO</b> บนสนามเพื่อใช้สกิลทำลายยูนิต', act: [['tap', 'RD05'], ['seal', 'RD05']] },
       { say: 'ทิ้ง <b>SUNDAY</b> จากบนมือลงนรก เป็นค่าใช้สกิล', act: [['discard', 'RD07']] },
@@ -281,7 +229,7 @@ window.BOF_COMBO_REPLAYS = {
   },
 
   rangdao_danheng_protection: {
-    setup: { meLeader: 'L10', oppLeader: 'L04', me: ['RD02', null, null], hand: ['RD04'], opp: ['DN03', null, null], hp: { opp: 5 } },
+    setup: { meLeader: 'L08', oppLeader: 'L04', me: ['RD02', null, null], hand: ['RD04'], opp: ['DN03', null, null], hp: { opp: 5 } },
     steps: [
       { say: 'อัญเชิญ <b>DAN HENG จ้าวทรนงคงปฐพี</b> ลงสู่สนาม', act: [['summon', 'RD04', 1]] },
       { say: 'ความสามารถต่อเนื่องคุ้มกันยูนิตฝั่งเรา <b>ไม่ถูกทำลายจากสกิล</b>!', act: [['glow', 'RD04'], ['glow', 'RD02']] },
@@ -294,10 +242,10 @@ window.BOF_COMBO_REPLAYS = {
   },
 
   rangdao_pompom_express: {
-    setup: { meLeader: 'L10', oppLeader: 'L04', me: ['RD05', null, null], hand: ['RD10', 'RD01', 'RD09'], opp: ['DN03', null, null], hp: { me: 2, opp: 4 } },
+    setup: { meLeader: 'L08', oppLeader: 'L04', me: ['RD05', null, null], hand: ['RD10', 'RD01', 'RD09'], opp: ['DN03', null, null], hp: { me: 2, opp: 4 } },
     steps: [
       { say: 'เมื่อฝ่ายตรงข้ามสั่ง <b>ไทรเซราทอปส์</b> โจมตี ร่ายเวทรีแอค <b>POM POM</b> จากบนมือ!', act: [['cast', 'RD10']] },
-      { say: 'ทิ้งการ์ดเผ่ารางดาว 1 ใบเพื่อ <b>ยกเลิกการโจมตี + ฟื้นฟูเลือด 1 HP</b>!', act: [['discard', 'RD01'], ['hp', 'me', 3], ['shield', 'L10']] },
+      { say: 'ทิ้งการ์ดเผ่ารางดาว 1 ใบเพื่อ <b>ยกเลิกการโจมตี + ฟื้นฟูเลือด 1 HP</b>!', act: [['discard', 'RD01'], ['hp', 'me', 3], ['shield', 'L08']] },
       { say: 'เข้าสู่เทิร์นเรา ร่ายเวทมนตร์ <b>ASTRAL EXPRESS</b>!', act: [['cast', 'RD09']] },
       { say: 'สกิล HIMEKO ทำงานเมื่อร่ายเวท: พลัง +2 และผลเวท +1 รวมเป็น <b>5</b>!', act: [['power', 'RD05', 5], ['glow', 'RD05']] },
       { say: 'สั่ง HIMEKO Power 5 โจมตีปิดเกมอย่างเด็ดขาด!', act: [['attack', 'RD05', 'L04'], ['hp', 'opp', 0]] }

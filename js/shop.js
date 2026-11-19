@@ -94,16 +94,6 @@
       tenPrice: TEN_PACK_PRICE
     },
     {
-      id: 'pack_kagero',
-      name: 'ซองเด็คคาเงโร่',
-      sub: 'สุ่มการ์ดสายคาเงโร่ (มีโอกาสออก Leader คาเงโร่ SSR!)',
-      color: '#ef4444',
-      image: 'images/เด็คคาเงโร่/1.png',
-      prefix: 'images/เด็คคาเงโร่/',
-      price: PACK_PRICE,
-      tenPrice: TEN_PACK_PRICE
-    },
-    {
       id: 'pack_killer',
       name: 'ซองเด็คคิลเลอร์',
       sub: 'สุ่มการ์ดสายคิลเลอร์ (มีโอกาสออก Leader ENTITY SSR!)',
@@ -116,11 +106,23 @@
     {
       id: 'pack_bt01',
       name: 'ซองบูสเตอร์01',
-      sub: 'ชุดเสริมเด็คจิต & คาเงโร่ (ลุ้น SR โทโคยาจิต & ไทเท็น)',
+      sub: 'ชุดเสริมบูสเตอร์ 01 (ลุ้น SR โทโคยาจิต & ผู้บัญชาการ เอล่า)',
       color: '#f97316',
       image: 'images/BT/BT01/2.png',
-      backImage: 'images/BT/BT01/4.png',
+      backImage: 'images/BT/BT01/8.png',
       prefix: 'images/BT/BT01/',
+      rates: { N: 50, R: 40, SR: 10 },
+      price: PACK_PRICE,
+      tenPrice: TEN_PACK_PRICE
+    },
+    {
+      id: 'pack_bt02',
+      name: 'ซองบูสเตอร์02',
+      sub: 'ชุดเสริมบูสเตอร์ 02 (ลุ้น SR น้องฮานาบิจาง & น้องฮิบานะจาง)',
+      color: '#a855f7',
+      image: 'images/BT/BT02/1.png',
+      backImage: 'images/BT/BT02/2.png',
+      prefix: 'images/BT/BT02/',
       rates: { N: 50, R: 40, SR: 10 },
       price: PACK_PRICE,
       tenPrice: TEN_PACK_PRICE
@@ -497,7 +499,7 @@
     {
       id: 'cb_blademaster',
       category: 'card_back',
-      name: 'ลายเพลงดาบสุริยันคาเงโร่',
+      name: 'ลายเพลงดาบสุริยัน',
       desc: 'คมดาบเพลิงคู่สุริยะและตราประทับแห่งกองทัพมังกรเพลิง',
       currency: 'coins',
       price: 1200,
@@ -622,7 +624,7 @@
       id: 'pf_solar',
       category: 'frame',
       name: 'กรอบสุริยะเพลิงมังกร',
-      desc: 'กรอบเปลวเพลิงสีส้มทองลุกโชนของคาเงโร่',
+      desc: 'กรอบเปลวเพลิงสีส้มทองลุกโชนของมังกรเพลิง',
       currency: 'coins',
       price: 850,
       rarity: 'SR',
@@ -742,8 +744,8 @@
     {
       id: 'tt_dragon_blade',
       category: 'title',
-      name: 'ดาบเพลิงสุริยันคาเงโร่',
-      badgeText: '⚔️ ดาบเพลิงสุริยันคาเงโร่',
+      name: 'ดาบเพลิงสุริยัน',
+      badgeText: '⚔️ ดาบเพลิงสุริยัน',
       desc: 'ฉายานักดาบมังกรผู้เผาผลาญทุกอุปสรรค',
       currency: 'coins',
       price: 600,
@@ -866,7 +868,7 @@
       id: 'mt_inferno',
       category: 'arena_theme',
       name: 'สนามเพลิงมังกร (Dragon Inferno)',
-      desc: 'พื้นสนามประลองลาวาเพลิงมังกรคาเงโร่ที่ไม่มีวันดับ',
+      desc: 'พื้นสนามประลองลาวาเพลิงมังกรที่ไม่มีวันดับ',
       currency: 'coins',
       price: 1100,
       rarity: 'SR',
@@ -1109,7 +1111,7 @@
   }
 
   /* ---------------- ฉากเปิดซอง: ลากฉีกซองฟอยล์ (js/pack-open.js) ---------------- */
-  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_kagero: ['คาเงโร่', 'KAGERO'], pack_bt01: ['BT01', 'BOOSTER 01'] };
+  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_bt01: ['BT01', 'BOOSTER 01'], pack_bt02: ['BT02', 'BOOSTER 02'] };
   function playPackOpeningAnimation(pack, packCount, highestRarity, onComplete) {
     const stage = document.getElementById('bof-pack-anim-stage');
     const done = () => { if (onComplete) onComplete(); };
@@ -1527,26 +1529,8 @@
       price: 2000
     },
     {
-      id: 'deck_kagero',
-      leaderId: 'L08',
-      name: 'เด็คคาเงโร่',
-      sub: 'มังกรเพลิงทำลายล้างสนาม สแตนด์บุกโจมตีต่อเนื่อง',
-      color: '#ef4444',
-      image: 'images/เด็คคาเงโร่/1.png',
-      price: 2000
-    },
-    {
-      id: 'deck_royal_paladin',
-      leaderId: 'L09',
-      name: 'เด็ครอยัล พาลาดิน',
-      sub: 'ค้นหายูนิตเข้ามือ เสริมพลังตามการ์ดบนมือ และสแตนด์ยูนิตจบเทิร์น',
-      color: '#2563eb',
-      image: 'images/รอยัล พาลาดิน/1.png',
-      price: 2000
-    },
-    {
       id: 'deck_rangdao',
-      leaderId: 'L10',
+      leaderId: 'L08',
       name: 'เด็ครางดาว',
       sub: 'พลังสามัคคีขบวนรถไฟ เสริมพลังตามเผ่ารางดาว และใช้เวทมนตร์บุกตะลุย',
       color: '#4fa3e3',
@@ -1555,7 +1539,7 @@
     },
     {
       id: 'deck_killer',
-      leaderId: 'L11',
+      leaderId: 'L09',
       name: 'เด็คคิลเลอร์',
       sub: 'ส่งการ์ดคู่ต่อสู้ลงนรก อัญเชิญฆาตกรจากขุมนรก และสร้างความเสียหายต่อลีดเดอร์',
       color: '#dc2626',
@@ -1925,6 +1909,7 @@
   const DECK_FILTERS = [
     { key: 'ALL', label: 'ทั้งหมด', c: '#f3c969' },
     { key: 'BT01', label: 'BT01', dir: 'BT01', c: '#f97316' },
+    { key: 'BT02', label: 'BT02', dir: 'BT02', c: '#a855f7' },
     { key: 'JIT', label: 'จิต', dir: 'เด็คจิต', c: '#3ee08f' },
     { key: 'NUEA', label: 'ขุนเหนือ', dir: 'เด็คเหนือ', c: '#f0a347' },
     { key: 'DOOM', label: 'สิ้นโลก', dir: 'วันสิ้นโลก', c: '#5fd0ff' },
@@ -1932,8 +1917,6 @@
     { key: 'DEMON', label: 'ปีศาจ', dir: 'เด็คปีศาจ', c: '#c084fc' },
     { key: 'OAT', label: 'โอ๊ต', dir: 'เด็คโอ๊ต', c: '#fb923c' },
     { key: 'MADOKA', label: 'มาโดกะ', dir: 'มาโดกะ', c: '#f472b6' },
-    { key: 'KAGERO', label: 'คาเงโร่', dir: 'เด็คคาเงโร่', c: '#ef4444' },
-    { key: 'ROYAL', label: 'รอยัล พาลาดิน', dir: 'รอยัล พาลาดิน', c: '#38bdf8' },
     { key: 'RANGDAO', label: 'รางดาว', dir: 'รางดาว', c: '#38bdf8' },
     { key: 'KILLER', label: 'คิลเลอร์', dir: 'Killer', c: '#dc2626' }
   ];
@@ -1946,11 +1929,10 @@
   ];
   const deckOfCard = card => {
     if (card.id && card.id.startsWith('BT01')) return DECK_FILTERS.find(d => d.key === 'BT01') || DECK_FILTERS[0];
+    if (card.id && card.id.startsWith('BT02')) return DECK_FILTERS.find(d => d.key === 'BT02') || DECK_FILTERS[0];
     if (card.tribe === 'ฮีโร่') return DECK_FILTERS.find(d => d.key === 'JIT') || DECK_FILTERS[0];
-    if (card.tribe === 'คาเงโร่') return DECK_FILTERS.find(d => d.key === 'KAGERO') || DECK_FILTERS[0];
-    if (card.tribe === 'รอยัล พาลาดิน' || (card.id && card.id.startsWith('RP'))) return DECK_FILTERS.find(d => d.key === 'ROYAL') || DECK_FILTERS[0];
-    if (card.tribe === 'รางดาว' || (card.id && card.id.startsWith('RD')) || card.id === 'L10') return DECK_FILTERS.find(d => d.key === 'RANGDAO') || DECK_FILTERS[0];
-    if (card.tribe === 'ENTITY' || (card.id && card.id.startsWith('KL')) || card.id === 'L11') return DECK_FILTERS.find(d => d.key === 'KILLER') || DECK_FILTERS[0];
+    if (card.tribe === 'รางดาว' || (card.id && card.id.startsWith('RD')) || card.id === 'L08') return DECK_FILTERS.find(d => d.key === 'RANGDAO') || DECK_FILTERS[0];
+    if (card.tribe === 'ENTITY' || (card.id && card.id.startsWith('KL')) || card.id === 'L09') return DECK_FILTERS.find(d => d.key === 'KILLER') || DECK_FILTERS[0];
     return DECK_FILTERS.find(d => d.dir && String(card.image || '').includes(`/${d.dir}/`)) || DECK_FILTERS[0];
   };
   const maxKeepOf = card => (card.type === 'Leader' ? 1 : (card.maxCopies || 2));
@@ -1986,14 +1968,16 @@
         const k = deckOfCard(c).key;
         if (craftFilterTribe === 'BT01') {
           if (k !== 'BT01' && !(c.id && c.id.startsWith('BT01'))) return false;
+        } else if (craftFilterTribe === 'BT02') {
+          if (k !== 'BT02' && !(c.id && c.id.startsWith('BT02'))) return false;
         } else if (craftFilterTribe === 'JIT') {
           if (k !== 'JIT' && c.id !== 'BT01_01' && c.id !== 'BT01_02' && c.id !== 'BT01_03') return false;
-        } else if (craftFilterTribe === 'KAGERO') {
-          if (k !== 'KAGERO' && c.id !== 'BT01_04' && c.id !== 'BT01_05' && c.id !== 'BT01_06') return false;
         } else if (craftFilterTribe === 'DOOM') {
           if (k !== 'DOOM' && c.id !== 'BT01_07' && c.id !== 'BT01_08' && c.id !== 'BT01_09') return false;
         } else if (craftFilterTribe === 'MADOKA') {
           if (k !== 'MADOKA' && c.id !== 'BT01_10' && c.id !== 'BT01_11' && c.id !== 'BT01_12') return false;
+        } else if (craftFilterTribe === 'RANGDAO') {
+          if (k !== 'RANGDAO' && c.tribe !== 'รางดาว' && !(c.id && c.id.startsWith('RD'))) return false;
         } else if (k !== craftFilterTribe) {
           return false;
         }
@@ -2006,10 +1990,11 @@
       deckCounts[f.key] = CARD_DATABASE.filter(c => {
         if (f.key === 'ALL') return true;
         if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
+        if (f.key === 'BT02') return c.id && c.id.startsWith('BT02');
         if (f.key === 'JIT') return deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
-        if (f.key === 'KAGERO') return deckOfCard(c).key === 'KAGERO' || c.id === 'BT01_04' || c.id === 'BT01_05' || c.id === 'BT01_06';
         if (f.key === 'DOOM') return deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
         if (f.key === 'MADOKA') return deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
+        if (f.key === 'RANGDAO') return deckOfCard(c).key === 'RANGDAO' || c.tribe === 'รางดาว' || (c.id && c.id.startsWith('RD'));
         return deckOfCard(c).key === f.key;
       }).length;
     });

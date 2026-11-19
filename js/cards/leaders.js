@@ -101,26 +101,6 @@ CARD_DATABASE.push(
   },
   {
     id: 'L08',
-    name: 'คาเงโร่',
-    type: 'Leader',
-    rarity: 'SSR',
-    maxHp: 6,
-    image: 'images/เด็คคาเงโร่/1.png',
-    ability: 'LEADER_KAGERO',
-    desc: 'ออโต้: เมื่อเข้าเทิร์น สามารถทิ้งการ์ดบนมือเรา 1 ใบ เพื่อทำลายยูนิทฝั่งตรงข้าม 1 ใบ\nออโต้: เมื่อเข้าเทิร์น แต่ละฝั่งทิ้งการ์ดบนมือ 1 ใบ ถ้าไม่ทำ ลีดเดอร์ของตนเสียพลังชีวิต 1 หน่วย'
-  },
-  {
-    id: 'L09',
-    name: 'รอยัล พาลาดิน',
-    type: 'Leader',
-    rarity: 'SSR',
-    maxHp: 6,
-    image: 'images/รอยัล พาลาดิน/1.png',
-    ability: 'LEADER_ROYAL_PALADIN',
-    desc: 'ออโต้: เมื่อเข้าเทิร์น นำการ์ดยูนิทจากกองขึ้นมือไม่เกิน 1 ใบ\nออโต้: เมื่อจบเทิร์นสแตนด์ยูนิทบนสนามฝั่งเรา 1 ใบ'
-  },
-  {
-    id: 'L10',
     name: 'รางดาว',
     type: 'Leader',
     rarity: 'SSR',
@@ -130,13 +110,13 @@ CARD_DATABASE.push(
     desc: 'ต่อเนื่อง : ถ้าบนสนามเรามียูนิทเผ่า “รางดาว” 3 ใบ ยูนิททุกใบพลังโจมตีเพิ่ม 1 หน่วย\nสั่งใช้งาน / 1 เทิร์น : นำการ์ดเวทมนตร์ไม่เกิน 1 ใบ จากกองหรือนรกขึ้นมือ',
     effects: [
       {
-        id: 'leader_l10_aura',
+        id: 'leader_l08_aura',
         trigger: 'CONTINUOUS_BOARD_AURA',
         condition: { type: 'MIN_TRIBE_COUNT', tribe: 'รางดาว', count: 3 },
         amount: 1
       },
       {
-        id: 'leader_l10_search_spell',
+        id: 'leader_l08_search_spell',
         label: 'นำการ์ดเวทมนตร์ไม่เกิน 1 ใบ จากกองหรือนรกขึ้นมือ',
         trigger: 'ACTIVATE_LEADER',
         oncePerTurn: true,
@@ -147,7 +127,7 @@ CARD_DATABASE.push(
     ]
   },
   {
-    id: 'L11',
+    id: 'L09',
     name: 'ENTITY',
     type: 'Leader',
     rarity: 'SSR',

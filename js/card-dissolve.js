@@ -25,7 +25,7 @@
   const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
   const easeOut = k => 1 - Math.pow(1 - k, 3);
   const easeIn = k => k * k * k;
-  const LEADER_DECK = { L01: 'jit', L02: 'nuea', L03: 'doom', L04: 'dino', L05: 'demon', L06: 'oat', L07: 'madoka', L08: 'kagero', L09: 'royal_paladin', L10: 'rangdao', L11: 'killer' };
+  const LEADER_DECK = { L01: 'jit', L02: 'nuea', L03: 'doom', L04: 'dino', L05: 'demon', L06: 'oat', L07: 'madoka', L08: 'rangdao', L09: 'killer' };
   const RARITY_LVL = { N: 0, R: .3, SR: .65, SSR: 1, Legend: 1 };
 
   // ---------- เด็ค / ความแรง ----------
@@ -33,9 +33,7 @@
     const id = String((card && (card.futureBaseId || card.id)) || '');
     if (/^KL/.test(id)) return 'killer';
     if (/^RD/.test(id)) return 'rangdao';
-    if (/^RP/.test(id)) return 'royal_paladin';
     if (/^MD/.test(id)) return 'madoka';
-    if (/^KG/.test(id)) return 'kagero';
     if (/^DM[MS]/.test(id)) return 'demon';
     if (/^DN/.test(id)) return 'dino';
     if (/^D[MS]\d/.test(id)) return 'doom';
@@ -1050,9 +1048,7 @@
       });
     },
   };
-  SCENES.kagero = SCENES.demon;
   SCENES.madoka = SCENES.doom;
-  SCENES.royal_paladin = SCENES.nuea;
 
   // ============================================================================
   // deck = ธีมของผู้ทำลาย (game.js ส่งมา) · ไม่ส่ง = ธีมของการ์ดเอง

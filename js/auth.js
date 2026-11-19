@@ -33,9 +33,7 @@
     { id: 'L05', label: 'เด็คปีศาจ', image: 'images/thumbs/เด็คปีศาจ/1.webp' },
     { id: 'L06', label: 'เด็คโอ็ต', image: 'images/thumbs/เด็คโอ๊ต/1.webp' },
     { id: 'L07', label: 'เด็คมาโดกะ', image: 'images/thumbs/มาโดกะ/1.webp' },
-    { id: 'L08', label: 'เด็คคาเงโร่', image: 'images/thumbs/เด็คคาเงโร่/1.webp' },
-    { id: 'L09', label: 'เด็ครอยัล พาลาดิน', image: 'images/รอยัล พาลาดิน/1.png' },
-    { id: 'L10', label: 'เด็ครางดาว', image: 'images/รางดาว/1.png' }
+    { id: 'L08', label: 'เด็ครางดาว', image: 'images/รางดาว/1.png' }
   ];
 
   let currentUser = null;
@@ -281,7 +279,7 @@
 
   /* ---------------- สมัครสมาชิก & เข้าสู่ระบบ ---------------- */
   function buildStarterDeckAndCollection(leaderId) {
-    const validId = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10'].includes(leaderId) ? leaderId : 'L01';
+    const validId = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09'].includes(leaderId) ? leaderId : 'L01';
     const mainList = (typeof getDefaultDeckForLeader === 'function')
       ? [...getDefaultDeckForLeader(validId)]
       : (typeof DECK_LISTS !== 'undefined' && DECK_LISTS[validId] ? [...DECK_LISTS[validId]] : []);

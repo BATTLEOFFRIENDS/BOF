@@ -182,7 +182,7 @@ const CARD_SCHEMA = {
   },
   cardTypes: ['Leader', 'Monster', 'NormalSpell', 'ReactionSpell', 'LandSpell'],
   rarities: ['N', 'R', 'SR', 'SSR'],
-  tribes: ['ฮีโร่', 'ไทย', 'วันสิ้นโลก', 'ไดโน', 'ปีศาจ', 'บ้า', 'สาวน้อยเวทมนตร์', 'คาเงโร่', 'รอยัล พาลาดิน', 'รางดาว', 'ENTITY'],
+  tribes: ['ฮีโร่', 'ไทย', 'วันสิ้นโลก', 'ไดโน', 'ปีศาจ', 'บ้า', 'สาวน้อยเวทมนตร์', 'รางดาว', 'ENTITY'],
 };
 
 // ระยะแก้ไข (Levenshtein) ≤ 2 ที่ใกล้ที่สุด ไม่งั้น null
@@ -245,9 +245,7 @@ function validateCards(db = CARD_DATABASE, decks = DECK_LISTS) {
         add(cid, 'rarity', unknown('rarity', card.rarity, CARD_SCHEMA.rarities));
       }
       if (card.tribe !== undefined) {
-        if (card.type !== 'Monster') {
-          add(cid, 'tribe', 'tribe ใช้ได้เฉพาะการ์ด Monster เท่านั้น');
-        } else if (!CARD_SCHEMA.tribes.includes(card.tribe)) {
+        if (!CARD_SCHEMA.tribes.includes(card.tribe)) {
           add(cid, 'tribe', unknown('tribe', card.tribe, CARD_SCHEMA.tribes));
         }
       }

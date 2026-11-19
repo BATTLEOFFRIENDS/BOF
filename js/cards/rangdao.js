@@ -189,7 +189,7 @@ CARD_DATABASE.push(
   }
 );
 
-DECK_LISTS.L10 = [
+DECK_LISTS.L08 = [
   'RD01', 'RD01',
   'RD02', 'RD02',
   'RD03', 'RD03',

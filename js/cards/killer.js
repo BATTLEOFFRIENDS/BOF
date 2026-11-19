@@ -197,7 +197,7 @@ CARD_DATABASE.push(
   }
 );
 
-DECK_LISTS.L11 = [
+DECK_LISTS.L09 = [
   'KL01',
   'KL02', 'KL02',
   'KL03', 'KL03',

@@ -20,9 +20,7 @@
     dino: { rgb: '255, 150, 50', core: '#fff1d6', glow: '#ff9632' },
     demon: { rgb: '230, 40, 40', core: '#ffd6c2', glow: '#dc2626' },
     oat: { rgb: '255, 105, 180', core: '#fff0f8', glow: '#ff69b4' },
-    kagero: { rgb: '249, 115, 22', core: '#ffedd5', glow: '#ef4444' },
     madoka: { rgb: '244, 114, 182', core: '#fdf2f8', glow: '#ec4899' },
-    royal_paladin: { rgb: '59, 130, 246', core: '#eff6ff', glow: '#3b82f6' },
     rangdao: { rgb: '56, 189, 248', core: '#f0f9ff', glow: '#38bdf8' },
   };
   const OAT_COLORS = ['#ff69b4', '#ffd23f', '#3ec7ff', '#9b5cff', '#5ef2a0'];
@@ -63,9 +61,6 @@
         g.strokeStyle = '#1a0010'; g.lineWidth = 9; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(x, y); g.stroke();
         g.strokeStyle = p.glow; g.lineWidth = 5; g.stroke();
       } });
-    },
-    royal_paladin(a, b, p) {
-      F().comet(a, b, p.rgb, 6.5);
     },
     rangdao(a, b, p) {
       const { addDraw, addPart } = F();
@@ -140,12 +135,6 @@
       } });
       for (let i = 0; i < 10 * n; i++) { const ang = rnd(0, Math.PI * 2), v = rnd(160, 320); addPart({ kind: 'star', x: b.x, y: b.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, drag: 3, life: rnd(.3, .5), size: rnd(4, 7), fill: OAT_COLORS[i % OAT_COLORS.length], rot: rnd(0, 6), vr: rnd(-8, 8) }); }
     },
-    royal_paladin(b, p, heavy) {
-      const { crescent, addDraw, sparksAlong } = F(), R = heavy ? 56 : 46, rot = -.6;
-      crescent({ cx: b.x - Math.cos(rot) * R * .8, cy: b.y - Math.sin(rot) * R * .8, r: R, a0: -1.2, a1: 1.2, rot, w: heavy ? 18 : 14, rgb: p.rgb, life: .32 });
-      addDraw({ life: .24, draw(g, k) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - k; g.fillStyle = '#eff6ff'; g.fillRect(b.x - 75 * (1 + k), b.y - 1, 150 * (1 + k), 2); } });
-      sparksAlong(b.x - 35, b.y + 35, b.x + 35, b.y - 35, Math.round(16 * amount()), '191, 219, 254');
-    },
     rangdao(b, p, heavy) {
       const { addDraw, addPart, shockwave, flash, spikeBurst } = F(), n = amount(), R = heavy ? 56 : 42;
       flash(b.x, b.y, heavy ? 90 : 65, '180, 230, 255', .32);
@@ -198,10 +187,6 @@
     },
     oat(c, p, n, { addPart }) {
       for (let i = 0; i < 12 * n; i++) { const ang = rnd(0, Math.PI * 2), v = rnd(120, 260); addPart({ kind: 'star', x: c.cx, y: c.cy, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, drag: 2.5, life: rnd(.4, .6), size: rnd(4, 7), fill: OAT_COLORS[i % OAT_COLORS.length], rot: rnd(0, 6), vr: rnd(-8, 8) }); }
-    },
-    royal_paladin(c, p, n, { addPart, shockwave }) {
-      shockwave(c.cx, c.cy, c.R * .4, c.R * 1.8, p.rgb, .4, 3);
-      for (let i = 0; i < 16 * n; i++) addPart({ kind: 'streak', x: c.l + rnd(0, c.w), y: c.t + c.h * rnd(.5, 1), vx: rnd(-25, 25), vy: rnd(-340, -150), drag: 2.2, life: rnd(.35, .6), size: rnd(1.4, 2.4), rgb: '191, 219, 254' });
     },
     rangdao(c, p, n, { addPart, shockwave }) {
       shockwave(c.cx, c.cy, c.R * .4, c.R * 1.8, '56, 189, 248', .4, 3);

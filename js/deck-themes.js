@@ -2,8 +2,8 @@
 // ไม่แตะตรรกะเกม: ห่อ renderGame / playAttackVisualAnimation / showEndMatchModal แล้วเทียบสถานะกระดานก่อน-หลัง
 // หน้าตาอยู่ใน css/deck-themes.css · เปิด index.html?fxpreview เพื่อกดดูทุกเอฟเฟกต์บนกระดานจริง
 (function () {
-  const COLORS = { L01: '#3ee08f', L02: '#f0a347', L03: '#e8c977', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#ef4444', L09: '#2563eb', L10: '#4fa3e3', L11: '#dc2626' };
-  const FULL_MATS = { L01: 'deku', L03: 'doom', L10: 'rangdao' }; // เด็คที่มีสนามเต็มรูปแบบ (ที่เหลือได้แค่ออร่าสีประจำเด็ค)
+  const COLORS = { L01: '#3ee08f', L02: '#f0a347', L03: '#e8c977', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#4fa3e3', L09: '#dc2626' };
+  const FULL_MATS = { L01: 'deku', L03: 'doom', L08: 'rangdao' }; // เด็คที่มีสนามเต็มรูปแบบ (ที่เหลือได้แค่ออร่าสีประจำเด็ค)
   const DOOM_PAIR = ['DM01', 'DM02']; // โอนามิ + โรเซเลีย (คู่หู)
   const GAUGE_STEP = 25;               // บัฟฮีโร่ 1 ครั้ง = เกจฟูลคาวล์ +25%
   const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -346,7 +346,7 @@
         spawn(dial, 'doom-midnight', c.x, c.y, 1500);
         setTimeout(() => spawn('', 'doom-flash big', c.x, c.y, 800, { '--s': 6 }), 900);
         sound.chime();
-      } else if (id === 'L10') {
+      } else if (id === 'L08') {
         for (let n = 0; n < 10; n++) setTimeout(() => {
           const y = Math.random() * innerHeight;
           const beam = `<svg viewBox="0 0 1000 20" preserveAspectRatio="none"><line x1="0" y1="10" x2="1000" y2="10" stroke="${n % 2 ? '#38bdf8' : '#a855f7'}" stroke-width="${Math.random() * 3 + 2}" stroke-linecap="round" filter="drop-shadow(0 0 8px #38bdf8)"/></svg>`;
