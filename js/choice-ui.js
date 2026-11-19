@@ -157,25 +157,25 @@
     if (btn && btn._card) return btn._card;
     if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE)) return null;
 
-    // หากปุ่มมี data-card-id ระบุตรงๆ ให้ใช้ก่อนเสมอ 100% ถูกต้องแน่นอน
-    if (btn && btn.dataset && btn.dataset.cardId) {
-      const exact = CARD_DATABASE.find(c => c.id === btn.dataset.cardId);
-      if (exact) return exact;
-    }
-
     const candidates = CARD_DATABASE
       .filter(c => c && c.name && c.type !== 'Leader')
       .slice()
       .sort((a, b) => b.name.length - a.name.length);
 
-    // 1. ตรวจสอบในเครื่องหมายคำพูดก่อน โดยจับคู่ชื่อที่ยาวที่สุดก่อน
-    const quotedMatches = [...label.matchAll(/"([^"]+)"/g)];
+    // 1. ตรวจสอบในเครื่องหมายคำพูดก่อน โดยจับคู่ชื่อที่ยาวที่สุดก่อน (ป้องกันกรณี dataset.cardId ระบุผิดไม่ตรงกับชื่อการ์ดในข้อความ)
+    const quotedMatches = [...label.matchAll(/["“]([^"”]+)["”]/g)];
     for (const qm of quotedMatches) {
       const qText = norm(qm[1]);
       const exact = candidates.find(c => norm(c.name) === qText);
       if (exact) return exact;
       const partial = candidates.find(c => qText.includes(norm(c.name)));
       if (partial) return partial;
+    }
+
+    // หากปุ่มมี data-card-id ระบุตรงๆ ให้ใช้ถ้าไม่ขัดแย้งกับชื่อในเครื่องหมายคำพูด
+    if (btn && btn.dataset && btn.dataset.cardId) {
+      const exact = CARD_DATABASE.find(c => c.id === btn.dataset.cardId);
+      if (exact) return exact;
     }
 
     // 2. ตรวจสอบชื่อการ์ดตรงๆ ในข้อความปุ่ม โดยเทียบจากการ์ดที่ชื่อยาวที่สุดก่อน

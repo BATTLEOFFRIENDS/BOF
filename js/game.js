@@ -852,6 +852,7 @@ function checkAshilaHandTrigger(contestant) {
       `ยูนิตฝั่งคุณถูกทำลายครบ ${contestant.unitsDestroyedThisTurn} ใบในเทิร์นนี้แล้ว!\nต้องการสั่งใช้งาน "แอชชี่ล่า" จากบนมือ เพื่อคอลลงสนามและเพิ่มพลังโจมตี +2 จนจบเทิร์นหรือไม่?`,
       [
         {
+          cardId: 'DM07',
           label: '🔥 สั่งใช้งาน: คอล "แอชชี่ล่า" ลงสนาม (พลังโจมตี +2 จนจบเทิร์น!)',
           color: '#dc2626',
           onSelect: () => summonAshilaBySkillFromHand(contestant)
@@ -9705,7 +9706,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseHomura) {
       options.push({
-        cardId: 'MD02',
+        cardId: 'MD04',
         label: '⏳ สั่งใช้ "อาเคมิ โฮมุระ": ทิ้งการ์ดบนมือเพื่อลดพลังยูนิทที่โจมตี',
         color: '#6366f1',
         onSelect: () => {
@@ -9720,6 +9721,10 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
               resetCardStateForZoneChange(discarded);
               defender.graveyard.push(discarded);
               attackingMonster.tempPowerMod -= 1;
+              const homuraCard = defender.board.find(m => m && m.id === 'MD04') || (typeof CARD_DATABASE !== 'undefined' ? CARD_DATABASE.find(c => c.id === 'MD04') : null);
+              if (typeof showCardShowcaseBanner === 'function' && homuraCard) {
+                showCardShowcaseBanner(homuraCard, 'สกิล อาเคมิ โฮมุระ ทำงาน!', `⏳ ทิ้ง "${discarded.name}" -> ลดพลัง "${attackingMonster.name}" 1 หน่วย!`, '#6366f1', 1300);
+              }
               setLog(`⏳ [อาเคมิ โฮมุระ] ทิ้ง "${discarded.name}" 1 ใบ -> ลดพลัง "${attackingMonster.name}" 1 หน่วย!`);
               if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(defender, discarded);
               renderGame();
@@ -10348,6 +10353,7 @@ function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCal
     const options = [];
     if (canUseAllForJit) {
       options.push({
+        cardId: 'M04',
         label: '💀 สั่งใช้ "ออลฟอจิต" จากนรก (1 ครั้ง/เกม: ล้างกระดานทุกฝ่ายและอัญเชิญออลฟอจิตลงสนาม!)',
         color: '#dc2626',
         onSelect: () => resolveAllForJitTrigger(attacker, defender, attackerSlot, onCompleteCallback)
@@ -10355,6 +10361,7 @@ function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCal
     }
     if (canUseAllJit) {
       options.push({
+        cardId: 'M03',
         label: '🛡️ สั่งใช้ "ออลจิต" จากบนมือ (อัญเชิญลงสนามและเปลี่ยนเป้าหมายโจมตีมาที่ออลจิต)',
         color: '#0284c7',
         onSelect: () => resolveAllJitFromHand(attacker, defender, attackerSlot, onCompleteCallback)
@@ -16714,6 +16721,11 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
 
   // หาปุ่มในหน้าต่างตัวเลือกที่ต้องกด: เทียบคำสำคัญตามลำดับ ถ้าไม่เจอให้เลือกปุ่มแรกที่ไม่ใช่ "ยกเลิก/ไม่ใช้/ดูรายละเอียด"
   function findGuidedChoiceButton(step) {
+    const isSkipLabel = (t) => {
+      if (!t) return false;
+      const s = t.trim();
+      return s.includes('❌') || s.includes('🔍') || s.includes('ยกเลิก') || s.includes('ข้าม') || s.startsWith('ไม่');
+    };
     const btns = Array.from(document.querySelectorAll('#custom-choice-modal #choice-modal-buttons button'))
       .filter(b => !b.disabled);
     if (btns.length === 0) return null;
@@ -16722,10 +16734,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     }
     const keywords = (step && Array.isArray(step.choiceKeywords)) ? step.choiceKeywords : [];
     for (const kw of keywords) {
-      const hit = btns.find(b => (b.textContent || '').includes(kw));
+      const hit = btns.find(b => !isSkipLabel(b.textContent || '') && (b.textContent || '').includes(kw));
       if (hit) return hit;
     }
-    const isSkipLabel = (t) => t.includes('❌') || t.includes('🔍') || t.trim().startsWith('ไม่');
     return btns.find(b => !isSkipLabel(b.textContent || '')) || btns[0];
   }
 
@@ -16775,7 +16786,15 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       const targetBtn = findGuidedChoiceButton(step);
       if (targetBtn) {
         // ปุ่มที่ choice-ui แปลงเป็นรูปการ์ดถูกซ่อน: ชี้ที่รูปการ์ดแทน
-        attachGuidedPointer(targetBtn._umItem || targetBtn, step.choicePointerText || '👆 คลิกเลือกหัวข้อนี้!', targetBtn._umItem ? true : 'chip');
+        const isCardGrid = !!targetBtn._umItem;
+        const modalTitle = document.getElementById('choice-modal-title')?.textContent || '';
+        let pointerText = step.choicePointerText || '👆 คลิกเลือกหัวข้อนี้!';
+        if (isCardGrid) {
+          pointerText = modalTitle.includes('ทิ้ง')
+            ? '👆 คลิกเลือกการ์ดใบนี้เพื่อทิ้ง!'
+            : '👆 คลิกเลือกการ์ดใบนี้!';
+        }
+        attachGuidedPointer(targetBtn._umItem || targetBtn, pointerText, isCardGrid ? true : 'chip');
       }
       return;
     }
@@ -16810,11 +16829,12 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       if (pa.targetZone === 'PLAYER_BOARD' || pa.targetZone === 'ANY_BOARD') {
         const slotEl = getBoardSlotElement(true, (m) => {
           if (!m) return false;
-          if (step.pendingBoardCardId && m.id !== step.pendingBoardCardId) return false;
+          if (step.pendingBoardCardId) return m.id === step.pendingBoardCardId;
+          if (step.cardId && m.id === step.cardId) return false;
           if (pa.filterTribe && !hasCardTribe(m, pa.filterTribe)) return false;
           if (pa.filterName && !hasCardName(m, pa.filterName)) return false;
           return true;
-        }) || getBoardSlotElement(true, (m) => m !== null);
+        }) || (step.pendingBoardCardId ? null : getBoardSlotElement(true, (m) => m !== null));
         attachGuidedPointer(slotEl, step.pendingPointerText || '👆 คลิกเลือกยูนิตใบนี้บนสนาม!');
         return;
       }
@@ -18196,6 +18216,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'CLICK_BOARD_UNIT',
             cardId: 'RD02',
+            pendingBoardCardId: 'RD04',
             choiceKeywords: ['ยืนยัน', 'ไม่ถูกทำลาย', 'เกราะ'],
             pointerText: '👆 1. คลิกที่ "MARCH 7TH" บนสนาม',
             choicePointerText: '👆 2. คลิกยืนยันใช้สกิลมอบเกราะ',
