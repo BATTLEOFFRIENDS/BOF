@@ -619,19 +619,21 @@
       // Helper check
       assert(isDragonicOverlordTheX(xeno) === false, 'THE XENOMORPH is NOT identified as The X');
       assert(isDragonicOverlordTheX(theX) === true, 'KG04 is identified as The X');
+      assert(isDragonicOverlordTheX({ id: 'KL08', name: 'THE EXECUTIONER' }) === false, 'THE EXECUTIONER is NOT The X');
+      assert(isDragonicOverlordTheX({ id: 'KL02', name: 'THE SLASHER' }) === false, 'THE SLASHER is NOT The X');
 
       // Check in graveyard during attack reaction check
       p.graveyard = [createCardInstance(xeno, 'XENO-GRAVE-1')];
       p.kg04UsedThisGame = false;
       const canUseTheXInGraveWithXeno = !isGraveyardSkillLockedByOpponent(p)
-        && p.graveyard.some(c => isDragonicOverlordTheX(c))
+        && p.graveyard.some(c => c && c.id === 'KG04' && isDragonicOverlordTheX(c))
         && !p.kg04UsedThisGame;
       assert(canUseTheXInGraveWithXeno === false, 'THE XENOMORPH in graveyard does not enable The X graveyard reaction');
 
       // Now add real The X to graveyard
       p.graveyard.push(createCardInstance(theX, 'THEX-GRAVE-1'));
       const canUseTheXInGraveWithRealTheX = !isGraveyardSkillLockedByOpponent(p)
-        && p.graveyard.some(c => isDragonicOverlordTheX(c))
+        && p.graveyard.some(c => c && c.id === 'KG04' && isDragonicOverlordTheX(c))
         && !p.kg04UsedThisGame;
       assert(canUseTheXInGraveWithRealTheX === true, 'KG04 in graveyard correctly enables The X graveyard reaction');
     });
