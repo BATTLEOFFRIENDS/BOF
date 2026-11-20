@@ -251,5 +251,50 @@ window.BOF_COMBO_REPLAYS = {
       { say: 'สั่ง HIMEKO Power 5 โจมตีปิดเกมอย่างเด็ดขาด!', act: [['attack', 'RD05', 'L04'], ['hp', 'opp', 0]] }
     ],
     done: 'ชัยชนะ!', doneSay: 'ป้อมปราการ POM POM รอดตายกลับมาสวนกลับด้วย Astral Express Power 5!'
+  },
+
+  rangdao_sparkcon_fusion: {
+    setup: { meLeader: 'L08', oppLeader: 'L01', me: ['BT02_04', null, null], hand: ['BT02_08', 'RD01'], opp: ['M01', null, null], hp: { opp: 3 } },
+    steps: [
+      { say: '<b>สปาร์กซี่คอน</b> ยูนิตผสานร่าง ไม่รับผลความสามารถการ์ดฝั่งตรงข้าม!', act: [['glow', 'BT02_04'], ['shield', 'BT02_04']] },
+      { say: 'ร่ายเวท <b>มีดสั้นฮิบานะ</b> จากบนมือ!', act: [['cast', 'BT02_08']] },
+      { say: 'สั่งสปาร์กซี่คอน โจมตีใส่ลีดเดอร์ฝ่ายตรงข้าม!', act: [['attack', 'BT02_04', 'L01'], ['hp', 'opp', 0]] },
+      { say: 'ผลของมีดสั้นฮิบานะ: ทิ้งการ์ด 1 ใบ ทำลายยูนิตอีกฝ่าย 1 ใบ!', act: [['discard', 'RD01'], ['target', 'M01'], ['destroy', 'M01']] }
+    ],
+    done: 'ขัดขวาง & บุกสังหาร!', doneSay: 'สปาร์กซี่คอนแกร่งไร้เทียมทาน พร้อมฮิบานะทิ้งการ์ดทำลายยูนิตศัตรู'
+  },
+
+  // ==================== เด็คคิลเลอร์ (L09) ====================
+  killer_xeno_revive: {
+    setup: { meLeader: 'L09', oppLeader: 'L01', me: ['KL02', null, null], hand: ['KL01'], meGrave: ['KL07'], opp: ['M01', null, null], hp: { me: 3, opp: 4 } },
+    steps: [
+      { say: 'คู่ต่อสู้สั่ง <b>บาคุจิต</b> โจมตีลีดเดอร์เรา ลีดเดอร์เราเสีย 1 HP!', act: [['attack', 'M01', 'L09'], ['hp', 'me', 2]] },
+      { say: 'ลีดเดอร์เสีย HP! สกิลในนรกของ <b>THE XENOMORPH</b> ทำงาน!', act: [['glow', 'KL07'], ['summon', 'KL07', 1]] },
+      { say: 'ลงสนามปุ๊บ ทิ้งการ์ดบนมือ 1 ใบเพื่อ <b>ฟื้นฟูเลือด 1 HP</b>!', act: [['discard', 'KL01'], ['hp', 'me', 3], ['shield', 'L09']] },
+      { say: 'เข้าเทิร์นคู่ต่อสู้ เมื่อคู่ต่อสู้จั่วการ์ด สกิลของ <b>THE SLASHER</b> ทำงาน!', act: [['seal', 'KL02'], ['beam', 'KL02', 'L01'], ['hp', 'opp', 3]] }
+    ],
+    done: 'ชุบจากนรก + สวนกลับ!', doneSay: 'Xenomorph ชุบฮีลเลือดคืนทันควัน และ Slasher บีบเลือดคู่แข่งทุกครั้งที่จั่ว!'
+  },
+
+  killer_blight_sweep: {
+    setup: { meLeader: 'L09', oppLeader: 'L04', me: ['KL05', null, null], hand: ['KL03', 'BT02_15'], opp: ['DN02', 'DN03', null], hp: { opp: 3 } },
+    steps: [
+      { say: 'สั่ง <b>THE BLIGHT</b> โจมตีทำลายยูนิตตัวแรกของคู่แข่ง!', act: [['attack', 'KL05', 'DN02'], ['destroy', 'DN02']] },
+      { say: 'สกิลออโต้ The Blight ทำงาน! ทิ้ง <b>THE TRAPPER</b> จากบนมือ', act: [['tap', 'KL05'], ['seal', 'KL05'], ['discard', 'KL03']] },
+      { say: 'ทำลายยูนิตอีกฝ่ายที่พลัง <= The Blight เพิ่มอีก 1 ใบ!', act: [['target', 'DN03'], ['beam', 'KL05', 'DN03'], ['destroy', 'DN03']] },
+      { say: 'มี <b>UNBODIED FLESH</b> บนมือ พร้อมยกเลิกเวทมนตร์ของศัตรูทันที!', act: [['glow', 'BT02_15']] }
+    ],
+    done: 'กวาดล้างสนาม!', doneSay: 'The Blight ระเบิดทำลายเพิ่ม 2 ใบ และมี Unbodied Flesh คอยบล็อกเวทมนตร์'
+  },
+
+  killer_dark_nemesis: {
+    setup: { meLeader: 'L09', oppLeader: 'L03', me: ['BT02_12', null, null], meVoid: ['BT02_13'], opp: ['DM01', null, null], hp: { opp: 5 } },
+    steps: [
+      { say: '<b>THE NEMESIS</b> อยู่ในมิติมืด คุ้มกัน <b>PROJECT UROBOROS-NE</b> ไม่รับผลสกิล!', act: [['glow', 'BT02_13'], ['shield', 'BT02_12']] },
+      { say: 'สั่ง UROBOROS-NE โจมตีทำลายยูนิตของศัตรู (ครั้งที่ 1)!', act: [['attack', 'BT02_12', 'DM01'], ['destroy', 'DM01']] },
+      { say: 'จบการโจมตีครั้งแรก สกิลออโต้ <b>Stand</b> ตัวเองขึ้นมา!', act: [['stand', 'BT02_12'], ['glow', 'BT02_12']] },
+      { say: 'สั่ง UROBOROS-NE โจมตีครั้งที่ 2 ใส่ลีดเดอร์อีกฝ่าย!', act: [['attack', 'BT02_12', 'L03'], ['hp', 'opp', 2]] }
+    ],
+    done: 'จู่โจม 2 ครั้งติด!', doneSay: 'Uroboros-NE ไม่รับผลสกิลใดๆ และสแตร์นขึ้นมาโจมตีซ้ำได้ในเทิร์นเดียว!'
   }
 };
