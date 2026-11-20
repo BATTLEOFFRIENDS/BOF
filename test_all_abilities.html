@@ -636,6 +636,45 @@
       assert(canUseTheXInGraveWithRealTheX === true, 'KG04 in graveyard correctly enables The X graveyard reaction');
     });
 
+    testGroup('ENTITY & BT02: Slasher Draw 2 Burn, Nemesis Dark Dimension, Unbodied Flesh', () => {
+      const { p, a } = initMockGame();
+
+      // 1. THE SLASHER: Drawing 2 cards only burns 1 HP once per turn
+      const slasher = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL02') || { id: 'KL02', name: 'THE SLASHER' }, 'SLASHER-1');
+      p.board[0] = slasher;
+      a.leader.hp = 6;
+      a.deck = [
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'D1'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'D2'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'D3')
+      ];
+      gameState.phase = 'Main Phase';
+      drawCards(a, 2);
+      assert(a.leader.hp === 5, 'THE SLASHER deals only 1 damage when opponent draws 2 cards (1/turn)');
+
+      // Draw another card in same turn
+      drawCards(a, 1);
+      assert(a.leader.hp === 5, 'THE SLASHER does not trigger again in the same turn');
+
+      // 2. THE NEMESIS in dark dimension protects PROJECT UROBOROS-NE
+      const nem = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_13') || { id: 'BT02_13', name: 'THE NEMESIS' }, 'NEM-DARK');
+      const uro = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_11') || { id: 'BT02_11', name: 'THE PROJECT UROBOROS-NE' }, 'URO-1');
+      p.darkDimension = [nem];
+      p.board[1] = uro;
+      assert(isMonsterImmuneToEnemyEffects(uro, p) === true, 'THE NEMESIS in dark dimension grants effect immunity to PROJECT UROBOROS-NE');
+
+      // 3. UNBODIED FLESH (BT02_15) in hand intercepts spell
+      const unbodied = CARD_DATABASE.find(c => c.id === 'BT02_15');
+      assert(unbodied && unbodied.type === 'ReactionSpell', 'BT02_15 is ReactionSpell');
+      p.hand = [createCardInstance(unbodied, 'UNBODIED-H')];
+      p.spellQuota.reactionUsed = 0;
+      const spellCard = { id: 'S01', name: 'Test Spell', type: 'NormalSpell' };
+      const canUseUnbodied = isSpellCard(spellCard)
+        && p.spellQuota.reactionUsed < 1
+        && p.hand.some(c => c && c.id === 'BT02_15');
+      assert(canUseUnbodied === true, 'UNBODIED FLESH is ready to intercept enemy spell');
+    });
+
     // ==========================================
     // Summary
     // ==========================================

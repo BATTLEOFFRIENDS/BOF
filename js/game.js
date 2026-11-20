@@ -64,13 +64,14 @@ function isMonsterImmuneToEnemyEffects(monster, boardOwner = null) {
   if (monster.immuneToEnemyEffectsUntilEndOfTurn) return true;
   if (monster.id === 'BT02_04' || (monster.name && (monster.name.includes('สปาร์กซี่คอน') || monster.name.includes('สปาร์คคอน')))) return true;
   if (!boardOwner && typeof gameState !== 'undefined') {
-    if (gameState.player && Array.isArray(gameState.player.board) && gameState.player.board.includes(monster)) {
+    if (gameState.player && Array.isArray(gameState.player.board) && gameState.player.board.some(m => m && (m === monster || (m.uid && monster.uid && m.uid === monster.uid)))) {
       boardOwner = gameState.player;
-    } else if (gameState.ai && Array.isArray(gameState.ai.board) && gameState.ai.board.includes(monster)) {
+    } else if (gameState.ai && Array.isArray(gameState.ai.board) && gameState.ai.board.some(m => m && (m === monster || (m.uid && monster.uid && m.uid === monster.uid)))) {
       boardOwner = gameState.ai;
     }
   }
-  if (boardOwner && Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(d => d && (d.id === 'BT02_13' || (d.name && d.name.includes('THE NEMESIS')))) && (monster.id === 'BT02_11' || (monster.name && monster.name.includes('PROJECT UROBOROS-NE')))) return true;
+  const isUroboros = (monster.id === 'BT02_11' || (monster.name && monster.name.includes('PROJECT UROBOROS-NE')));
+  if (boardOwner && Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(d => d && (d.id === 'BT02_13' || (d.name && d.name.includes('THE NEMESIS')))) && isUroboros) return true;
   if (boardOwner && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT02_09') && monster.name && (monster.name.toUpperCase().startsWith('THE ') || monster.name.toUpperCase() === 'THE' || (monster.id && monster.id.startsWith('KL')))) return true;
   return false;
 }
@@ -80,87 +81,163 @@ function checkSparkconCancelBeforeAction(caster, card, proceedCallback, cancelCa
     return;
   }
   const opp = (caster === gameState.player) ? gameState.ai : gameState.player;
-  if (!opp || !Array.isArray(opp.board)) {
-    if (proceedCallback) proceedCallback();
-    return;
-  }
-  const sparkcon = opp.board.find(m => m && (m.id === 'BT02_04' || (m.name && (m.name.includes('สปาร์กซี่คอน') || m.name.includes('สปาร์คคอน')))) && !m.sparkconNegateUsedThisTurn);
-  if (!sparkcon) {
+  if (!opp) {
     if (proceedCallback) proceedCallback();
     return;
   }
 
-  const executeCancel = () => {
-    sparkcon.sparkconNegateUsedThisTurn = true;
+  // 🥩 ตรวจสอบ UNBODIED FLESH (BT02_15): เมื่อฝ่ายตรงข้ามกำลังจะใช้การ์ดเวทมนตร์ สามารถยกเลิกความสามารถของการ์ดนั้น (เวทรีแอค 1 ครั้ง/เทิร์น)
+  const canUseUnbodied = isSpellCard(card)
+    && opp.spellQuota && opp.spellQuota.reactionUsed < 1
+    && Array.isArray(opp.hand)
+    && opp.hand.some(c => c && (c.id === 'BT02_15' || (c.name && c.name.includes('UNBODIED FLESH'))));
+
+  const executeUnbodiedCancel = () => {
+    const uIdx = opp.hand.findIndex(c => c && (c.id === 'BT02_15' || (c.name && c.name.includes('UNBODIED FLESH'))));
+    if (uIdx === -1) {
+      checkSparkcon();
+      return;
+    }
+    const unbodiedCard = opp.hand.splice(uIdx, 1)[0];
+    opp.spellQuota.reactionUsed += 1;
+    resetCardStateForZoneChange(unbodiedCard);
+    opp.graveyard.push(unbodiedCard);
     const isAiOpp = (opp === gameState.ai);
-    showCardShowcaseBanner(sparkcon, (isAiOpp ? 'AI ' : '') + 'ออโต้ สปาร์กซี่คอน!', `🚫 ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้น!`, '#a855f7', 1500);
-    setLog(`🚫 [${isAiOpp ? 'AI ' : ''}ออโต้ - สปาร์กซี่คอน] ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้นลงนรก!`);
+    showCardShowcaseBanner(unbodiedCard, (isAiOpp ? 'AI ' : '') + 'ร่าย UNBODIED FLESH!', `🚫 ยกเลิกความสามารถของการ์ดเวทมนตร์ "${card.name}"!`, '#dc2626', 1500);
+    setLog(`🚫 [${isAiOpp ? 'AI - ' : ''}UNBODIED FLESH] ร่ายเวทรีแอค "UNBODIED FLESH" จากมือ ยกเลิกความสามารถของการ์ดเวทมนตร์ "${card.name}" สำเร็จ!`);
 
-    const bSlot = Array.isArray(caster.board) ? caster.board.findIndex(m => m && (m.uid === card.uid || m === card)) : -1;
-    if (bSlot !== -1) {
-      destroyBoardMonster(caster, bSlot, false, true);
-    } else {
-      const hIdx = Array.isArray(caster.hand) ? caster.hand.findIndex(c => c && (c.uid === card.uid || c === card)) : -1;
-      if (hIdx !== -1) {
-        const discarded = caster.hand.splice(hIdx, 1)[0];
-        resetCardStateForZoneChange(discarded);
-        caster.graveyard.push(discarded);
-        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(caster, discarded);
-      } else {
-        if (Array.isArray(caster.darkDimension)) {
-          const ddIdx = caster.darkDimension.findIndex(c => c && (c.uid === card.uid || c === card));
-          if (ddIdx !== -1) {
-            const discarded = caster.darkDimension.splice(ddIdx, 1)[0];
-            resetCardStateForZoneChange(discarded);
-            caster.graveyard.push(discarded);
-          }
-        }
-        if (Array.isArray(caster.castingZone)) {
-          const czIdx = caster.castingZone.findIndex(c => c && (c.uid === card.uid || c === card));
-          if (czIdx !== -1) {
-            const discarded = caster.castingZone.splice(czIdx, 1)[0];
-            resetCardStateForZoneChange(discarded);
-            caster.graveyard.push(discarded);
-          }
-        }
-        if (!caster.graveyard.some(c => c && (c.uid === card.uid || c === card))) {
-          resetCardStateForZoneChange(card);
-          caster.graveyard.push(card);
-        }
+    // ส่งการ์ดเวทมนตร์ที่ถูกยกเลิกลงนรก
+    if (Array.isArray(caster.hand)) {
+      const cIdx = caster.hand.findIndex(c => c && (c.uid === card.uid || c === card));
+      if (cIdx !== -1) {
+        const pSpell = caster.hand.splice(cIdx, 1)[0];
+        if (pSpell.type === 'ReactionSpell' && caster.spellQuota) caster.spellQuota.reactionUsed += 1;
+        else if (caster.spellQuota) caster.spellQuota.normalUsed += 1;
+        resetCardStateForZoneChange(pSpell);
+        caster.graveyard.push(pSpell);
       }
     }
     renderGame();
     if (cancelCallback) cancelCallback();
   };
 
-  if (opp === gameState.ai) {
-    if (typeof aiConfig !== 'undefined' && aiConfig.difficulty !== 'EASY') {
-      executeCancel();
+  const checkSparkcon = () => {
+    if (!Array.isArray(opp.board)) {
+      if (proceedCallback) proceedCallback();
       return;
     }
-    if (proceedCallback) proceedCallback();
+    const sparkcon = opp.board.find(m => m && (m.id === 'BT02_04' || (m.name && (m.name.includes('สปาร์กซี่คอน') || m.name.includes('สปาร์คคอน')))) && !m.sparkconNegateUsedThisTurn);
+    if (!sparkcon) {
+      if (proceedCallback) proceedCallback();
+      return;
+    }
+
+    const executeCancel = () => {
+      sparkcon.sparkconNegateUsedThisTurn = true;
+      const isAiOpp = (opp === gameState.ai);
+      showCardShowcaseBanner(sparkcon, (isAiOpp ? 'AI ' : '') + 'ออโต้ สปาร์กซี่คอน!', `🚫 ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้น!`, '#a855f7', 1500);
+      setLog(`🚫 [${isAiOpp ? 'AI ' : ''}ออโต้ - สปาร์กซี่คอน] ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้นลงนรก!`);
+
+      const bSlot = Array.isArray(caster.board) ? caster.board.findIndex(m => m && (m.uid === card.uid || m === card)) : -1;
+      if (bSlot !== -1) {
+        destroyBoardMonster(caster, bSlot, false, true);
+      } else {
+        const hIdx = Array.isArray(caster.hand) ? caster.hand.findIndex(c => c && (c.uid === card.uid || c === card)) : -1;
+        if (hIdx !== -1) {
+          const discarded = caster.hand.splice(hIdx, 1)[0];
+          resetCardStateForZoneChange(discarded);
+          caster.graveyard.push(discarded);
+          if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(caster, discarded);
+        } else {
+          if (Array.isArray(caster.darkDimension)) {
+            const ddIdx = caster.darkDimension.findIndex(c => c && (c.uid === card.uid || c === card));
+            if (ddIdx !== -1) {
+              const discarded = caster.darkDimension.splice(ddIdx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              caster.graveyard.push(discarded);
+            }
+          }
+          if (Array.isArray(caster.castingZone)) {
+            const czIdx = caster.castingZone.findIndex(c => c && (c.uid === card.uid || c === card));
+            if (czIdx !== -1) {
+              const discarded = caster.castingZone.splice(czIdx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              caster.graveyard.push(discarded);
+            }
+          }
+          if (!caster.graveyard.some(c => c && (c.uid === card.uid || c === card))) {
+            resetCardStateForZoneChange(card);
+            caster.graveyard.push(card);
+          }
+        }
+      }
+      renderGame();
+      if (cancelCallback) cancelCallback();
+    };
+
+    if (opp === gameState.ai) {
+      if (typeof aiConfig !== 'undefined' && aiConfig.difficulty !== 'EASY') {
+        executeCancel();
+        return;
+      }
+      if (proceedCallback) proceedCallback();
+      return;
+    }
+
+    showChoiceModal(
+      '💥 ออโต้: สปาร์กซี่คอน',
+      `ฝ่ายตรงข้ามกำลังสั่งใช้งาน "${card.name}"!\n\nต้องการใช้ความสามารถของ "สปาร์กซี่คอน" ยกเลิกความสามารถนั้น และทำลายการ์ดนั้นหรือไม่? (ใช้ได้ 1 ครั้ง/เทิร์น)`,
+      [
+        {
+          label: `🚫 ยกเลิกความสามารถ และทำลาย "${card.name}"`,
+          color: '#dc2626',
+          onSelect: () => executeCancel()
+        },
+        {
+          label: '❌ ไม่ใช้สกิล (ปล่อยให้ทำงาน)',
+          color: '#475569',
+          onSelect: () => {
+            if (proceedCallback) proceedCallback();
+          }
+        }
+      ],
+      { previewCards: [card] }
+    );
+  };
+
+  if (canUseUnbodied) {
+    if (opp === gameState.ai) {
+      if (typeof aiConfig !== 'undefined' && aiConfig.difficulty !== 'EASY') {
+        executeUnbodiedCancel();
+        return;
+      }
+      checkSparkcon();
+      return;
+    }
+
+    const unbodiedCard = opp.hand.find(c => c && (c.id === 'BT02_15' || (c.name && c.name.includes('UNBODIED FLESH'))));
+    showChoiceModal(
+      '🥩 เวทมนตร์รีแอค: UNBODIED FLESH',
+      `ฝ่ายตรงข้ามกำลังจะใช้การ์ดเวทมนตร์ "${card.name}"!\n\nต้องการร่าย "UNBODIED FLESH" จากมือ เพื่อยกเลิกความสามารถของการ์ดนั้นหรือไม่? (เวทรีแอค 1 ครั้ง/เทิร์น)`,
+      [
+        {
+          label: `🚫 ร่าย UNBODIED FLESH เพื่อยกเลิกความสามารถ`,
+          color: '#dc2626',
+          card: unbodiedCard,
+          onSelect: () => executeUnbodiedCancel()
+        },
+        {
+          label: '❌ ไม่ใช้ UNBODIED FLESH',
+          color: '#475569',
+          onSelect: () => checkSparkcon()
+        }
+      ],
+      { previewCards: unbodiedCard ? [unbodiedCard, card] : [card] }
+    );
     return;
   }
 
-  showChoiceModal(
-    '💥 ออโต้: สปาร์กซี่คอน',
-    `ฝ่ายตรงข้ามกำลังสั่งใช้งาน "${card.name}"!\n\nต้องการใช้ความสามารถของ "สปาร์กซี่คอน" ยกเลิกความสามารถนั้น และทำลายการ์ดนั้นหรือไม่? (ใช้ได้ 1 ครั้ง/เทิร์น)`,
-    [
-      {
-        label: `🚫 ยกเลิกความสามารถ และทำลาย "${card.name}"`,
-        color: '#dc2626',
-        onSelect: () => executeCancel()
-      },
-      {
-        label: '❌ ไม่ใช้สกิล (ปล่อยให้ทำงาน)',
-        color: '#475569',
-        onSelect: () => {
-          if (proceedCallback) proceedCallback();
-        }
-      }
-    ],
-    { previewCards: [card] }
-  );
+  checkSparkcon();
 }
 function getCardMaxCopies(cardTemplate) { return cardTemplate && cardTemplate.maxCopies !== undefined ? cardTemplate.maxCopies : 2; }
 
@@ -559,23 +636,25 @@ function applyLeaderEffectDamage(targetSide, baseAmount = 1, sourceTitle = '') {
 }
 
 function drawCards(contestant, count) {
+  let actuallyDrawn = 0;
   for (let i = 0; i < count; i++) {
     if (contestant.deck.length > 0) {
       const card = contestant.deck.pop();
       resetCardStateForZoneChange(card);
       contestant.hand.push(card);
+      actuallyDrawn++;
+    }
+  }
 
-      // 🔪 THE SLASHER (KL02): เมื่อฝ่ายตรงข้ามจั่วการ์ด ลีดเดอร์ของฝั่งตรงข้ามเสียพลังชีวิต 1 หน่วย (1 เทิร์น/ครั้ง)
-      if (typeof gameState !== 'undefined' && gameState && gameState.phase && gameState.phase !== 'Mulligan') {
-        const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
-        if (opp && Array.isArray(opp.board)) {
-          const slasher = opp.board.find(m => m && (m.id === 'KL02' || (m.name && m.name.includes('THE SLASHER'))) && !m.slasherDrawBurnUsedThisTurn);
-          if (slasher) {
-            slasher.slasherDrawBurnUsedThisTurn = true;
-            showCardShowcaseBanner(slasher, 'ออโต้: THE SLASHER!', `🔪 ฝ่ายตรงข้ามจั่วการ์ด -> ลีดเดอร์ของ ${contestant.name} เสีย 1 HP!`, '#dc2626', 1200);
-            applyLeaderEffectDamage(contestant, 1, `🔪 [ออโต้ / 1 เทิร์น - THE SLASHER] ฝ่ายตรงข้ามจั่วการ์ด -> ลีดเดอร์ของ ${contestant.name} เสียพลังชีวิต 1 หน่วย!`);
-          }
-        }
+  // 🔪 THE SLASHER (KL02): เมื่อฝ่ายตรงข้ามจั่วการ์ด ลีดเดอร์ของฝั่งตรงข้ามเสียพลังชีวิต 1 หน่วย (ออโต้ / 1 เทิร์น)
+  if (actuallyDrawn > 0 && typeof gameState !== 'undefined' && gameState && gameState.phase && gameState.phase !== 'Mulligan') {
+    const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+    if (opp && Array.isArray(opp.board)) {
+      const slasher = opp.board.find(m => m && (m.id === 'KL02' || (m.name && m.name.includes('THE SLASHER'))) && !m.slasherDrawBurnUsedThisTurn);
+      if (slasher) {
+        slasher.slasherDrawBurnUsedThisTurn = true;
+        showCardShowcaseBanner(slasher, 'ออโต้: THE SLASHER!', `🔪 ฝ่ายตรงข้ามจั่วการ์ด -> ลีดเดอร์ของ ${contestant.name} เสีย 1 HP!`, '#dc2626', 1200);
+        applyLeaderEffectDamage(contestant, 1, `🔪 [ออโต้ / 1 เทิร์น - THE SLASHER] ฝ่ายตรงข้ามจั่วการ์ด -> ลีดเดอร์ของ ${contestant.name} เสียพลังชีวิต 1 หน่วย!`);
       }
     }
   }
@@ -1423,49 +1502,9 @@ function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
         label: (window.isMobileUI && window.isMobileUI()) ? '✅ ยืนยัน' : `✅ ยืนยัน (${actionTitle})`,
         color: '#16a34a',
         onSelect: () => {
-          if (isSpellCard(card)) {
-            const aiUnbodiedIdx = gameState.ai.hand.findIndex(c => c && c.id === 'BT02_15');
-            if (aiUnbodiedIdx !== -1 && gameState.ai.spellQuota.reactionUsed < 1 && aiConfig.difficulty !== 'EASY') {
-              const unbodiedCard = gameState.ai.hand.splice(aiUnbodiedIdx, 1)[0];
-              gameState.ai.spellQuota.reactionUsed += 1;
-              resetCardStateForZoneChange(unbodiedCard);
-              gameState.ai.graveyard.push(unbodiedCard);
-
-              const curIdx = gameState.player.hand.findIndex(c => c.uid === card.uid);
-              if (curIdx !== -1) {
-                const pSpell = gameState.player.hand.splice(curIdx, 1)[0];
-                if (pSpell.type === 'ReactionSpell') gameState.player.spellQuota.reactionUsed += 1;
-                else gameState.player.spellQuota.normalUsed += 1;
-                resetCardStateForZoneChange(pSpell);
-                gameState.player.graveyard.push(pSpell);
-              }
-              if (typeof showCardShowcaseBanner === 'function') {
-                showCardShowcaseBanner(unbodiedCard, 'AI ร่าย UNBODIED FLESH!', `🚫 ยกเลิกความสามารถของ "${card.name}"!`, '#dc2626', 1500);
-              }
-              setLog(`🚫 [AI - UNBODIED FLESH] AI ร่ายเวทรีแอค "UNBODIED FLESH" ยกเลิกความสามารถของ "${card.name}" สำเร็จ!`);
-              renderGame();
-              return;
-            }
-
-            // ตรวจสอบ สปาร์กซี่คอน (BT02_04) ของ AI: ออโต้ / 1 เทิร์น เมื่อฝั่งตรงข้ามสั่งใช้งานการ์ดหรือความสามารถการ์ด ยกเลิกความสามารถนั้น และทำลายการ์ดนั้น
-            const aiSparkcon = gameState.ai.board.find(m => m && (m.id === 'BT02_04' || (m.name && m.name.includes('สปาร์กซี่คอน'))));
-            if (aiSparkcon && !aiSparkcon.sparkconNegateUsedThisTurn && aiConfig.difficulty !== 'EASY') {
-              aiSparkcon.sparkconNegateUsedThisTurn = true;
-              const curIdx = gameState.player.hand.findIndex(c => c.uid === card.uid);
-              if (curIdx !== -1) {
-                const pSpell = gameState.player.hand.splice(curIdx, 1)[0];
-                if (pSpell.type === 'ReactionSpell') gameState.player.spellQuota.reactionUsed += 1;
-                else gameState.player.spellQuota.normalUsed += 1;
-                resetCardStateForZoneChange(pSpell);
-                gameState.player.graveyard.push(pSpell);
-              }
-              showCardShowcaseBanner(aiSparkcon, 'AI ออโต้ สปาร์กซี่คอน!', `🚫 ยกเลิกการใช้งานของ "${card.name}" และทำลายการ์ดนั้น!`, '#a855f7', 1500);
-              setLog(`🚫 [AI ออโต้ - สปาร์กซี่คอน] ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้นลงนรก!`);
-              renderGame();
-              return;
-            }
-          }
-          if (onConfirmCallback) onConfirmCallback();
+          checkSparkconCancelBeforeAction(gameState.player, card, () => {
+            if (onConfirmCallback) onConfirmCallback();
+          });
         }
       },
       {
@@ -3488,38 +3527,47 @@ function triggerBlightKillSkill(killerContestant, killerMonster, victimContestan
                 return;
               }
 
-              if (currentTargets.length <= 2) {
-                doDestroyTargets(currentTargets.map(t => t.slot));
-                return;
-              }
+              const pickTargetFlow = (chosenSlots = []) => {
+                const remain = victimContestant.board
+                  .map((m, idx) => (m && !chosenSlots.includes(idx) && !isMonsterImmuneToEnemyEffects(m, victimContestant) && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
+                  .filter(Boolean);
 
-              const pick1Choices = currentTargets.map(t => ({
-                label: `ทำลาย "${t.m.name}" (Power ${getEffectivePower(t.m, victimContestant)}) ช่องที่ ${t.slot + 1}`,
-                color: '#b91c1c',
-                card: t.m,
-                onSelect: () => {
-                  const firstSlot = t.slot;
-                  const remainTargets = victimContestant.board
-                    .map((m, idx) => (m && idx !== firstSlot && !isMonsterImmuneToEnemyEffects(m, victimContestant) && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
-                    .filter(Boolean);
-
-                  if (remainTargets.length === 0) {
-                    doDestroyTargets([firstSlot]);
-                    return;
+                if (remain.length === 0 || chosenSlots.length === 2) {
+                  if (chosenSlots.length > 0) doDestroyTargets(chosenSlots);
+                  else {
+                    renderGame();
+                    if (onDone) onDone();
                   }
-
-                  const pick2Choices = remainTargets.map(t2 => ({
-                    label: `ทำลาย "${t2.m.name}" (Power ${getEffectivePower(t2.m, victimContestant)}) ช่องที่ ${t2.slot + 1}`,
-                    color: '#b91c1c',
-                    card: t2.m,
-                    onSelect: () => {
-                      doDestroyTargets([firstSlot, t2.slot]);
-                    }
-                  }));
-                  showChoiceModal('☣️ THE BLIGHT: เลือกเป้าหมายใบที่ 2', 'เลือกยูนิทฝ่ายตรงข้ามใบที่ 2 ที่จะทำลาย:', pick2Choices);
+                  return;
                 }
-              }));
-              showChoiceModal('☣️ THE BLIGHT: เลือกเป้าหมายใบที่ 1', 'เลือกยูนิทฝ่ายตรงข้ามใบที่ 1 ที่จะทำลาย:', pick1Choices);
+
+                const choices = remain.map(t => ({
+                  label: `💥 ทำลาย "${t.m.name}" (Power ${getEffectivePower(t.m, victimContestant)}) ช่องที่ ${t.slot + 1}`,
+                  color: '#dc2626',
+                  card: t.m,
+                  onSelect: () => {
+                    chosenSlots.push(t.slot);
+                    pickTargetFlow(chosenSlots);
+                  }
+                }));
+
+                if (chosenSlots.length > 0) {
+                  choices.push({
+                    label: `✅ ยืนยันทำลาย ${chosenSlots.length} ใบที่เลือก`,
+                    color: '#16a34a',
+                    onSelect: () => doDestroyTargets(chosenSlots)
+                  });
+                }
+
+                showChoiceModal(
+                  `☣️ THE BLIGHT: เลือกเป้าหมายใบที่ ${chosenSlots.length + 1}/2`,
+                  `เลือกยูนิทฝ่ายตรงข้ามที่พลังโจมตี <= ${blightPower} เพื่อทำลาย (เลือกแล้ว ${chosenSlots.length}/2 ใบ):`,
+                  choices,
+                  { previewCards: remain.map(r => r.m) }
+                );
+              };
+
+              pickTargetFlow([]);
             }
           }));
           showChoiceModal('☣️ THE BLIGHT: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือ 1 ใบเพื่อทิ้งลงนรก:', discardOptions);
@@ -3603,7 +3651,7 @@ function activateJudgmentSpecialSummon(contestant, handIndex) {
     checkGameOver();
   };
 
-  if (!isPlayer || entityUnitsInGrave.length === 5) {
+  if (!isPlayer) {
     const sorted = [...entityUnitsInGrave].sort((a, b) => (a.power || 0) - (b.power || 0));
     doSummon(sorted.slice(0, 5));
   } else {
@@ -3613,17 +3661,27 @@ function activateJudgmentSpecialSummon(contestant, handIndex) {
         doSummon(selected);
         return;
       }
-      const remainingChoices = entityUnitsInGrave
-        .filter(u => !selected.some(s => s.uid === u.uid))
-        .map(u => ({
-          label: `🪦 "${u.name}" (Power ${u.power || 0})`,
-          color: '#dc2626',
-          onSelect: () => {
-            selected.push(u);
-            promptSelect();
-          }
-        }));
-      showChoiceModal(`⚖️ THE JUDGMENT: เลือกการ์ดใบที่ ${selected.length + 1}/5`, 'เลือกยูนิทเผ่า ENTITY จากนรกเพื่อนำกลับเข้ากอง:', remainingChoices);
+      const remainUnits = entityUnitsInGrave.filter(u => !selected.some(s => s.uid === u.uid));
+      const choices = remainUnits.map(u => ({
+        label: `🪦 นำเข้ากอง: "${u.name}" (Power ${u.power || 0})`,
+        color: '#dc2626',
+        card: u,
+        onSelect: () => {
+          selected.push(u);
+          promptSelect();
+        }
+      }));
+      choices.push({
+        label: '❌ ยกเลิก (ไม่สั่งใช้งาน)',
+        color: '#475569',
+        onSelect: () => {}
+      });
+      showChoiceModal(
+        `⚖️ THE JUDGMENT: เลือกการ์ดใบที่ ${selected.length + 1}/5`,
+        `เลือกยูนิทเผ่า ENTITY จากนรกเพื่อนำกลับเข้ากอง (เลือกแล้ว ${selected.length}/5 ใบ):`,
+        choices,
+        { previewCards: remainUnits }
+      );
     };
     promptSelect();
   }
@@ -3637,27 +3695,52 @@ function triggerXenomorphSummonSkill(contestant, monster, onDone = null) {
   }
   const isPlayer = (contestant === gameState.player);
   if (isPlayer) {
-    const choices = contestant.hand.map((c, hIdx) => ({
-      label: `ทิ้ง "${c.name}" เพื่อฟื้นฟู HP ลีดเดอร์ 1 หน่วย`,
-      color: '#dc2626',
-      onSelect: () => {
-        const discarded = contestant.hand.splice(hIdx, 1)[0];
-        resetCardStateForZoneChange(discarded);
-        contestant.graveyard.push(discarded);
-        const oldHp = contestant.leader.hp;
-        contestant.leader.hp = Math.min(contestant.leader.maxHp || 6, contestant.leader.hp + 1);
-        setLog(`👽 [THE XENOMORPH] ทิ้ง "${discarded.name}" -> ฟื้นฟู HP ลีดเดอร์ +1 (${oldHp} -> ${contestant.leader.hp})!`);
-        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
-        renderGame();
-        if (onDone) onDone();
-      }
-    }));
-    choices.push({
-      label: 'ไม่ใช้ความสามารถ',
-      color: '#475569',
-      onSelect: () => { if (onDone) onDone(); }
-    });
-    showChoiceModal('👽 THE XENOMORPH: เมื่อลงสนาม', 'ต้องการทิ้งการ์ดบนมือ 1 ใบ เพื่อเพิ่มพลังชีวิตลีดเดอร์ 1 หน่วยหรือไม่?', choices);
+    showChoiceModal(
+      '👽 ออโต้: THE XENOMORPH',
+      'ยูนิทนี้ลงสู่สนาม!\nคุณต้องการทิ้งการ์ดบนมือ 1 ใบ เพื่อฟื้นฟูพลังชีวิตลีดเดอร์ 1 หน่วยหรือไม่?',
+      [
+        {
+          label: '💚 ใช้งานสกิล: ทิ้งการ์ดบนมือ 1 ใบ (+1 HP)',
+          color: '#16a34a',
+          onSelect: () => {
+            const discardChoices = contestant.hand.map((c, hIdx) => ({
+              label: `ทิ้ง "${c.name}" (${c.rarity || 'N'})`,
+              color: '#dc2626',
+              card: c,
+              onSelect: () => {
+                const discarded = contestant.hand.splice(hIdx, 1)[0];
+                resetCardStateForZoneChange(discarded);
+                contestant.graveyard.push(discarded);
+                const oldHp = contestant.leader.hp;
+                contestant.leader.hp = Math.min(contestant.leader.maxHp || 6, contestant.leader.hp + 1);
+                showCardShowcaseBanner(monster, 'THE XENOMORPH!', `💚 ทิ้ง "${discarded.name}" -> ฟื้นฟู HP +1 (${oldHp} -> ${contestant.leader.hp})`, '#10b981', 1200);
+                setLog(`👽 [THE XENOMORPH] ทิ้ง "${discarded.name}" -> ฟื้นฟู HP ลีดเดอร์ +1 (${oldHp} -> ${contestant.leader.hp})!`);
+                if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+                renderGame();
+                if (onDone) onDone();
+              }
+            }));
+            discardChoices.push({
+              label: '❌ ยกเลิก (ไม่ทิ้งการ์ด)',
+              color: '#475569',
+              onSelect: () => { if (onDone) onDone(); }
+            });
+            showChoiceModal(
+              '👽 THE XENOMORPH: เลือกการ์ดที่จะทิ้ง',
+              'เลือกการ์ดบนมือ 1 ใบเพื่อส่งลงนรก และฟื้นฟูพลังชีวิตลีดเดอร์ 1 หน่วย:',
+              discardChoices,
+              { previewCards: [...contestant.hand] }
+            );
+          }
+        },
+        {
+          label: '❌ ไม่ใช้ความสามารถ',
+          color: '#475569',
+          onSelect: () => { if (onDone) onDone(); }
+        }
+      ],
+      { previewCards: [monster] }
+    );
   } else {
     if (contestant.leader.hp < (contestant.leader.maxHp || 6)) {
       const worstIdx = 0;
