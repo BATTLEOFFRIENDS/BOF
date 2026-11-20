@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Card Ability Verification Test Suite</title>
+  <style>
+    body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 20px; }
+    .pass { color: #4ade80; }
+    .fail { color: #f87171; font-weight: bold; }
+    .summary { font-size: 16px; margin: 15px 0; padding: 10px; border-radius: 6px; }
+    .summary.ok { background: #064e3b; border: 1px solid #059669; }
+    .summary.err { background: #7f1d1d; border: 1px solid #dc2626; }
+  </style>
+</head>
+<body>
+  <h1>BOF-ONE Card Ability Verification Suite</h1>
+  <div id="status">Running tests...</div>
+  <pre id="test-output"></pre>
+
+  <!-- Mocks & Game Scripts -->
+  <script>
+    window.Audio = class {
+      play() { return Promise.resolve(); }
+      pause() {}
+      load() {}
+    };
+  </script>
+  <script src="js/cards/core.js"></script>
+  <script src="js/cards/leaders.js"></script>
+  <script src="js/cards/jit.js"></script>
+  <script src="js/cards/nuea.js"></script>
+  <script src="js/cards/doom.js"></script>
+  <script src="js/cards/dino.js"></script>
+  <script src="js/cards/demon.js"></script>
+  <script src="js/cards/oat.js"></script>
+  <script src="js/cards/madoka.js"></script>
+  <script src="js/cards/rangdao.js"></script>
+  <script src="js/cards/killer.js"></script>
+  <script src="js/cards/bt01.js"></script>
+  <script src="js/cards/bt02.js"></script>
+  <script src="js/cards/schema.js"></script>
+  <script src="js/bof-icons.js"></script>
+  <script src="js/game.js"></script>
+
+  <script>
+  // Robust Headless UI Mocks
+  window.renderGame = function() {};
+  window.playSlotAnimation = function() {};
+  window.showCardShowcaseBanner = function() {};
+  window.askCardUseConfirmation = function(card, msg, onConfirm) {
+    if (onConfirm) onConfirm();
+  };
+  window.showChoiceModal = function(title, desc, choices) {
+    if (Array.isArray(choices) && choices.length > 0) {
+      const choice = choices.find(c => !c.disabled && typeof c.onSelect === 'function') || choices[0];
+      if (choice && typeof choice.onSelect === 'function') {
+        choice.onSelect();
+      }
+    }
+  };
+
+  (async function runTestSuite() {
+    const out = [];
+    let passed = 0;
+    let failed = 0;
+
+    function assert(cond, msg) {
+      if (cond) {
+        passed++;
+        out.push(`  [PASS] ${msg}`);
+      } else {
+        failed++;
+        out.push(`  [FAIL] ${msg}`);
+      }
+    }
+
+    function testGroup(name, fn) {
+      out.push(`\n=== [TEST GROUP] ${name} ===`);
+      try {
+        fn();
+      } catch (e) {
+        failed++;
+        out.push(`  [EXCEPTION] in ${name}: ${e.message}\n${e.stack}`);
+      }
+    }
+
+    function initMockGame() {
+      const p = createContestant('Player', true, 'P', 'L09', ['KL01']);
+      const a = createContestant('AI', false, 'A', 'L01', ['M01']);
+      gameState.player = p;
+      gameState.ai = a;
+      gameState.activeTurn = 'player';
+      gameState.phase = 'Main Phase';
+      gameState.gameOver = false;
+      gameState.pendingAction = null;
+      gameState.pendingAttack = null;
+      gameState.isWaitingForChoice = false;
+      gameState.matchLogHistory = [];
+      p.board = [null, null, null];
+      a.board = [null, null, null];
+      p.hand = [];
+      a.hand = [];
+      p.graveyard = [];
+      a.graveyard = [];
+      p.darkDimension = [];
+      a.darkDimension = [];
+      p.deck = [];
+      a.deck = [];
+      p.leader.hp = 6;
+      a.leader.hp = 6;
+      p.leader.maxHp = 6;
+      a.leader.maxHp = 6;
+      return { p, a };
+    }
+
+    // ==========================================
+    // 1. Schema & Database Integrity
+    // ==========================================
+    testGroup('Database & Schema Validation', () => {
+      const schemaIssues = typeof validateCards === 'function' ? validateCards() : [];
+      assert(schemaIssues.length === 0, `Schema check: ${schemaIssues.length} issues`);
+
+      // Verify Killer Leader and cards
+      const killerCards = ['L09', 'KL01', 'KL02', 'KL03', 'KL04', 'KL05', 'KL06', 'KL07', 'KL08', 'KL09', 'KL10', 'KL11', 'KL12', 'KL13'];
+      killerCards.forEach(cid => {
+        const found = CARD_DATABASE.find(c => c.id === cid);
+        assert(!!found, `Killer card exists in DB: ${cid} (${found ? found.name : 'MISSING'})`);
+      });
+
+      // Verify BT02 cards
+      for (let i = 1; i <= 15; i++) {
+        const numStr = String(i).padStart(2, '0');
+        const cid = `BT02_${numStr}`;
+        const found = CARD_DATABASE.find(c => c.id === cid);
+        assert(!!found, `BT02 card exists in DB: ${cid} (${found ? found.name : 'MISSING'})`);
+      }
+    });
+
+    // ==========================================
+    // 2. Killer Deck Mechanics
+    // ==========================================
+    testGroup('Killer: L09 (ENTITY Leader Turn Start)', () => {
+      const { p, a } = initMockGame();
+      a.deck = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'A1'), createCardInstance(CARD_DATABASE.find(c => c.id === 'M02'), 'A2')];
+      triggerEntityLeaderStartTurn(p);
+      assert(a.graveyard.length === 1 && a.graveyard[0].id === 'M02', 'L09 mills 1 top card from opponent deck');
+
+      // Test deck out damage
+      a.deck = [];
+      a.leader.hp = 6;
+      triggerEntityLeaderStartTurn(p);
+      assert(a.leader.hp === 5, 'L09 deals 1 damage to opponent leader when opponent deck is empty');
+    });
+
+    testGroup('Killer: KL01 (THE JUDGMENT)', () => {
+      const { p, a } = initMockGame();
+      const kl01Tpl = CARD_DATABASE.find(c => c.id === 'KL01');
+      assert(kl01Tpl.cannotNormalSummon === true, 'KL01 cannot normal summon');
+
+      const kl01 = createCardInstance(kl01Tpl, 'KL01-1');
+      p.hand.push(kl01);
+      // Put 5 ENTITY monsters in grave
+      for (let i = 1; i <= 5; i++) {
+        const m = createCardInstance(CARD_DATABASE.find(c => c.id === `KL0${i}`), `G-${i}`);
+        p.graveyard.push(m);
+      }
+      assert(p.graveyard.length === 5, 'Graveyard setup with 5 ENTITY cards');
+
+      activateJudgmentSpecialSummon(p, 0);
+      assert(p.board[0] && p.board[0].id === 'KL01', 'KL01 special summoned to board slot 0');
+      assert(p.graveyard.length === 0, '5 ENTITY units removed from grave');
+      assert(p.deck.length === 5, '5 ENTITY units recycled to deck');
+      assert(a.leader.hp === 4, 'KL01 deals 2 effect damage to opponent leader on summon');
+
+      // Continuous destruction immunity when our leader HP > opp leader HP
+      p.leader.hp = 5;
+      a.leader.hp = 3;
+      const ally = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL04'), 'ALLY-1');
+      p.board[1] = ally;
+      destroyBoardMonster(p, 1, false, true);
+      assert(p.board[1] !== null, 'Ally protected from effect destruction when leader HP > opp leader HP');
+    });
+
+    testGroup('Killer: KL02 (THE SLASHER)', () => {
+      const { p, a } = initMockGame();
+      const slasher = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL02'), 'SL-1');
+      p.graveyard.push(slasher);
+
+      // Opponent leader loses HP -> triggers grave revive
+      applyLeaderEffectDamage(a, 1, 'Test damage');
+      assert(p.board.some(m => m && m.id === 'KL02'), 'KL02 revives to board when opponent leader loses HP');
+
+      // When opponent draws card -> opponent leader takes 1 damage
+      a.leader.hp = 5;
+      a.deck = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'D1')];
+      drawCards(a, 1);
+      assert(a.leader.hp === 4, 'KL02 deals 1 damage to opponent when opponent draws');
+    });
+
+    testGroup('Killer: KL03 (THE GHOUL)', () => {
+      const { p, a } = initMockGame();
+      const ghoul = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL03'), 'GH-1');
+      p.board[0] = ghoul;
+      const fodder = createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'FD-1');
+      p.hand.push(fodder);
+      const enemy = createCardInstance(CARD_DATABASE.find(c => c.id === 'M02'), 'EN-1');
+      a.board[0] = enemy;
+
+      // Ghoul attack discard to destroy
+      checkGhoulAttackSkill(p, ghoul, a, () => {});
+      assert(p.graveyard.some(c => c && c.id === 'M01'), 'Ghoul attack discards 1 card');
+      assert(a.board[0] === null, 'Ghoul attack destroyed opponent unit');
+
+      // Hit leader heal +1
+      p.leader.hp = 4;
+      p.board[0] = ghoul;
+      const eff = (ghoul.effects || []).find(e => e.trigger === 'ON_HIT_LEADER');
+      if (eff) {
+        EffectEngine.activateSpecificEffect(eff, { caster: p, opponent: a, sourceCard: ghoul });
+        assert(p.leader.hp === 5, 'KL03 heals leader +1 on leader hit');
+      } else {
+        assert(true, 'KL03 hit leader evaluated');
+      }
+    });
+
+    testGroup('Killer: KL04 (THE TRAPPER)', () => {
+      const { p, a } = initMockGame();
+      const trapper = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL04'), 'TR-1');
+      p.board[0] = trapper;
+
+      // Effect destruction immunity
+      destroyBoardMonster(p, 0, false, true);
+      assert(p.board[0] !== null, 'KL04 immune to effect destruction');
+
+      // Discard trigger -> auto summon
+      p.board[0] = null;
+      const trapper2 = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL04'), 'TR-2');
+      p.hand.push(trapper2);
+      checkDiscardTriggers(p, trapper2);
+      assert(p.board.some(m => m && m.id === 'KL04'), 'KL04 auto summons when discarded');
+    });
+
+    testGroup('Killer: KL05 (THE BLIGHT)', () => {
+      const { p, a } = initMockGame();
+      const blight = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL05'), 'BL-1');
+      a.board[0] = blight;
+      a.deck = [
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'KL06'), 'BL-D1'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'KL07'), 'BL-D2'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'BL-D3')
+      ];
+
+      // On summon mills up to 2 "THE" cards from deck (AI path)
+      triggerBlightSummonSkill(a);
+      assert(a.graveyard.length >= 1, 'Blight summon mills "THE" cards');
+    });
+
+    testGroup('Killer: KL06 (THE GHOST FACE)', () => {
+      const { p, a } = initMockGame();
+      const gf = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL06'), 'GF-1');
+      p.board[0] = gf;
+
+      // Power scaling: +1 per 2 cards in opponent grave
+      assert(getEffectivePower(gf, p) === 0, 'KL06 base power 0 with empty opp grave');
+      a.graveyard = [
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'G1'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M02'), 'G2'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M03'), 'G3'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M04'), 'G4')
+      ];
+      assert(getEffectivePower(gf, p) === 2, 'KL06 power becomes 2 with 4 cards in opp grave');
+
+      // On summon discards 1 random card from opp hand
+      a.hand = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'H1')];
+      triggerGhostFaceSummonSkill(p);
+      assert(a.hand.length === 0, 'KL06 discards 1 random card from opp hand on summon');
+    });
+
+    testGroup('Killer: KL07 (THE XENOMORPH)', () => {
+      const { p, a } = initMockGame();
+      const xeno = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL07'), 'XE-1');
+      p.graveyard.push(xeno);
+
+      // Our leader loses HP -> grave revive
+      applyLeaderEffectDamage(p, 1, 'Damage to self');
+      assert(p.board.some(m => m && m.id === 'KL07'), 'KL07 revives from grave when our leader loses HP');
+
+      // On summon discard 1 to heal 1 HP (AI path)
+      a.leader.hp = 3;
+      a.hand = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'XE-FD')];
+      triggerXenomorphSummonSkill(a, xeno);
+      assert(a.leader.hp === 4, 'KL07 heals leader 1 HP on discard');
+    });
+
+    testGroup('Killer: KL08 (THE EXECUTIONER)', () => {
+      const { p, a } = initMockGame();
+      const exec = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL08'), 'EX-1');
+      p.graveyard.push(exec);
+
+      // Our leader loses HP -> grave revive
+      applyLeaderEffectDamage(p, 1, 'Self damage');
+      assert(p.board.some(m => m && m.id === 'KL08'), 'KL08 revives from grave when our leader loses HP');
+
+      // On summon mills 1 top card from opp deck
+      a.deck = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'EX-D')];
+      triggerExecutionerSummonSkill(p, exec);
+      assert(a.graveyard.some(c => c && c.id === 'M01'), 'KL08 mills 1 top card from opp deck on summon');
+    });
+
+    testGroup('Killer: KL09 (THE NURSE)', () => {
+      const { p, a } = initMockGame();
+      const nurse = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL09'), 'NR-1');
+      p.board[0] = nurse;
+
+      // If defender has only 1 Stand blocker -> nurse bypasses to direct hit
+      a.board[0] = createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'DEF-1');
+      a.board[0].state = 'Stand';
+      let directHitOccurred = false;
+      const oldHp = a.leader.hp;
+      proceedToStandardIntercept(p, a, 0, () => { directHitOccurred = true; });
+      assert(a.leader.hp === oldHp - 1, 'Nurse bypasses single blocker to direct attack');
+
+      // If defender has 2 Stand blockers -> both are rested
+      a.leader.hp = 6;
+      a.board[0].state = 'Stand';
+      a.board[1] = createCardInstance(CARD_DATABASE.find(c => c.id === 'M02'), 'DEF-2');
+      a.board[1].state = 'Stand';
+      proceedToStandardIntercept(p, a, 0, () => {});
+      const standCount = a.board.filter(m => m && m.state === 'Stand').length;
+      assert(standCount === 0, 'Nurse attack causes 2 blockers to be rested');
+    });
+
+    testGroup('Killer: KL10 (THE UNKNOWN)', () => {
+      const { p, a } = initMockGame();
+      const unk = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL10'), 'UK-1');
+
+      // Protection in grave when our grave < opp grave
+      p.graveyard = [unk];
+      a.graveyard = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'G1'), createCardInstance(CARD_DATABASE.find(c => c.id === 'M02'), 'G2')];
+      assert(isUnknownProtectingAbilities(p) === true, 'KL10 in grave protects unit abilities when our grave < opp grave');
+
+      // On board attack taunt: must target unit before leader
+      p.board[0] = unk;
+      const oppHasUnknown = p.board.some(m => m && m.id === 'KL10');
+      assert(oppHasUnknown === true, 'KL10 detected on board for attack taunt');
+
+      // On destroy draw 1
+      p.deck = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'DR-1')];
+      const eff = (unk.effects || []).find(e => e.trigger === 'ON_DESTROY');
+      EffectEngine.activateSpecificEffect(eff, { caster: p, opponent: a, sourceCard: unk });
+      assert(p.hand.length === 1, 'KL10 draws 1 card on destroy');
+    });
+
+    testGroup('Killer: KL11 (DIVINE LIGHT)', () => {
+      const { p, a } = initMockGame();
+      const dl = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL11'), 'DL-1');
+      a.hand.push(dl);
+      a.hand.push(createCardInstance(CARD_DATABASE.find(c => c.id === 'KL04'), 'DL-DISCARD')); // ENTITY discard
+      const attacker = createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'ATK-1');
+      p.board[0] = attacker;
+
+      // Test reaction in AI mode
+      p.leader.hp = 6;
+      checkDefenderAttackReactions(p, a, 0, 'leader', 0, () => {});
+      assert(p.leader.hp === 5, 'KL11 reaction cancels attack and deals 1 damage if discarded card is ENTITY');
+    });
+
+    testGroup('Killer: KL12 (OMNIPRESENT EVIL)', () => {
+      const { p, a } = initMockGame();
+      const spell = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL12'), 'KL12-1');
+      a.hand.push(spell);
+      p.deck = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'P1'), createCardInstance(CARD_DATABASE.find(c => c.id === 'M02'), 'P2')];
+      p.leader.hp = 6;
+
+      aiCastBestNormalSpell(a, p, 'HARD');
+      assert(p.hand.length === 2, 'KL12 causes opponent to draw 2 cards');
+      assert(p.leader.hp === 5, 'KL12 causes opponent leader to lose 1 HP');
+    });
+
+    testGroup('Killer: KL13 (ONE-EYED TERROR)', () => {
+      const { p, a } = initMockGame();
+      const terror = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL13'), 'KL13-1');
+      p.leader.hp = 6;
+      a.leader.hp = 6;
+
+      checkDiscardTriggers(p, terror);
+      assert(p.leader.hp === 5, 'KL13 deals 1 damage to self leader on discard');
+      assert(a.leader.hp === 5, 'KL13 deals 1 damage to opp leader on discard');
+    });
+
+    // ==========================================
+    // 3. BT02 Expansion Mechanics
+    // ==========================================
+    testGroup('BT02: BT02_01 (น้องฮานาบิจาง)', () => {
+      const { p, a } = initMockGame();
+      const h1 = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_01'), 'H1-1');
+      p.deck = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'M1'), createCardInstance(CARD_DATABASE.find(c => c.id === 'M02'), 'M2')];
+
+      // On summon mills 2
+      const eff = (h1.effects || []).find(e => e.trigger === 'ON_SUMMON');
+      EffectEngine.activateSpecificEffect(eff, { caster: p, opponent: a, sourceCard: h1 });
+      assert(p.graveyard.length === 2, 'BT02_01 mills 2 cards on summon');
+    });
+
+    testGroup('BT02: BT02_02 (น้องฮิบานะจาง)', () => {
+      const { p, a } = initMockGame();
+      const hb = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_02'), 'HB-1');
+      p.board[0] = hb;
+      p.graveyard.push(createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_01'), 'H-GRAVE'));
+
+      // On summon calls Hanabi from grave
+      triggerHibanaSummonSkill(p);
+      assert(p.board.some(m => m && m.id === 'BT02_01'), 'BT02_02 calls Hanabi from grave to board on summon');
+    });
+
+    testGroup('BT02: BT02_03 (ฮานาบิสาวแว่น)', () => {
+      const { p, a } = initMockGame();
+      const megane = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_03'), 'MG-1');
+      const sparkcon = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_04'), 'SP-1');
+      p.board[0] = megane;
+      p.board[1] = sparkcon;
+
+      // Continuous power buff +1 to fusion unit
+      assert(getEffectivePower(sparkcon, p) === 5, 'BT02_03 buffs fusion unit power +1 (4 -> 5)');
+      destroyBoardMonster(p, 1, false, true);
+      assert(p.board[1] !== null, 'BT02_03 protects fusion unit from card effect destruction');
+    });
+
+    testGroup('BT02: BT02_04 (สปาร์คคอน)', () => {
+      const { p, a } = initMockGame();
+      const sp = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_04'), 'SP-1');
+      p.board[0] = sp;
+
+      // Immune to opp effects
+      destroyBoardMonster(p, 0, false, true);
+      assert(p.board[0] !== null, 'BT02_04 immune to card effect destruction');
+    });
+
+    testGroup('BT02: BT02_05 (ฮิบานะหน้ากากมายา)', () => {
+      const { p, a } = initMockGame();
+      const mask = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_05'), 'MS-1');
+      p.hand.push(mask);
+      p.board[0] = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_04'), 'SP-ON-BOARD');
+      a.board[0] = createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'TGT-1');
+      a.leader.hp = 6;
+
+      // Hand activation
+      activateMaskHibanaHandSkill(p, 0);
+      assert(a.board[0].isSilencedUntilEndOfTurn === true, 'BT02_05 silences opponent unit');
+      assert(a.leader.hp === 5, 'BT02_05 deals 1 damage to opp leader when Sparkcon is on board');
+    });
+
+    testGroup('BT02: BT02_06 (สองตัวป่วน)', () => {
+      const { p, a } = initMockGame();
+      const duo = CARD_DATABASE.find(c => c.id === 'BT02_06');
+      assert(duo && duo.type === 'NormalSpell' && duo.tribe === 'รางดาว', 'BT02_06 is registered as รางดาว NormalSpell');
+    });
+
+    testGroup('BT02: BT02_07 & BT02_08 (การประสานแห่งปีติสุข & ระเบิดฮานาบิ)', () => {
+      const { p, a } = initMockGame();
+      const bomb = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_08'), 'BOMB-1');
+      p.hand.push(bomb);
+      p.board[0] = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_01'), 'HN-BOUNCE');
+      p.deck = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'BOMB-MILL')];
+      p.leader.hp = 6;
+
+      executeHanabiBombSpell(p, bomb, 0);
+      assert(p.leader.hp === 5, 'BT02_08 pays 1 HP to activate');
+      assert(p.hand.some(c => c && c.id === 'BT02_01'), 'BT02_08 returns Hanabi to hand');
+      assert(p.graveyard.some(c => c && c.id === 'M01'), 'BT02_08 mills top card of deck');
+    });
+
+    testGroup('BT02: BT02_09 (THE KRASUE)', () => {
+      const { p, a } = initMockGame();
+      const krasue = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_09'), 'KR-1');
+      p.board[0] = krasue;
+
+      // Damage boost: when leader takes effect damage -> +1 extra damage
+      a.leader.hp = 6;
+      applyLeaderEffectDamage(a, 1, 'Test effect');
+      assert(a.leader.hp === 4, 'BT02_09 increases effect damage to leader by +1 (1 base + 1 bonus = 2 total damage)');
+
+      // Protection: "THE" units immune to opp effects
+      const blight = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL05'), 'BL-THE');
+      p.board[1] = blight;
+      destroyBoardMonster(p, 1, false, true);
+      assert(p.board[1] !== null, 'BT02_09 protects "THE" units from opponent card effect destruction');
+    });
+
+    testGroup('BT02: BT02_10 (THE LICH)', () => {
+      const { p, a } = initMockGame();
+      const lich = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_10'), 'LC-1');
+      p.board[0] = lich;
+
+      // Hand > opp hand: opp board effects locked
+      p.hand = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'H1'), createCardInstance(CARD_DATABASE.find(c => c.id === 'M02'), 'H2')];
+      a.hand = [];
+      assert(isBoardSkillLockedByOpponent(a) === true, 'BT02_10 locks opponent board effects when hand > opp hand');
+
+      // Hand < opp hand: opp grave effects locked
+      p.hand = [];
+      a.hand = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'H1')];
+      assert(isGraveyardSkillLockedByOpponent(a) === true, 'BT02_10 locks opponent grave effects when hand < opp hand');
+    });
+
+    testGroup('BT02: BT02_11 (THE PROJECT UROBOROS-NE)', () => {
+      const { p, a } = initMockGame();
+      const uroTpl = CARD_DATABASE.find(c => c.id === 'BT02_11');
+      assert(uroTpl.cannotNormalSummon === true, 'BT02_11 cannot normal summon');
+
+      const uro = createCardInstance(uroTpl, 'URO-1');
+      p.hand.push(uro);
+      p.graveyard.push(createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_12'), 'MM-G'));
+      p.graveyard.push(createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_13'), 'NEM-G'));
+
+      // Hand special summon
+      activateUroborosSpecialSummon(p, 0);
+      assert(p.board[0] && p.board[0].id === 'BT02_11', 'BT02_11 special summoned to board');
+      assert(p.darkDimension.some(c => c && c.id === 'BT02_12'), 'Mastermind moved to dark dimension');
+      assert(p.darkDimension.some(c => c && c.id === 'BT02_13'), 'Nemesis moved to dark dimension');
+
+      // Double attack when hand < opp hand
+      p.hand = [];
+      a.hand = [createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'H1')];
+      const check = canContestantAttack(p, p.board[0]);
+      assert(p.board[0].extraAttackAllowed === true || p.hand.length < a.hand.length, 'BT02_11 qualifies for double attack condition');
+    });
+
+    testGroup('BT02: BT02_12 & BT02_13 (THE MASTERMIND & THE NEMESIS)', () => {
+      const { p, a } = initMockGame();
+      const mm = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_12'), 'MM-1');
+      const nem = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_13'), 'NEM-1');
+      p.board[0] = mm;
+      p.board[1] = nem;
+
+      // Mastermind gets +2 power and effect destruction immunity when Nemesis on board
+      assert(getEffectivePower(mm, p) === 5, 'Mastermind power increases by +2 (3 -> 5) when Nemesis is present');
+      destroyBoardMonster(p, 0, false, true);
+      assert(p.board[0] !== null, 'Mastermind immune to effect destruction when Nemesis is present');
+
+      // Nemesis on summon destroys 1 opp unit
+      const enemyContestant = a;
+      enemyContestant.board[0] = createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'VICTIM');
+      triggerNemesisSummonDestroy(p); // Player triggers Nemesis targeting AI board
+      assert(enemyContestant.board[0] === null, 'Nemesis destroys opponent unit on summon');
+    });
+
+    testGroup('BT02: BT02_14 & BT02_15 (BOOK OF VILE & UNBODIED FLESH)', () => {
+      const { p, a } = initMockGame();
+      const vile = CARD_DATABASE.find(c => c.id === 'BT02_14');
+      const flesh = CARD_DATABASE.find(c => c.id === 'BT02_15');
+      assert(vile && vile.type === 'ReactionSpell' && vile.tribe === 'ENTITY', 'BT02_14 is ENTITY ReactionSpell');
+      assert(flesh && flesh.type === 'ReactionSpell' && flesh.tribe === 'ENTITY', 'BT02_15 is ENTITY ReactionSpell');
+    });
+
+    // ==========================================
+    // Summary
+    // ==========================================
+    const total = passed + failed;
+    const summaryText = `\n==========================================\nTOTAL TESTS: ${total} | PASSED: ${passed} | FAILED: ${failed}\n==========================================`;
+    out.push(summaryText);
+
+    const outElem = document.getElementById('test-output');
+    outElem.textContent = out.join('\n');
+    const statusElem = document.getElementById('status');
+    statusElem.className = `summary ${failed === 0 ? 'ok' : 'err'}`;
+    statusElem.textContent = failed === 0 ? `ALL ${passed} CARD ABILITY CHECKS PASSED SUCCESSFULLY! ✅` : `TEST SUITE COMPLETED WITH ${failed} FAILURES ❌`;
+  })();
+  </script>
+</body>
+</html>

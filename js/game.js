@@ -501,12 +501,45 @@ function createValidDeck(leaderId, mainDeckCardIds, ownerPrefix) {
   };
 }
 
+function applyLeaderEffectDamage(targetSide, baseAmount = 1, sourceTitle = '') {
+  if (!targetSide || !targetSide.leader) return 0;
+  let amount = baseAmount;
+  if (typeof gameState !== 'undefined' && gameState) {
+    const allBoardMonsters = [...(gameState.player?.board || []), ...(gameState.ai?.board || [])].filter(Boolean);
+    const krasue = allBoardMonsters.find(m => m && (m.id === 'BT02_09' || (m.name && m.name.includes('THE KRASUE'))) && !m.krasueUsedThisTurn);
+    if (krasue) {
+      krasue.krasueUsedThisTurn = true;
+      amount += 1;
+      setLog(`👻 [ออโต้ / 1 เทิร์น - THE KRASUE] ลีดเดอร์เสียพลังชีวิตจากความสามารถของการ์ด -> เสียเพิ่มอีก 1 หน่วย (รวมเป็น ${amount} หน่วย)!`);
+    }
+  }
+  targetSide.leader.hp = Math.max(0, targetSide.leader.hp - amount);
+  if (typeof fxLeaderDamage === 'function') fxLeaderDamage(targetSide, amount);
+  if (sourceTitle) setLog(sourceTitle);
+  if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(targetSide);
+  if (typeof checkGameOver === 'function') checkGameOver();
+  return amount;
+}
+
 function drawCards(contestant, count) {
   for (let i = 0; i < count; i++) {
     if (contestant.deck.length > 0) {
       const card = contestant.deck.pop();
       resetCardStateForZoneChange(card);
       contestant.hand.push(card);
+
+      // 🔪 THE SLASHER (KL02): เมื่อฝ่ายตรงข้ามจั่วการ์ด ลีดเดอร์ของฝั่งตรงข้ามเสียพลังชีวิต 1 หน่วย (1 เทิร์น/ครั้ง)
+      if (typeof gameState !== 'undefined' && gameState && gameState.phase && gameState.phase !== 'Mulligan') {
+        const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+        if (opp && Array.isArray(opp.board)) {
+          const slasher = opp.board.find(m => m && (m.id === 'KL02' || (m.name && m.name.includes('THE SLASHER'))) && !m.slasherDrawBurnUsedThisTurn);
+          if (slasher) {
+            slasher.slasherDrawBurnUsedThisTurn = true;
+            showCardShowcaseBanner(slasher, 'ออโต้: THE SLASHER!', `🔪 ฝ่ายตรงข้ามจั่วการ์ด -> ลีดเดอร์ของ ${contestant.name} เสีย 1 HP!`, '#dc2626', 1200);
+            applyLeaderEffectDamage(contestant, 1, `🔪 [ออโต้ / 1 เทิร์น - THE SLASHER] ฝ่ายตรงข้ามจั่วการ์ด -> ลีดเดอร์ของ ${contestant.name} เสียพลังชีวิต 1 หน่วย!`);
+          }
+        }
+      }
     }
   }
 }
@@ -630,6 +663,20 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     if (Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(d => d && (d.id === 'BT02_13' || (d.name && d.name.includes('THE NEMESIS'))))) {
       setLog(`🛡️ [ต่อเนื่อง - THE NEMESIS ในมิติมืด] "${monster.name}" ไม่รับผลจากความสามารถของการ์ดฝ่ายตรงข้าม!`);
       return { destroyed: false, reason: 'nemesis_uroboros_immune', monster };
+    }
+  }
+
+  // 🐻 THE TRAPPER (KL04): ต่อเนื่อง : ไม่ถูกทำลายจากความสามารถของการ์ด
+  if (!isFromBattle && !oppHasWelt && (monster.id === 'KL04' || (monster.name && monster.name.includes('THE TRAPPER')))) {
+    setLog(`🐻 [ต่อเนื่อง - THE TRAPPER] "${monster.name}" ไม่ถูกทำลายจากความสามารถของการ์ด!`);
+    return { destroyed: false, reason: 'trapper_protection', monster };
+  }
+
+  // ⚖️ THE JUDGMENT (KL01): ถ้าลีดเดอร์ของเรามีพลังชีวิตมากกว่าลีดเดอร์อีกฝั่ง ยูนิทบนสนามฝั่งเราทุกใบไม่ถูกทำลายจากความสามารถของการ์ด
+  if (!isFromBattle && !oppHasWelt && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && (m.id === 'KL01' || (m.name && m.name.includes('THE JUDGMENT'))))) {
+    if (boardOwner.leader && opp && opp.leader && boardOwner.leader.hp > opp.leader.hp) {
+      setLog(`⚖️ [ต่อเนื่อง - THE JUDGMENT] HP ลีดเดอร์เรา (${boardOwner.leader.hp}) มากกว่าอีกฝ่าย (${opp.leader.hp}) -> ยูนิทบนสนามฝั่งเราไม่ถูกทำลายจากความสามารถของการ์ด!`);
+      return { destroyed: false, reason: 'judgment_protection', monster };
     }
   }
 
@@ -3442,6 +3489,378 @@ function triggerBlightKillSkill(killerContestant, killerMonster, victimContestan
 }
 
 
+// 💀 ENTITY LEADER (L09): เมื่อเข้าเทิร์นนำการ์ดใบบนสุดของกองการ์ดฝั่งตรงข้าม 1 ใบลงนรก ถ้าไม่สามารถทำได้ลีดเดอร์ฝั่งตรงข้าม เสียพลังชีวิต 1 หน่วย
+function triggerEntityLeaderStartTurn(contestant, onComplete = null) {
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  if (!opp) {
+    if (onComplete) onComplete();
+    return;
+  }
+  showCardShowcaseBanner({ name: 'ENTITY', image: 'images/Killer/1.png' }, 'ออโต้ ENTITY เข้าสู่เทิร์น!', '💀 นำการ์ดใบบนสุดของกองฝ่ายตรงข้ามลงนรก (ถ้าไม่มี เสีย 1 HP)', '#dc2626', 1200);
+  if (Array.isArray(opp.deck) && opp.deck.length > 0) {
+    const milled = opp.deck.pop();
+    resetCardStateForZoneChange(milled);
+    opp.graveyard.push(milled);
+    setLog(`💀 [ลีดเดอร์ ENTITY] เข้าสู่เทิร์น -> ส่งการ์ดใบบนสุดของกอง ${opp.name} "${milled.name}" ลงนรก!`);
+    renderGame();
+  } else {
+    applyLeaderEffectDamage(opp, 1, `💀 [ลีดเดอร์ ENTITY] กองการ์ดของ ${opp.name} ว่างเปล่า! -> ลีดเดอร์ของ ${opp.name} เสียพลังชีวิต 1 หน่วย!`);
+    renderGame();
+  }
+  if (onComplete) onComplete();
+}
+
+// ⚖️ THE JUDGMENT (KL01): สั่งใช้งานจากบนมือ : นำยูนิทเผ่า “ENTITY” จากนรกกลับเข้ากอง 5 ใบ จากนั้นสลับกองการ์ด เพื่ออัญเชิญยูนิทนี้
+function activateJudgmentSpecialSummon(contestant, handIndex) {
+  const isPlayer = (contestant === gameState.player);
+  const emptySlot = contestant.board.findIndex(m => m === null);
+  if (emptySlot === -1) {
+    setLog('❌ สนามของคุณไม่มีช่องว่างให้อัญเชิญ!');
+    return;
+  }
+  const card = contestant.hand[handIndex];
+  if (!card) return;
+
+  const entityUnitsInGrave = (contestant.graveyard || []).filter(c => c && c.type === 'Monster' && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id) || /^BT02_(09|1[0-3])$/.test(c.id)));
+  if (entityUnitsInGrave.length < 5) {
+    setLog(`❌ ต้องมียูนิทเผ่า "ENTITY" ในนรกอย่างน้อย 5 ใบ (ปัจจุบันมี ${entityUnitsInGrave.length} ใบ)!`);
+    return;
+  }
+
+  const doSummon = (chosenUnits) => {
+    chosenUnits.forEach(u => {
+      const gIdx = contestant.graveyard.findIndex(c => c && c.uid === u.uid);
+      if (gIdx !== -1) {
+        const ret = contestant.graveyard.splice(gIdx, 1)[0];
+        resetCardStateForZoneChange(ret);
+        contestant.deck.push(ret);
+      }
+    });
+    contestant.deck = shuffleDeck(contestant.deck);
+
+    const curHandIdx = contestant.hand.findIndex(c => c && c.uid === card.uid);
+    if (curHandIdx === -1) return;
+    const summoned = contestant.hand.splice(curHandIdx, 1)[0];
+    resetCardStateForZoneChange(summoned);
+    summoned.state = 'Stand';
+    contestant.board[emptySlot] = summoned;
+
+    showCardShowcaseBanner(summoned, '⚖️ THE JUDGMENT ลงสู่สนาม!', 'นำ ENTITY 5 ใบจากนรกกลับกอง -> อัญเชิญ!', '#dc2626', 1400);
+    setLog(`⚖️ [THE JUDGMENT] นำยูนิทเผ่า "ENTITY" 5 ใบจากนรกกลับเข้ากองและสับกองการ์ด -> อัญเชิญ "${summoned.name}" ลงสนามช่องที่ ${emptySlot + 1} สำเร็จ!`);
+
+    const opp = isPlayer ? gameState.ai : gameState.player;
+    applyLeaderEffectDamage(opp, 2, `⚖️ [ออโต้ - THE JUDGMENT] เมื่อลงสนาม -> ลีดเดอร์ของ ${opp.name} เสียพลังชีวิต 2 หน่วย!`);
+    renderGame();
+    checkGameOver();
+  };
+
+  if (!isPlayer || entityUnitsInGrave.length === 5) {
+    const sorted = [...entityUnitsInGrave].sort((a, b) => (a.power || 0) - (b.power || 0));
+    doSummon(sorted.slice(0, 5));
+  } else {
+    let selected = [];
+    const promptSelect = () => {
+      if (selected.length === 5) {
+        doSummon(selected);
+        return;
+      }
+      const remainingChoices = entityUnitsInGrave
+        .filter(u => !selected.some(s => s.uid === u.uid))
+        .map(u => ({
+          label: `🪦 "${u.name}" (Power ${u.power || 0})`,
+          color: '#dc2626',
+          onSelect: () => {
+            selected.push(u);
+            promptSelect();
+          }
+        }));
+      showChoiceModal(`⚖️ THE JUDGMENT: เลือกการ์ดใบที่ ${selected.length + 1}/5`, 'เลือกยูนิทเผ่า ENTITY จากนรกเพื่อนำกลับเข้ากอง:', remainingChoices);
+    };
+    promptSelect();
+  }
+}
+
+// 👽 THE XENOMORPH (KL07): ออโต้ เมื่อลงสนาม สามารถทิ้งการ์ด 1 ใบ ลีดเดอร์ของเราได้รับพลังชีวิต 1 หน่วย
+function triggerXenomorphSummonSkill(contestant, monster, onDone = null) {
+  if (!contestant || !Array.isArray(contestant.hand) || contestant.hand.length === 0) {
+    if (onDone) onDone();
+    return;
+  }
+  const isPlayer = (contestant === gameState.player);
+  if (isPlayer) {
+    const choices = contestant.hand.map((c, hIdx) => ({
+      label: `ทิ้ง "${c.name}" เพื่อฟื้นฟู HP ลีดเดอร์ 1 หน่วย`,
+      color: '#dc2626',
+      onSelect: () => {
+        const discarded = contestant.hand.splice(hIdx, 1)[0];
+        resetCardStateForZoneChange(discarded);
+        contestant.graveyard.push(discarded);
+        const oldHp = contestant.leader.hp;
+        contestant.leader.hp = Math.min(contestant.leader.maxHp || 6, contestant.leader.hp + 1);
+        setLog(`👽 [THE XENOMORPH] ทิ้ง "${discarded.name}" -> ฟื้นฟู HP ลีดเดอร์ +1 (${oldHp} -> ${contestant.leader.hp})!`);
+        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+        renderGame();
+        if (onDone) onDone();
+      }
+    }));
+    choices.push({
+      label: 'ไม่ใช้ความสามารถ',
+      color: '#475569',
+      onSelect: () => { if (onDone) onDone(); }
+    });
+    showChoiceModal('👽 THE XENOMORPH: เมื่อลงสนาม', 'ต้องการทิ้งการ์ดบนมือ 1 ใบ เพื่อเพิ่มพลังชีวิตลีดเดอร์ 1 หน่วยหรือไม่?', choices);
+  } else {
+    if (contestant.leader.hp < (contestant.leader.maxHp || 6)) {
+      const worstIdx = 0;
+      const discarded = contestant.hand.splice(worstIdx, 1)[0];
+      resetCardStateForZoneChange(discarded);
+      contestant.graveyard.push(discarded);
+      contestant.leader.hp = Math.min(contestant.leader.maxHp || 6, contestant.leader.hp + 1);
+      setLog(`👽 [AI THE XENOMORPH] ทิ้ง "${discarded.name}" -> ฟื้นฟู HP ลีดเดอร์ +1!`);
+      if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+      renderGame();
+    }
+    if (onDone) onDone();
+  }
+}
+
+// 🔺 THE EXECUTIONER (KL08): ออโต้ เมื่อยูนิทนี้ลงสนามนำการ์ดใบบนสุดของกองการ์ดฝั่งตรงข้าม 1 ใบลงนรก
+function triggerExecutionerSummonSkill(contestant, monster, onDone = null) {
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  if (!opp || !Array.isArray(opp.deck) || opp.deck.length === 0) {
+    if (onDone) onDone();
+    return;
+  }
+  const milled = opp.deck.pop();
+  resetCardStateForZoneChange(milled);
+  opp.graveyard.push(milled);
+  showCardShowcaseBanner(monster || { name: 'THE EXECUTIONER', image: 'images/Killer/9.png' }, '🔺 ออโต้: THE EXECUTIONER!', `ส่ง "${milled.name}" จากบนสุดกองฝ่ายตรงข้ามลงนรก!`, '#dc2626', 1200);
+  setLog(`🔺 [THE EXECUTIONER] เมื่อลงสนาม -> ส่งการ์ดใบบนสุดของกอง ${opp.name} "${milled.name}" ลงนรก!`);
+  renderGame();
+  if (onDone) onDone();
+}
+
+// 💀 ระบบสั่งใช้งานในนรกเมื่อลีดเดอร์เสียพลังชีวิต: THE XENOMORPH (KL07), THE EXECUTIONER (KL08), THE SLASHER (KL02)
+function checkEntityGraveReviveOnLeaderDamage(damagedContestant) {
+  if (!damagedContestant || !gameState) return;
+  const opp = (damagedContestant === gameState.player) ? gameState.ai : gameState.player;
+
+  // 1. THE XENOMORPH (KL07): เมื่อลีดเดอร์ของเราเสียพลังชีวิต
+  if (!damagedContestant.xenomorphRevivedThisTurn && !isGraveyardSkillLockedByOpponent(damagedContestant) && Array.isArray(damagedContestant.graveyard)) {
+    const xenoIdx = damagedContestant.graveyard.findIndex(c => c && (c.id === 'KL07' || (c.name && c.name.includes('THE XENOMORPH'))));
+    const emptySlot = damagedContestant.board.findIndex(m => m === null);
+    if (xenoIdx !== -1 && emptySlot !== -1) {
+      if (damagedContestant === gameState.player) {
+        showChoiceModal(
+          '👽 THE XENOMORPH (ในนรก)',
+          'ลีดเดอร์ของเราเสียพลังชีวิต!\nต้องการสั่งใช้งาน "THE XENOMORPH" จากนรก เพื่ออัญเชิญลงบนสนามหรือไม่?',
+          [
+            {
+              label: '👽 อัญเชิญ THE XENOMORPH ลงสนาม!',
+              color: '#dc2626',
+              onSelect: () => {
+                const curIdx = damagedContestant.graveyard.findIndex(c => c && (c.id === 'KL07' || (c.name && c.name.includes('THE XENOMORPH'))));
+                const sSlot = damagedContestant.board.findIndex(m => m === null);
+                if (curIdx === -1 || sSlot === -1 || damagedContestant.xenomorphRevivedThisTurn) return;
+                damagedContestant.xenomorphRevivedThisTurn = true;
+                const revived = damagedContestant.graveyard.splice(curIdx, 1)[0];
+                resetCardStateForZoneChange(revived);
+                revived.state = 'Stand';
+                damagedContestant.board[sSlot] = revived;
+                showCardShowcaseBanner(revived, 'อัญเชิญ THE XENOMORPH!', '👽 ฟื้นจากนรกเมื่อลีดเดอร์เสีย HP!', '#dc2626', 1200);
+                setLog(`👽 [THE XENOMORPH - ในนรก] ลีดเดอร์เสีย HP -> อัญเชิญลงสนามช่องที่ ${sSlot + 1}!`);
+                triggerXenomorphSummonSkill(damagedContestant, revived);
+                renderGame();
+              }
+            },
+            { label: 'ไม่ใช้ความสามารถ', color: '#475569', onSelect: () => {} }
+          ]
+        );
+      } else {
+        damagedContestant.xenomorphRevivedThisTurn = true;
+        const revived = damagedContestant.graveyard.splice(xenoIdx, 1)[0];
+        resetCardStateForZoneChange(revived);
+        revived.state = 'Stand';
+        damagedContestant.board[emptySlot] = revived;
+        showCardShowcaseBanner(revived, 'AI อัญเชิญ THE XENOMORPH!', '👽 ฟื้นจากนรกเมื่อลีดเดอร์เสีย HP!', '#dc2626', 1200);
+        setLog(`👽 [AI THE XENOMORPH - ในนรก] ลีดเดอร์เสีย HP -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1}!`);
+        triggerXenomorphSummonSkill(damagedContestant, revived);
+        renderGame();
+      }
+    }
+  }
+
+  // 2. THE EXECUTIONER (KL08): เมื่อลีดเดอร์ของเราเสียพลังชีวิต
+  if (!damagedContestant.executionerRevivedThisTurn && !isGraveyardSkillLockedByOpponent(damagedContestant) && Array.isArray(damagedContestant.graveyard)) {
+    const execIdx = damagedContestant.graveyard.findIndex(c => c && (c.id === 'KL08' || (c.name && c.name.includes('THE EXECUTIONER'))));
+    const emptySlot = damagedContestant.board.findIndex(m => m === null);
+    if (execIdx !== -1 && emptySlot !== -1) {
+      if (damagedContestant === gameState.player) {
+        showChoiceModal(
+          '🔺 THE EXECUTIONER (ในนรก)',
+          'ลีดเดอร์ของเราเสียพลังชีวิต!\nต้องการสั่งใช้งาน "THE EXECUTIONER" จากนรก เพื่ออัญเชิญลงบนสนามหรือไม่?',
+          [
+            {
+              label: '🔺 อัญเชิญ THE EXECUTIONER ลงสนาม!',
+              color: '#dc2626',
+              onSelect: () => {
+                const curIdx = damagedContestant.graveyard.findIndex(c => c && (c.id === 'KL08' || (c.name && c.name.includes('THE EXECUTIONER'))));
+                const sSlot = damagedContestant.board.findIndex(m => m === null);
+                if (curIdx === -1 || sSlot === -1 || damagedContestant.executionerRevivedThisTurn) return;
+                damagedContestant.executionerRevivedThisTurn = true;
+                const revived = damagedContestant.graveyard.splice(curIdx, 1)[0];
+                resetCardStateForZoneChange(revived);
+                revived.state = 'Stand';
+                damagedContestant.board[sSlot] = revived;
+                showCardShowcaseBanner(revived, 'อัญเชิญ THE EXECUTIONER!', '🔺 ฟื้นจากนรกเมื่อลีดเดอร์เสีย HP!', '#dc2626', 1200);
+                setLog(`🔺 [THE EXECUTIONER - ในนรก] ลีดเดอร์เสีย HP -> อัญเชิญลงสนามช่องที่ ${sSlot + 1}!`);
+                triggerExecutionerSummonSkill(damagedContestant, revived);
+                renderGame();
+              }
+            },
+            { label: 'ไม่ใช้ความสามารถ', color: '#475569', onSelect: () => {} }
+          ]
+        );
+      } else {
+        damagedContestant.executionerRevivedThisTurn = true;
+        const revived = damagedContestant.graveyard.splice(execIdx, 1)[0];
+        resetCardStateForZoneChange(revived);
+        revived.state = 'Stand';
+        damagedContestant.board[emptySlot] = revived;
+        showCardShowcaseBanner(revived, 'AI อัญเชิญ THE EXECUTIONER!', '🔺 ฟื้นจากนรกเมื่อลีดเดอร์เสีย HP!', '#dc2626', 1200);
+        setLog(`🔺 [AI THE EXECUTIONER - ในนรก] ลีดเดอร์เสีย HP -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1}!`);
+        triggerExecutionerSummonSkill(damagedContestant, revived);
+        renderGame();
+      }
+    }
+  }
+
+  // 3. THE SLASHER (KL02): เมื่อลีดเดอร์ฝั่งตรงข้ามเสียพลังชีวิต
+  if (opp && !opp.slasherRevivedThisTurn && !isGraveyardSkillLockedByOpponent(opp) && Array.isArray(opp.graveyard)) {
+    const slasherIdx = opp.graveyard.findIndex(c => c && (c.id === 'KL02' || (c.name && c.name.includes('THE SLASHER'))));
+    const emptySlot = opp.board.findIndex(m => m === null);
+    if (slasherIdx !== -1 && emptySlot !== -1) {
+      if (opp === gameState.player) {
+        showChoiceModal(
+          '🔪 THE SLASHER (ในนรก)',
+          'ลีดเดอร์ฝั่งตรงข้ามเสียพลังชีวิต!\nต้องการสั่งใช้งาน "THE SLASHER" จากนรก เพื่ออัญเชิญลงบนสนามหรือไม่?',
+          [
+            {
+              label: '🔪 อัญเชิญ THE SLASHER ลงสนาม!',
+              color: '#dc2626',
+              onSelect: () => {
+                const curIdx = opp.graveyard.findIndex(c => c && (c.id === 'KL02' || (c.name && c.name.includes('THE SLASHER'))));
+                const sSlot = opp.board.findIndex(m => m === null);
+                if (curIdx === -1 || sSlot === -1 || opp.slasherRevivedThisTurn) return;
+                opp.slasherRevivedThisTurn = true;
+                const revived = opp.graveyard.splice(curIdx, 1)[0];
+                resetCardStateForZoneChange(revived);
+                revived.state = 'Stand';
+                opp.board[sSlot] = revived;
+                showCardShowcaseBanner(revived, 'อัญเชิญ THE SLASHER!', '🔪 ฟื้นจากนรกเมื่อลีดเดอร์อีกฝ่ายเสีย HP!', '#dc2626', 1200);
+                setLog(`🔪 [THE SLASHER - ในนรก] ลีดเดอร์อีกฝ่ายเสีย HP -> อัญเชิญลงสนามช่องที่ ${sSlot + 1}!`);
+                renderGame();
+              }
+            },
+            { label: 'ไม่ใช้ความสามารถ', color: '#475569', onSelect: () => {} }
+          ]
+        );
+      } else {
+        opp.slasherRevivedThisTurn = true;
+        const revived = opp.graveyard.splice(slasherIdx, 1)[0];
+        resetCardStateForZoneChange(revived);
+        revived.state = 'Stand';
+        opp.board[emptySlot] = revived;
+        showCardShowcaseBanner(revived, 'AI อัญเชิญ THE SLASHER!', '🔪 ฟื้นจากนรกเมื่อลีดเดอร์อีกฝ่ายเสีย HP!', '#dc2626', 1200);
+        setLog(`🔪 [AI THE SLASHER - ในนรก] ลีดเดอร์อีกฝ่ายเสีย HP -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1}!`);
+        renderGame();
+      }
+    }
+  }
+}
+
+// 🩸 THE GHOUL (KL03): ออโต้ / 1 เทิร์น : เมื่อยูนิทนี้โจมตีสามารถทิ้งการ์ดบนมือ 1 ใบ ทำลายยูนิทฝั่งตรงข้าม 1 ใบ
+function checkGhoulAttackSkill(attacker, attackingMonster, defender, onDone) {
+  if (!attackingMonster || (attackingMonster.id !== 'KL03' && !(attackingMonster.name && attackingMonster.name.includes('THE GHOUL')))) {
+    if (onDone) onDone();
+    return;
+  }
+  if (attackingMonster.ghoulDestroyUsedThisTurn || !Array.isArray(attacker.hand) || attacker.hand.length === 0 || !defender.board.some(m => m !== null)) {
+    if (onDone) onDone();
+    return;
+  }
+  const isPlayer = (attacker === gameState.player);
+  if (isPlayer) {
+    showChoiceModal(
+      '🩸 THE GHOUL: สกิลเมื่อโจมตี',
+      'ต้องการทิ้งการ์ดบนมือ 1 ใบ เพื่อทำลายยูนิทฝั่งตรงข้าม 1 ใบหรือไม่?',
+      [
+        {
+          label: '🩸 ทิ้งการ์ด 1 ใบเพื่อทำลายยูนิทฝ่ายตรงข้าม',
+          color: '#dc2626',
+          onSelect: () => {
+            const discardChoices = attacker.hand.map((c, hIdx) => ({
+              label: `ทิ้ง "${c.name}"`,
+              color: '#dc2626',
+              onSelect: () => {
+                const discarded = attacker.hand.splice(hIdx, 1)[0];
+                resetCardStateForZoneChange(discarded);
+                attacker.graveyard.push(discarded);
+                attackingMonster.ghoulDestroyUsedThisTurn = true;
+                if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(attacker, discarded);
+
+                const oppUnits = [];
+                defender.board.forEach((m, s) => {
+                  if (m) {
+                    oppUnits.push({
+                      label: `💥 ทำลาย "${m.name}" (ช่อง ${s + 1})`,
+                      color: '#dc2626',
+                      onSelect: () => {
+                        destroyBoardMonster(defender, s, false, true);
+                        setLog(`🩸 [THE GHOUL] ทิ้ง "${discarded.name}" -> ทำลาย "${m.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
+                        renderGame();
+                        if (onDone) onDone();
+                      }
+                    });
+                  }
+                });
+                if (oppUnits.length > 0) {
+                  showChoiceModal('🩸 THE GHOUL: เลือกยูนิทที่จะทำลาย', 'เลือกยูนิทฝ่ายตรงข้าม 1 ใบ:', oppUnits);
+                } else {
+                  if (onDone) onDone();
+                }
+              }
+            }));
+            showChoiceModal('🩸 THE GHOUL: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ด 1 ใบจากมือเพื่อทิ้ง:', discardChoices);
+          }
+        },
+        {
+          label: 'ไม่ใช้ความสามารถ',
+          color: '#475569',
+          onSelect: () => { if (onDone) onDone(); }
+        }
+      ]
+    );
+  } else {
+    let bestSlot = -1, maxP = -1;
+    defender.board.forEach((m, s) => {
+      if (m && (m.power || 0) > maxP) { maxP = m.power || 0; bestSlot = s; }
+    });
+    if (bestSlot !== -1 && attacker.hand.length > 0) {
+      attackingMonster.ghoulDestroyUsedThisTurn = true;
+      const discarded = attacker.hand.shift();
+      resetCardStateForZoneChange(discarded);
+      attacker.graveyard.push(discarded);
+      if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(attacker, discarded);
+      const victim = defender.board[bestSlot];
+      destroyBoardMonster(defender, bestSlot, false, true);
+      setLog(`🩸 [AI THE GHOUL] ทิ้ง "${discarded.name}" -> ทำลาย "${victim ? victim.name : 'ยูนิท'}" ช่องที่ ${bestSlot + 1}!`);
+      renderGame();
+    }
+    if (onDone) onDone();
+  }
+}
+
 /* ============================================================================
    หมวดที่ 4: ระบบประมวลผลความสามารถแบบบล็อก (MODULAR CARD EFFECT ENGINE)
    รองรับการตรวจเงื่อนไข, การจ่าย Cost, การเลือกเป้าหมาย และการต่อหลายบล็อกในการ์ดใบเดียว
@@ -5706,6 +6125,14 @@ function initiatePlayerSpell(handIndex) {
     setLog('ℹ️ "POM POM" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อยูนิทหรือลีดเดอร์ถูกโจมตี)');
     return;
   }
+  if (spell.id === 'KL11') {
+    setLog('ℹ️ "DIVINE LIGHT" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อยูนิทหรือลีดเดอร์ถูกโจมตี)');
+    return;
+  }
+  if (spell.id === 'KL13') {
+    setLog('ℹ️ "ONE-EYED TERROR" เป็นการ์ดที่แสดงผลเมื่อถูกทิ้ง (เมื่อถูกทิ้ง ลีดเดอร์ทั้ง 2 ฝั่งเสียพลังชีวิต 1 หน่วย)');
+    return;
+  }
   if (spell.id === 'RP10') {
     askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "ผู้นำพาความโชคดี เอโพน่า"', () => {
       gameState.selectedHandIndex = null;
@@ -5740,6 +6167,25 @@ function initiatePlayerSpell(handIndex) {
   // 💣 ระเบิดฮานาบิ (BT02_08)
   if (spell.id === 'BT02_08') {
     executeHanabiBombSpell(player, spell, handIndex);
+    return;
+  }
+
+  // 👁️ OMNIPRESENT EVIL (KL12)
+  if (spell.id === 'KL12') {
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "OMNIPRESENT EVIL"', () => {
+      gameState.selectedHandIndex = null;
+      const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
+      if (curIdx === -1) return;
+      const usedSpell = player.hand.splice(curIdx, 1)[0];
+      player.spellQuota.normalUsed += 1;
+      resetCardStateForZoneChange(usedSpell);
+      player.graveyard.push(usedSpell);
+      showCardShowcaseBanner(usedSpell, 'ร่าย OMNIPRESENT EVIL!', '👁️ อีกฝ่ายจั่ว 2 ใบ & เสียเลือด 1 HP!', '#dc2626', 1300);
+      drawCards(gameState.ai, 2);
+      applyLeaderEffectDamage(gameState.ai, 1, `👁️ [OMNIPRESENT EVIL] อีกฝ่ายจั่วการ์ด 2 ใบ และลีดเดอร์ฝ่ายตรงข้ามเสียพลังชีวิต 1 หน่วย!`);
+      renderGame();
+      checkGameOver();
+    });
     return;
   }
 
@@ -7377,6 +7823,44 @@ function checkDiscardTriggers(contestant, card) {
     }
   }
 
+  // 🐻 THE TRAPPER (KL04): ออโต้ : เมื่อถูกทิ้งสามารถอัญเชิญการ์ดใบนี้ลงสนาม
+  if (card.id === 'KL04' || (card.name && card.name.includes('THE TRAPPER'))) {
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    if (emptySlot !== -1) {
+      let summoned = null;
+      const graveIdx = contestant.graveyard.findIndex(c => c && c.uid === card.uid);
+      if (graveIdx !== -1) {
+        summoned = contestant.graveyard.splice(graveIdx, 1)[0];
+      } else {
+        const hIdx = contestant.hand.findIndex(c => c && c.uid === card.uid);
+        if (hIdx !== -1) {
+          summoned = contestant.hand.splice(hIdx, 1)[0];
+        } else {
+          summoned = card;
+        }
+      }
+      if (summoned) {
+        resetCardStateForZoneChange(summoned);
+        summoned.state = 'Stand';
+        contestant.board[emptySlot] = summoned;
+        showCardShowcaseBanner(summoned, 'ออโต้: THE TRAPPER!', `🐻 ถูกทิ้ง -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`, '#dc2626', 1200);
+        setLog(`🐻 [ออโต้ - THE TRAPPER] ถูกทิ้ง -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`);
+        if (typeof notifyUnitCalledFromGrave === 'function') {
+          notifyUnitCalledFromGrave(summoned, contestant);
+        }
+        renderGame();
+      }
+    }
+  }
+
+  // 👁️ ONE-EYED TERROR (KL13): ออโต้ : เมื่อการ์ดใบนี้ถูกทิ้ง ลีดเดอร์ทั้ง 2 ฝั่ง เสียพลังชีวิต 1 หน่วย
+  if (card.id === 'KL13' || (card.name && card.name.includes('ONE-EYED TERROR'))) {
+    showCardShowcaseBanner(card, 'ออโต้: ONE-EYED TERROR!', '👁️ ถูกทิ้ง -> ลีดเดอร์ทั้ง 2 ฝั่งเสียพลังชีวิต 1 หน่วย!', '#dc2626', 1300);
+    applyLeaderEffectDamage(contestant, 1, `👁️ [ออโต้ - ONE-EYED TERROR] ถูกทิ้ง -> ลีดเดอร์ของ ${contestant.name} เสียพลังชีวิต 1 หน่วย!`);
+    applyLeaderEffectDamage(other, 1, `👁️ [ออโต้ - ONE-EYED TERROR] ถูกทิ้ง -> ลีดเดอร์ของ ${other.name} เสียพลังชีวิต 1 หน่วย!`);
+    renderGame();
+  }
+
   // BT01_10 (นักเรียนใหม่ โฮมุระ): ออโต้ : เมื่อมีการทิ้งการ์ดบนมือ ทำลายยูนิทฝั่งตรงข้าม 1 ใบ
   const pContestant = gameState.player;
   const aiContestant = gameState.ai;
@@ -7449,6 +7933,21 @@ function isGraveyardSkillLockedByOpponent(contestant) {
     return true;
   }
 
+  return false;
+}
+
+function isBoardSkillLockedByOpponent(contestant) {
+  if (!contestant || typeof gameState === 'undefined') return false;
+  if (isUnknownProtectingAbilities(contestant)) return false;
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  if (!opp || !Array.isArray(opp.board)) return false;
+  const oppHandLen = Array.isArray(opp.hand) ? opp.hand.length : 0;
+  const myHandLen = Array.isArray(contestant.hand) ? contestant.hand.length : 0;
+
+  // THE LICH (BT02_10): ถ้ามีการ์ดบนมือมากกว่าฝั่งตรงข้าม อีกฝั่งไม่สามารถใช้ความสามารถของการ์ดบนสนามได้
+  if (opp.board.some(m => m && m.id === 'BT02_10') && oppHandLen > myHandLen) {
+    return true;
+  }
   return false;
 }
 
@@ -8001,6 +8500,9 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.spellQuota.normalUsed = 0;
   contestant.spellQuota.reactionUsed = 0;
   contestant.theEndRevivedThisTurn = false;
+  contestant.slasherRevivedThisTurn = false;
+  contestant.xenomorphRevivedThisTurn = false;
+  contestant.executionerRevivedThisTurn = false;
   contestant.homuraUsedThisTurn = false;
   contestant.madokaProtectUsedThisTurn = false;
   contestant.momoGraveUsedThisTurn = false;
@@ -8027,6 +8529,8 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
       m.hanabiUsedThisTurn = false;
       m.sparkconBounceTriggerCountThisTurn = 0;
       m.sparkconNegateUsedThisTurn = false;
+      m.slasherDrawBurnUsedThisTurn = false;
+      m.ghoulDestroyUsedThisTurn = false;
       m.isSilencedUntilEndOfTurn = false;
       // ล้างบัฟ "จนจบเทิร์นอีกฝั่ง" ของฝ่ายตรงข้ามเมื่อจบเทิร์นอีกฝั่งแล้วเข้าเทิร์นเรา
       m.untilEnemyEndPowerMod = 0;
@@ -8042,6 +8546,13 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
 
   if (contestant.leader && contestant.leader.id === 'L06') {
     triggerOatLeaderStartTurn(contestant, () => {
+      triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
+    });
+    return;
+  }
+
+  if (contestant.leader && contestant.leader.id === 'L09') {
+    triggerEntityLeaderStartTurn(contestant, () => {
       triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
     });
     return;
@@ -8425,21 +8936,36 @@ function handleHandCardClick(handIndex) {
               color: '#dc2626',
               onSelect: () => activateUroborosSpecialSummon(player, handIndex)
             },
+            { label: '❌ ยกเลิก', color: '#475569', onSelect: () => renderGame() }
+          ]
+        );
+        return;
+      } else {
+        setLog('🚫 "THE PROJECT UROBOROS-NE" ไม่สามารถอัญเชิญแบบปกติได้! (ต้องมี "THE MASTERMIND" และ "THE NEMESIS" ในนรก และสนามมีช่องว่าง เพื่อสั่งใช้งานจากบนมือ)');
+        return;
+      }
+    }
+
+    // 3.8 THE JUDGMENT (KL01)
+    if (clickedCard.id === 'KL01') {
+      const entityUnitsInGrave = (player.graveyard || []).filter(c => c && c.type === 'Monster' && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id) || /^BT02_(09|1[0-3])$/.test(c.id)));
+      const hasEmptySlot = player.board.some(m => m === null);
+      if (entityUnitsInGrave.length >= 5 && hasEmptySlot) {
+        showChoiceModal(
+          '⚖️ THE JUDGMENT',
+          'สั่งใช้งานจากบนมือ:\nนำยูนิทเผ่า "ENTITY" จากนรกกลับเข้ากอง 5 ใบ จากนั้นสลับกองการ์ด เพื่ออัญเชิญยูนิทนี้',
+          [
             {
-              label: '👤 อัญเชิญแบบปกติ (วางลงช่องสนามตามปกติ)',
-              color: '#16a34a',
-              onSelect: () => {
-                askCardUseConfirmation(clickedCard, 'อัญเชิญยูนิตใบนี้ลงสู่สนามของคุณ', () => {
-                  gameState.selectedAttackerSlot = null;
-                  gameState.selectedHandIndex = handIndex;
-                  setLog(`เลือก "${clickedCard.name}" แล้ว — คลิกที่ช่องบนสนามของคุณเพื่อวาง Monster`);
-                  renderGame();
-                });
-              }
+              label: `⚖️ สั่งใช้งาน: นำ ENTITY ${entityUnitsInGrave.length >= 5 ? 5 : entityUnitsInGrave.length} ใบจากนรกกลับกองเพื่ออัญเชิญ!`,
+              color: '#dc2626',
+              onSelect: () => activateJudgmentSpecialSummon(player, handIndex)
             },
             { label: '❌ ยกเลิก', color: '#475569', onSelect: () => renderGame() }
           ]
         );
+        return;
+      } else {
+        setLog(`🚫 "THE JUDGMENT" ไม่สามารถอัญเชิญแบบปกติได้! (ต้องมียูนิทเผ่า "ENTITY" ในนรกอย่างน้อย 5 ใบ [ปัจจุบันมี ${entityUnitsInGrave.length} ใบ] และสนามต้องมีช่องว่าง)`);
         return;
       }
     }
@@ -8674,6 +9200,8 @@ function handlePlayerSlotClick(slotIndex) {
       if (summoned.id === 'BT02_13') triggerNemesisSummonDestroy(player);
       if (summoned.id === 'KL05' || (summoned.name && summoned.name.includes('THE BLIGHT'))) triggerBlightSummonSkill(player);
       if (summoned.id === 'KL06' || (summoned.name && summoned.name.includes('THE GHOST FACE'))) triggerGhostFaceSummonSkill(player);
+      if (summoned.id === 'KL07' || (summoned.name && summoned.name.includes('THE XENOMORPH'))) triggerXenomorphSummonSkill(player, summoned);
+      if (summoned.id === 'KL08' || (summoned.name && summoned.name.includes('THE EXECUTIONER'))) triggerExecutionerSummonSkill(player, summoned);
       renderGame();
     });
     return;
@@ -9729,6 +10257,14 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
     }
   }
 
+  // 🩸 THE GHOUL (KL03): ออโต้ / 1 เทิร์น : เมื่อยูนิทนี้โจมตีสามารถทิ้งการ์ดบนมือ 1 ใบ ทำลายยูนิทฝั่งตรงข้าม 1 ใบ
+  if ((attackingMonster.id === 'KL03' || (attackingMonster.name && attackingMonster.name.includes('THE GHOUL'))) && !attackingMonster.ghoulDestroyUsedThisTurn && attacker.hand.length > 0 && defender.board.some(m => m !== null)) {
+    checkGhoulAttackSkill(attacker, attackingMonster, defender, () => {
+      proceedWithAttackExecution(false);
+    });
+    return;
+  }
+
   proceedWithAttackExecution(false);
 }
 
@@ -9806,11 +10342,45 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   const canUseBookOfVile = (bt02_14InHandIdx !== -1)
     && (defender.spellQuota.reactionUsed < 1);
 
+  const kl11InHandIdx = defender.hand.findIndex(c => c && c.id === 'KL11');
+  const canUseDivineLight = (kl11InHandIdx !== -1)
+    && (defender.hand.length >= 2)
+    && (defender.spellQuota.reactionUsed < 1);
+
   // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ (ระดับ EASY จะไม่ใช้เวทรีแอคซับซ้อน)
   if (!isLocalDefender) {
     if (aiConfig.difficulty === 'EASY') {
       continueNormalAttackFlow();
       return;
+    }
+
+    if (canUseDivineLight && (targetType === 'leader' || attackingMonster.power >= 2)) {
+      const curIdx = defender.hand.findIndex(c => c && c.id === 'KL11');
+      if (curIdx !== -1) {
+        const spellCard = defender.hand.splice(curIdx, 1)[0];
+        defender.spellQuota.reactionUsed += 1;
+        resetCardStateForZoneChange(spellCard);
+        defender.graveyard.push(spellCard);
+
+        const discardIdx = defender.hand.findIndex(c => c && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id))) !== -1
+          ? defender.hand.findIndex(c => c && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id)))
+          : 0;
+        const discarded = defender.hand.splice(discardIdx, 1)[0];
+        resetCardStateForZoneChange(discarded);
+        defender.graveyard.push(discarded);
+        checkDiscardTriggers(defender, discarded);
+
+        showCardShowcaseBanner(spellCard, 'AI ร่าย DIVINE LIGHT!', '🕯️ ทิ้งการ์ด 1 ใบ -> ยกเลิกการโจมตี!', '#dc2626', 1300);
+        setLog(`🕯️ [AI - DIVINE LIGHT] ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตีของ "${attackingMonster.name}" สำเร็จ!`);
+
+        const isEntity = discarded && (hasCardTribe(discarded, 'ENTITY') || discarded.tribe === 'ENTITY' || /^KL/i.test(discarded.id) || /^BT02_(09|1[0-5])$/.test(discarded.id));
+        if (isEntity) {
+          applyLeaderEffectDamage(attacker, 1, `🕯️ [AI - DIVINE LIGHT] การ์ดที่ถูกทิ้งเป็นเผ่า ENTITY -> ลีดเดอร์ของ ${attacker.name} เสียพลังชีวิต 1 หน่วย!`);
+        }
+        renderGame();
+        if (onCompleteCallback) onCompleteCallback();
+        return;
+      }
     }
 
     if (canUseBookOfVile && (targetType === 'leader' || attackingMonster.power >= 2)) {
@@ -10652,6 +11222,64 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
       });
     }
 
+    if (canUseDivineLight) {
+      options.push({
+        cardId: 'KL11',
+        label: '🕯️ ร่าย "DIVINE LIGHT": ทิ้งการ์ด 1 ใบเพื่อยกเลิกการโจมตี (ถ้าเป็น ENTITY อีกฝ่ายเสีย 1 HP)',
+        color: '#dc2626',
+        onSelect: () => {
+          const curIdx = defender.hand.findIndex(c => c && c.id === 'KL11');
+          if (curIdx === -1) {
+            continueNormalAttackFlow();
+            return;
+          }
+          const spellCard = defender.hand.splice(curIdx, 1)[0];
+          defender.spellQuota.reactionUsed += 1;
+          resetCardStateForZoneChange(spellCard);
+          defender.graveyard.push(spellCard);
+
+          const discardChoices = defender.hand.map((c, hIdx) => {
+            const isEntity = hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id) || /^BT02_(09|1[0-5])$/.test(c.id);
+            return {
+              label: `ทิ้ง "${c.name}"${isEntity ? ' [เผ่า ENTITY - ลีดเดอร์อีกฝ่ายเสีย 1 HP]' : ''}`,
+              color: '#dc2626',
+              onSelect: () => {
+                const discarded = defender.hand.splice(hIdx, 1)[0];
+                resetCardStateForZoneChange(discarded);
+                defender.graveyard.push(discarded);
+                checkDiscardTriggers(defender, discarded);
+
+                showCardShowcaseBanner(spellCard, 'ร่าย DIVINE LIGHT!', '🕯️ ยกเลิกการโจมตี!', '#dc2626', 1300);
+                setLog(`🕯️ [DIVINE LIGHT] ทิ้ง "${discarded.name}" -> ยกเลิกการโจมตีของ "${attackingMonster.name}" สำเร็จ!`);
+
+                if (isEntity) {
+                  applyLeaderEffectDamage(attacker, 1, `🕯️ [DIVINE LIGHT] การ์ดที่ถูกทิ้งเป็นเผ่า ENTITY -> ลีดเดอร์ของ ${attacker.name} เสียพลังชีวิต 1 หน่วย!`);
+                }
+                renderGame();
+                if (onCompleteCallback) onCompleteCallback();
+              }
+            };
+          });
+
+          discardChoices.push({
+            label: '❌ ยกเลิก (ไม่ร่าย DIVINE LIGHT)',
+            color: '#475569',
+            onSelect: () => {
+              const gIdx = defender.graveyard.lastIndexOf(spellCard);
+              if (gIdx !== -1) defender.graveyard.splice(gIdx, 1);
+              defender.hand.splice(curIdx, 0, spellCard);
+              defender.spellQuota.reactionUsed = Math.max(0, defender.spellQuota.reactionUsed - 1);
+              setLog('🕯️ [DIVINE LIGHT] ยกเลิกการร่ายเวทมนตร์ -> คืนการ์ดกลับขึ้นมือ');
+              renderGame();
+              continueNormalAttackFlow();
+            }
+          });
+
+          showChoiceModal('🕯️ DIVINE LIGHT: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ด 1 ใบจากบนมือเพื่อทิ้งและยกเลิกการโจมตี:', discardChoices);
+        }
+      });
+    }
+
     options.push({
       label: 'ไม่ใช้ (ดำเนินการป้องกันตามปกติ)',
       color: '#475569',
@@ -10965,6 +11593,9 @@ function checkLeaderDamagedTriggers(damagedContestant) {
       }
     }
   }
+
+  // 💀 เด็คคิลเลอร์ (ENTITY): THE XENOMORPH (KL07), THE EXECUTIONER (KL08), THE SLASHER (KL02) ฟื้นจากนรกเมื่อลีดเดอร์เสีย HP
+  checkEntityGraveReviveOnLeaderDamage(damagedContestant);
 }
 
 function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCallback) {
@@ -11152,6 +11783,13 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
       if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(defender, oppD);
     }
 
+    // 🩸 ออโต้ของ "THE GHOUL" (KL03): เมื่อยูนิทนี้โจมตีลีดเดอร์ของฝั่งตรงข้ามสำเร็จ ลีดเดอร์ของเราได้รับพลังชีวิต 1 หน่วย
+    if (attackingMonster && (attackingMonster.id === 'KL03' || (attackingMonster.name && attackingMonster.name.includes('THE GHOUL')))) {
+      const oldHp = attacker.leader.hp;
+      attacker.leader.hp = Math.min(attacker.leader.maxHp || 6, attacker.leader.hp + 1);
+      setLog(`🩸 [THE GHOUL] โจมตีลีดเดอร์สำเร็จ -> ฟื้นฟู HP ลีดเดอร์เรา +1 (${oldHp} -> ${attacker.leader.hp}/${attacker.leader.maxHp || 6})!`);
+    }
+
     if (gameState.gameOver) {
       if (attackingMonster.isUltimateMadoka && typeof handleUltimateMadokaBattleEnd === 'function') {
         handleUltimateMadokaBattleEnd(attacker);
@@ -11183,6 +11821,13 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
     return;
   }
 
+  // 💉 THE NURSE (KL09): เมื่ออีกฝั่งจะป้องกันต้องใช้ยูนิท 2 ใบ แทน 1 ใบ ถ้าทำไม่ได้จะป้องกันไม่ได้
+  const isAttackingNurse = (attackingMonster.id === 'KL09' || (attackingMonster.name && attackingMonster.name.includes('THE NURSE')));
+  if (isAttackingNurse && standBlockerSlots.length < 2) {
+    handleDirectLeaderHit(`💉 [THE NURSE] ต้องใช้ยูนิท 2 ใบในการป้องกัน แต่ ${defender.name} มียูนิท Stand ไม่ถึง 2 ใบ จึงไม่สามารถป้องกันได้! "${attackingMonster.name}" โจมตีเข้าใส่ Leader ของ ${defender.name} โดยตรง! (เสีย 1 HP เหลือ ${Math.max(0, defender.leader.hp - 1)}/6)`);
+    return;
+  }
+
   if (standBlockerSlots.length === 0) {
     handleDirectLeaderHit(`💥 "${attackingMonster.name}" โจมตีเข้าใส่ Leader ของ ${defender.name} โดยตรง! (เสีย 1 HP เหลือ ${defender.leader.hp - 1 >= 0 ? defender.leader.hp - 1 : 0}/6)`);
     return;
@@ -11202,6 +11847,13 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
 
     if (chosenSlot !== undefined) {
       const blocker = defender.board[chosenSlot];
+      if (isAttackingNurse) {
+        const otherSlot = validAiBlockers.find(idx => idx !== chosenSlot);
+        if (otherSlot !== undefined && defender.board[otherSlot]) {
+          defender.board[otherSlot].state = 'Rest';
+          setLog(`💉 [THE NURSE] ต้องใช้ 2 ยูนิทป้องกัน -> AI ส่ง "${defender.board[otherSlot].name}" มาร่วมป้องกันด้วย (เข้าสู่สภาพ Rest)!`);
+        }
+      }
       showCardShowcaseBanner(blocker, 'AI สั่งป้องกัน (Intercept)!', `🛡️ ส่ง "${blocker.name}" เข้ารับการโจมตีแทน Leader!`, '#38bdf8', 950);
       applyInterceptSkillAndBattle(attacker, attackerSlot, defender, chosenSlot, (msg) => {
         setLog(`🛡️ AI สั่ง "${blocker.name}" เข้ามา Intercept! -> ${msg}`);
@@ -11483,6 +12135,14 @@ function resolvePlayerIntercept(chosenSlotIndex) {
   const attackingMonster = attacker.board[attackerSlot];
 
   if (chosenSlotIndex !== null) {
+    const isNurse = attackingMonster && (attackingMonster.id === 'KL09' || (attackingMonster.name && attackingMonster.name.includes('THE NURSE')));
+    if (isNurse) {
+      const otherStandSlot = defender.board.findIndex((m, s) => s !== chosenSlotIndex && m && m.state === 'Stand');
+      if (otherStandSlot !== -1 && defender.board[otherStandSlot]) {
+        defender.board[otherStandSlot].state = 'Rest';
+        setLog(`💉 [THE NURSE] ต้องใช้ 2 ยูนิทป้องกัน -> "${defender.board[otherStandSlot].name}" มาร่วมป้องกันด้วย (เข้าสู่สภาพ Rest)!`);
+      }
+    }
     const blocker = defender.board[chosenSlotIndex];
     applyInterceptSkillAndBattle(attacker, attackerSlot, defender, chosenSlotIndex, (msg) => {
       setLog(`🛡️ คุณส่ง "${blocker.name}" เข้า Intercept! -> ${msg}`);
@@ -11494,8 +12154,14 @@ function resolvePlayerIntercept(chosenSlotIndex) {
     defender.leader.hp = Math.max(0, defender.leader.hp - 1);
     fxLeaderDamage(defender);
     setLog(`💥 คุณเลือกไม่ป้องกัน! Leader ของคุณเสีย 1 HP (เหลือ ${defender.leader.hp}/6)`);
+    if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(defender);
     playSlotAnimation(true, 'leader', 'fx-target-hit');
     triggerBelphegorAttackSuccess(attacker, defender, attackingMonster);
+    if (attackingMonster && (attackingMonster.id === 'KL03' || (attackingMonster.name && attackingMonster.name.includes('THE GHOUL')))) {
+      const oldHp = attacker.leader.hp;
+      attacker.leader.hp = Math.min(attacker.leader.maxHp || 6, attacker.leader.hp + 1);
+      setLog(`🩸 [THE GHOUL] โจมตีลีดเดอร์สำเร็จ -> ฟื้นฟู HP ลีดเดอร์เรา +1 (${oldHp} -> ${attacker.leader.hp}/${attacker.leader.maxHp || 6})!`);
+    }
     renderGame();
     if (checkGameOver()) {
       if (onCompleteCallback) onCompleteCallback();
@@ -12202,6 +12868,27 @@ function performSingleAIMainAction() {
   // ==================== สเต็ปที่ 2: อัญเชิญมอนสเตอร์ลงสนามทีละ 1 ใบ ====================
   const emptySlot = ai.board.findIndex(m => m === null);
   if (emptySlot !== -1) {
+    // พิเศษ: THE JUDGMENT (KL01) อัญเชิญพิเศษจากบนมือ
+    const kl01HandIdx = ai.hand.findIndex(c => c && (c.id === 'KL01' || (c.name && c.name.includes('THE JUDGMENT'))));
+    if (kl01HandIdx !== -1) {
+      const entityCount = (ai.graveyard || []).filter(c => c && c.type === 'Monster' && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id) || /^BT02_(09|1[0-3])$/.test(c.id))).length;
+      if (entityCount >= 5) {
+        activateJudgmentSpecialSummon(ai, kl01HandIdx);
+        return true;
+      }
+    }
+
+    // พิเศษ: PROJECT UROBOROS-NE (BT02_11) อัญเชิญพิเศษจากบนมือ
+    const uroHandIdx = ai.hand.findIndex(c => c && (c.id === 'BT02_11' || (c.name && c.name.includes('PROJECT UROBOROS-NE'))));
+    if (uroHandIdx !== -1) {
+      const hasMm = (ai.graveyard || []).some(c => c && (c.id === 'BT02_12' || (c.name && c.name.includes('THE MASTERMIND'))));
+      const hasNem = (ai.graveyard || []).some(c => c && (c.id === 'BT02_13' || (c.name && c.name.includes('THE NEMESIS'))));
+      if (hasMm && hasNem) {
+        activateUroborosSpecialSummon(ai, uroHandIdx);
+        return true;
+      }
+    }
+
     let summonIdx = -1;
     if (diff !== 'EASY') {
       summonIdx = ai.hand.findIndex(c =>
@@ -12256,6 +12943,8 @@ function performSingleAIMainAction() {
       if (summoned.id === 'BT02_13') triggerNemesisSummonDestroy(ai);
       if (summoned.id === 'KL05' || (summoned.name && summoned.name.includes('THE BLIGHT'))) triggerBlightSummonSkill(ai);
       if (summoned.id === 'KL06' || (summoned.name && summoned.name.includes('THE GHOST FACE'))) triggerGhostFaceSummonSkill(ai);
+      if (summoned.id === 'KL07' || (summoned.name && summoned.name.includes('THE XENOMORPH'))) triggerXenomorphSummonSkill(ai, summoned);
+      if (summoned.id === 'KL08' || (summoned.name && summoned.name.includes('THE EXECUTIONER'))) triggerExecutionerSummonSkill(ai, summoned);
 
       renderGame();
       return true;
@@ -12843,6 +13532,21 @@ function aiCastBestNormalSpell(ai, player, diff) {
     });
     showCardShowcaseBanner(spell, 'AI ใช้เวทมนตร์ ASTRAL EXPRESS!', '🚂 ยูนิทเผ่ารางดาวทุกใบพลัง +1 จนจบเทิร์น!', '#38bdf8');
     setLog('🚂 [AI ASTRAL EXPRESS] ยูนิทเผ่ารางดาวบนสนามทุกใบพลังโจมตี +1 จนจบเทิร์น!');
+    renderGame();
+    return true;
+  }
+
+  // 14. OMNIPRESENT EVIL (KL12)
+  const kl12Idx = ai.hand.findIndex(c => c && (c.id === 'KL12' || (c.name && c.name.includes('OMNIPRESENT EVIL'))));
+  if (kl12Idx !== -1) {
+    const spell = ai.hand.splice(kl12Idx, 1)[0];
+    ai.spellQuota.normalUsed += 1;
+    resetCardStateForZoneChange(spell);
+    ai.graveyard.push(spell);
+    drawCards(player, 2);
+    applyLeaderEffectDamage(player, 1, '😈 [AI OMNIPRESENT EVIL] เมื่อใช้งาน -> ลีดเดอร์ของคุณเสีย HP 1 หน่วย!');
+    showCardShowcaseBanner(spell, 'AI ใช้เวทมนตร์ OMNIPRESENT EVIL!', '😈 คุณจั่วการ์ด 2 ใบ และลีดเดอร์ของคุณเสีย HP 1 หน่วย!', '#dc2626');
+    setLog('😈 [AI OMNIPRESENT EVIL] คุณจั่วการ์ด 2 ใบ และลีดเดอร์ของคุณเสีย HP 1 หน่วย!');
     renderGame();
     return true;
   }
