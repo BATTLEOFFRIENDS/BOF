@@ -448,6 +448,31 @@
         caster: a, opponent: p, isAI: true
       }, () => {});
       assert(p.board[0] !== null && p.board[0].uid === 'SP-1', 'BT02_04 unaffected by enemy BOUNCE_UNIT');
+
+      // 4. Auto negate & destroy opponent spell when opponent casts a spell (Choice modal popup)
+      sp.sparkconNegateUsedThisTurn = false;
+      const s02 = createCardInstance(CARD_DATABASE.find(c => c.id === 'S02'), 'S02-CAST');
+      a.hand.push(s02);
+      p.board[1] = createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'ALLY-1');
+      const allyPowerBefore = getEffectivePower(p.board[1], p);
+      let choiceModalPrompted = false;
+      const origShowChoice = window.showChoiceModal;
+      window.showChoiceModal = function(title, desc, choices, extra) {
+        if (title.includes('สปาร์กซี่คอน')) {
+          choiceModalPrompted = true;
+          assert(choices.length === 2, 'Sparkcon choice modal has 2 options');
+          assert(extra && Array.isArray(extra.previewCards) && extra.previewCards[0].id === 'S02', 'Choice modal provides preview of cast card');
+          choices[0].onSelect();
+        } else if (origShowChoice) {
+          origShowChoice(title, desc, choices, extra);
+        }
+      };
+      aiCastBestNormalSpell(a, p, 'HARD');
+      window.showChoiceModal = origShowChoice;
+      assert(choiceModalPrompted === true, 'Choice modal popped up for player to use Sparkcon negate');
+      assert(sp.sparkconNegateUsedThisTurn === true, 'Sparkcon negate marked as used this turn');
+      assert(getEffectivePower(p.board[1], p) === allyPowerBefore, 'S02 effect did not debuff ally power because it was negated');
+      assert(a.graveyard.some(c => c.id === 'S02'), 'Negated spell was destroyed and sent to graveyard');
     });
 
     testGroup('BT02: BT02_05 (ฮิบานะหน้ากากมายา)', () => {
