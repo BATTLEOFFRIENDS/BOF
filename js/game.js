@@ -31,7 +31,8 @@ function isFusionMonster(c) { return Boolean(c && (c.isFusion || c.id === 'BT02_
 function hasCardName(card, nameKeyword) { return !!(card && card.name && card.name.includes(nameKeyword)); }
 function hasCardTribe(card, tribeName) {
   if (!card || !tribeName) return false;
-  if (tribeName === 'รางดาว' && card.id && card.id.startsWith('BT02')) return true;
+  if (tribeName === 'รางดาว' && card.id && /^BT02_0[1-8]$/.test(card.id)) return true;
+  if (tribeName === 'ENTITY' && card.id && /^BT02_(09|1[0-5])$/.test(card.id)) return true;
   if (Array.isArray(card.tribe)) return card.tribe.includes(tribeName);
   return card.tribe === tribeName;
 }
@@ -240,9 +241,10 @@ function getEffectivePower(card, ownerContestant) {
       }
     }
 
-    // 0.4 ผู้บัญชาการ เอล่า (BT01_08): ถ้าอีกฝ่ายมีเอล่าบนสนาม ความสามารถของการ์ดบนสนามเราจะไม่ทำงาน
+    // 0.4 ผู้บัญชาการ เอล่า (BT01_08) หรือ THE LICH (BT02_10): ใบ้ความสามารถการ์ดบนสนาม
     const oppContestant = (owner === gameState.player) ? gameState.ai : gameState.player;
-    const isSilencedByEla = oppContestant && Array.isArray(oppContestant.board) && oppContestant.board.some(m => m && m.id === 'BT01_08');
+    const isLichSilencing = oppContestant && Array.isArray(oppContestant.board) && oppContestant.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(oppContestant.hand) ? oppContestant.hand.length : 0) > (Array.isArray(owner.hand) ? owner.hand.length : 0);
+    const isSilencedByEla = (oppContestant && Array.isArray(oppContestant.board) && oppContestant.board.some(m => m && m.id === 'BT01_08')) || isLichSilencing;
 
     // 0.5 เพื่อนร่วมเดินทาง มิวเท็น (BT01_09): มีโอนามิบนสนามเรา -> ยูนิทเราทุกใบพลัง +1
     if (!isSilencedByEla && owner.board.some(m => m && m.id === 'BT01_09')) {
@@ -254,6 +256,16 @@ function getEffectivePower(card, ownerContestant) {
 
     // 0.55 ฮานาบิสาวแว่น (BT02_03): ถ้ายูนิทนี้อยู่บนสนาม ยูนิทฟิวชั่นทุกใบฝั่งเรา พลัง +1
     if (!isSilencedByEla && isFusionMonster(card) && Array.isArray(owner.board) && owner.board.some(m => m && m.id === 'BT02_03')) {
+      total += 1;
+    }
+
+    // 0.56 THE MASTERMIND (BT02_12): เมื่อมี THE NEMESIS บนสนามฝั่งเรา พลัง +2
+    if (!isSilencedByEla && card.id === 'BT02_12' && Array.isArray(owner.board) && owner.board.some(m => m && (m.id === 'BT02_13' || (m.name && m.name.includes('THE NEMESIS'))))) {
+      total += 2;
+    }
+
+    // 0.57 THE MASTERMIND ในมิติมืด (BT02_12): บัฟ PROJECT UROBOROS-NE พลัง +1
+    if (!isSilencedByEla && (card.id === 'BT02_11' || (card.name && card.name.includes('PROJECT UROBOROS-NE'))) && Array.isArray(owner.darkDimension) && owner.darkDimension.some(d => d && (d.id === 'BT02_12' || (d.name && d.name.includes('THE MASTERMIND'))))) {
       total += 1;
     }
 
@@ -507,6 +519,31 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   if (isByEnemyEffect && monster.id === 'BT02_04' && !oppHasWelt) {
     setLog(`🛡️ [ต่อเนื่อง - สปาร์กซี่คอน] "${monster.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
     return { destroyed: false, reason: 'sparkcon_immune', monster };
+  }
+
+  // THE KRASUE (BT02_09): ยูนิทที่มีชื่อ "THE" บนสนามเราไม่รับผลจากความสามารถของการ์ดฝั่งตรงข้าม
+  if (isByEnemyEffect && !oppHasWelt && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT02_09')) {
+    if (monster.name && (monster.name.toUpperCase().startsWith('THE ') || monster.name.toUpperCase() === 'THE' || (monster.id && monster.id.startsWith('KL')))) {
+      setLog(`🛡️ [ต่อเนื่อง - THE KRASUE] "${monster.name}" ไม่รับผลจากความสามารถของการ์ดฝ่ายตรงข้าม!`);
+      return { destroyed: false, reason: 'krasue_the_immune', monster };
+    }
+  }
+
+  // THE NEMESIS ในมิติมืด (BT02_13): PROJECT UROBOROS-NE บนสนามเราไม่รับผลของความสามารถการ์ดฝั่งตรงข้าม
+  if (isByEnemyEffect && !oppHasWelt && (monster.id === 'BT02_11' || (monster.name && monster.name.includes('PROJECT UROBOROS-NE')))) {
+    if (Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(d => d && (d.id === 'BT02_13' || (d.name && d.name.includes('THE NEMESIS'))))) {
+      setLog(`🛡️ [ต่อเนื่อง - THE NEMESIS ในมิติมืด] "${monster.name}" ไม่รับผลจากความสามารถของการ์ดฝ่ายตรงข้าม!`);
+      return { destroyed: false, reason: 'nemesis_uroboros_immune', monster };
+    }
+  }
+
+  // THE MASTERMIND (BT02_12): เมื่อมี THE NEMESIS บนสนามฝั่งเรา ไม่ถูกทำลายจากความสามารถของการ์ด
+  if (monster.id === 'BT02_12' && !isFromBattle && !oppHasWelt) {
+    const hasNemesis = Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && (m.id === 'BT02_13' || (m.name && m.name.includes('THE NEMESIS'))));
+    if (hasNemesis) {
+      setLog(`🛡️ [ต่อเนื่อง - THE MASTERMIND] มี THE NEMESIS บนสนาม -> "${monster.name}" ไม่ถูกทำลายจากความสามารถของการ์ด!`);
+      return { destroyed: false, reason: 'mastermind_protect', monster };
+    }
   }
 
   // ความรักที่แท้จริง (BT01_12): ยูนิทบนสนามเราจะไม่ถูกทำลายจากความสามารถของอีกฝั่งจนจบเกม
@@ -1196,6 +1233,30 @@ function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
         label: (window.isMobileUI && window.isMobileUI()) ? '✅ ยืนยัน' : `✅ ยืนยัน (${actionTitle})`,
         color: '#16a34a',
         onSelect: () => {
+          if (isSpellCard(card)) {
+            const aiUnbodiedIdx = gameState.ai.hand.findIndex(c => c && c.id === 'BT02_15');
+            if (aiUnbodiedIdx !== -1 && gameState.ai.spellQuota.reactionUsed < 1 && aiConfig.difficulty !== 'EASY') {
+              const unbodiedCard = gameState.ai.hand.splice(aiUnbodiedIdx, 1)[0];
+              gameState.ai.spellQuota.reactionUsed += 1;
+              resetCardStateForZoneChange(unbodiedCard);
+              gameState.ai.graveyard.push(unbodiedCard);
+
+              const curIdx = gameState.player.hand.findIndex(c => c.uid === card.uid);
+              if (curIdx !== -1) {
+                const pSpell = gameState.player.hand.splice(curIdx, 1)[0];
+                if (pSpell.type === 'ReactionSpell') gameState.player.spellQuota.reactionUsed += 1;
+                else gameState.player.spellQuota.normalUsed += 1;
+                resetCardStateForZoneChange(pSpell);
+                gameState.player.graveyard.push(pSpell);
+              }
+              if (typeof showCardShowcaseBanner === 'function') {
+                showCardShowcaseBanner(unbodiedCard, 'AI ร่าย UNBODIED FLESH!', `🚫 ยกเลิกความสามารถของ "${card.name}"!`, '#dc2626', 1500);
+              }
+              setLog(`🚫 [AI - UNBODIED FLESH] AI ร่ายเวทรีแอค "UNBODIED FLESH" ยกเลิกความสามารถของ "${card.name}" สำเร็จ!`);
+              renderGame();
+              return;
+            }
+          }
           if (onConfirmCallback) onConfirmCallback();
         }
       },
@@ -2771,6 +2832,215 @@ function executeHarmonyFusionSpell(player, spell, handIndex) {
   });
 }
 
+// ==================== BT02 ENTITY (คิลเลอร์) HELPER FUNCTIONS ====================
+
+// 🧬 THE PROJECT UROBOROS-NE (BT02_11): สั่งใช้งานจากบนมือ
+function activateUroborosSpecialSummon(contestant, handIndex) {
+  const mmIdx = contestant.graveyard.findIndex(c => c && (c.id === 'BT02_12' || (c.name && c.name.includes('THE MASTERMIND'))));
+  const nemIdx = contestant.graveyard.findIndex(c => c && (c.id === 'BT02_13' || (c.name && c.name.includes('THE NEMESIS'))));
+  const emptySlot = contestant.board.findIndex(m => m === null);
+  if (mmIdx === -1 || nemIdx === -1 || emptySlot === -1) return;
+
+  const uroCard = contestant.hand.splice(handIndex, 1)[0];
+  resetCardStateForZoneChange(uroCard);
+  uroCard.state = 'Stand';
+
+  // Splice from graveyard in descending order of index
+  const indices = [mmIdx, nemIdx].sort((a, b) => b - a);
+  indices.forEach(idx => {
+    const banished = contestant.graveyard.splice(idx, 1)[0];
+    resetCardStateForZoneChange(banished);
+    contestant.darkDimension.push(banished);
+  });
+
+  contestant.board[emptySlot] = uroCard;
+  showCardShowcaseBanner(uroCard, 'สั่งใช้งานจากบนมือ!', '🧬 นำ Mastermind & Nemesis เข้ามิติมืด -> อัญเชิญ Uroboros!', '#dc2626', 1400);
+  setLog(`🧬 [THE PROJECT UROBOROS-NE] นำ "THE MASTERMIND" และ "THE NEMESIS" จากนรกเข้ามิติมืด -> อัญเชิญ "${uroCard.name}" ลงสนามช่องที่ ${emptySlot + 1} สำเร็จ!`);
+  renderGame();
+
+  triggerUroborosSummonHeal(contestant, uroCard);
+}
+
+// 🧬 THE PROJECT UROBOROS-NE (BT02_11): ออโต้ เมื่อลงสนามสามารถทิ้งการ์ดบนมือ 1 ใบ เพิ่มพลังชีวิตลีดเดอร์ 3 หน่วย
+function triggerUroborosSummonHeal(contestant, uroCard, onDone = null) {
+  if (!contestant || !Array.isArray(contestant.hand) || contestant.hand.length === 0) {
+    if (onDone) onDone();
+    return;
+  }
+  if (contestant === gameState.player) {
+    const discardChoices = contestant.hand.map((c, hIdx) => ({
+      label: `ทิ้ง "${c.name}" เพื่อฟื้นฟู HP ลีดเดอร์ +3`,
+      color: '#16a34a',
+      card: c,
+      cardId: c.id,
+      onSelect: () => {
+        const discarded = contestant.hand.splice(hIdx, 1)[0];
+        resetCardStateForZoneChange(discarded);
+        contestant.graveyard.push(discarded);
+        const oldHp = contestant.leader.hp;
+        contestant.leader.hp = Math.min(contestant.leader.maxHp, contestant.leader.hp + 3);
+        fxLeaderHeal(contestant);
+        setLog(`🧬 [THE PROJECT UROBOROS-NE] ทิ้ง "${discarded.name}" -> ฟื้นฟู HP ลีดเดอร์ +3 (${oldHp} -> ${contestant.leader.hp})!`);
+        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+        renderGame();
+        if (onDone) onDone();
+      }
+    }));
+    discardChoices.push({
+      label: 'ไม่ใช้สกิล (ไม่ทิ้งการ์ด)',
+      color: '#475569',
+      onSelect: () => {
+        renderGame();
+        if (onDone) onDone();
+      }
+    });
+    showChoiceModal('🧬 THE PROJECT UROBOROS-NE: สกิลเมื่อลงสนาม', 'ต้องการทิ้งการ์ดบนมือ 1 ใบ เพื่อเพิ่มพลังชีวิตลีดเดอร์ 3 หน่วยหรือไม่?', discardChoices);
+  } else {
+    // AI
+    if (contestant.leader.hp <= 3 && contestant.hand.length > 0) {
+      let minPIdx = 0, minP = 999;
+      contestant.hand.forEach((c, idx) => {
+        const p = c.power || 0;
+        if (p < minP) { minP = p; minPIdx = idx; }
+      });
+      const discarded = contestant.hand.splice(minPIdx, 1)[0];
+      resetCardStateForZoneChange(discarded);
+      contestant.graveyard.push(discarded);
+      const oldHp = contestant.leader.hp;
+      contestant.leader.hp = Math.min(contestant.leader.maxHp, contestant.leader.hp + 3);
+      fxLeaderHeal(contestant);
+      setLog(`🧬 [AI THE PROJECT UROBOROS-NE] ทิ้ง "${discarded.name}" -> ฟื้นฟู HP ลีดเดอร์ +3 (${oldHp} -> ${contestant.leader.hp})!`);
+      if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+      renderGame();
+    }
+    if (onDone) onDone();
+  }
+}
+
+// 🕶️ THE MASTERMIND (BT02_12): ออโต้ เมื่อลงสนามสามารถอัญเชิญ THE NEMESIS จากในนรกหรือกองการ์ดได้ไม่เกิน 1 ใบ
+function triggerMastermindSummonNemesis(contestant, onDone = null) {
+  const emptySlot = contestant.board.findIndex(m => m === null);
+  if (emptySlot === -1) {
+    if (onDone) onDone();
+    return;
+  }
+  const nemInGraveIdx = contestant.graveyard.findIndex(c => c && (c.id === 'BT02_13' || (c.name && c.name.includes('THE NEMESIS'))));
+  const nemInDeckIdx = contestant.deck.findIndex(c => c && (c.id === 'BT02_13' || (c.name && c.name.includes('THE NEMESIS'))));
+
+  if (nemInGraveIdx === -1 && nemInDeckIdx === -1) {
+    if (onDone) onDone();
+    return;
+  }
+
+  const doSummonNemesis = (fromZone) => {
+    let nemesisCard = null;
+    if (fromZone === 'grave') {
+      const gIdx = contestant.graveyard.findIndex(c => c && (c.id === 'BT02_13' || (c.name && c.name.includes('THE NEMESIS'))));
+      if (gIdx !== -1) nemesisCard = contestant.graveyard.splice(gIdx, 1)[0];
+    } else {
+      const dIdx = contestant.deck.findIndex(c => c && (c.id === 'BT02_13' || (c.name && c.name.includes('THE NEMESIS'))));
+      if (dIdx !== -1) {
+        nemesisCard = contestant.deck.splice(dIdx, 1)[0];
+        contestant.deck = shuffleDeck(contestant.deck);
+      }
+    }
+    if (nemesisCard) {
+      const targetSlot = contestant.board.findIndex(m => m === null);
+      if (targetSlot !== -1) {
+        resetCardStateForZoneChange(nemesisCard);
+        nemesisCard.state = 'Stand';
+        contestant.board[targetSlot] = nemesisCard;
+        showCardShowcaseBanner(nemesisCard, 'เรียก THE NEMESIS สู่สนาม!', `🕶️ นำจาก ${fromZone === 'grave' ? 'นรก' : 'กองการ์ด'} ลงสนาม!`, '#dc2626', 1300);
+        setLog(`🕶️ [THE MASTERMIND] อัญเชิญ "${nemesisCard.name}" จาก${fromZone === 'grave' ? 'นรก' : 'กองการ์ด'} ลงสนามช่องที่ ${targetSlot + 1} สำเร็จ!`);
+        renderGame();
+        triggerNemesisSummonDestroy(contestant, () => {
+          if (onDone) onDone();
+        });
+        return;
+      }
+    }
+    if (onDone) onDone();
+  };
+
+  if (contestant === gameState.player) {
+    const choices = [];
+    if (nemInGraveIdx !== -1) {
+      choices.push({
+        label: '💀 อัญเชิญ "THE NEMESIS" จากในนรก',
+        color: '#7c3aed',
+        onSelect: () => doSummonNemesis('grave')
+      });
+    }
+    if (nemInDeckIdx !== -1) {
+      choices.push({
+        label: '🎴 อัญเชิญ "THE NEMESIS" จากในกองการ์ด',
+        color: '#0284c7',
+        onSelect: () => doSummonNemesis('deck')
+      });
+    }
+    choices.push({
+      label: 'ไม่ใช้อัญเชิญ (ข้าม)',
+      color: '#475569',
+      onSelect: () => {
+        renderGame();
+        if (onDone) onDone();
+      }
+    });
+    showChoiceModal('🕶️ THE MASTERMIND: สกิลเมื่อลงสนาม', 'สามารถอัญเชิญ "THE NEMESIS" จากในนรกหรือกองการ์ด 1 ใบ ลงสู่สนาม:', choices);
+  } else {
+    // AI chooses grave first, then deck
+    if (nemInGraveIdx !== -1) doSummonNemesis('grave');
+    else if (nemInDeckIdx !== -1) doSummonNemesis('deck');
+    else if (onDone) onDone();
+  }
+}
+
+// 💥 THE NEMESIS (BT02_13): ออโต้ เมื่อลงสนามทำลายยูนิทฝั่งตรงข้าม 1 ใบ
+function triggerNemesisSummonDestroy(contestant, onDone = null) {
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  const oppMonsters = opp.board.map((m, idx) => (m && !m.immuneToEnemyEffectsUntilEndOfTurn && m.id !== 'BT02_04' ? { m, slot: idx } : null)).filter(Boolean);
+
+  if (oppMonsters.length === 0) {
+    if (onDone) onDone();
+    return;
+  }
+
+  if (contestant === gameState.player) {
+    const choices = oppMonsters.map(target => ({
+      label: `💥 ทำลาย "${target.m.name}" (Power ${getEffectivePower(target.m, opp)}) ช่องที่ ${target.slot + 1}`,
+      color: '#ef4444',
+      card: target.m,
+      cardId: target.m.id,
+      onSelect: () => {
+        const res = destroyBoardMonster(opp, target.slot, false, true);
+        if (res.destroyed) {
+          setLog(`💥 [ออโต้ - THE NEMESIS] ทำลาย "${res.monster.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
+        }
+        renderGame();
+        if (onDone) onDone();
+      }
+    }));
+    choices.push({
+      label: 'ไม่ทำลาย (ข้าม)',
+      color: '#475569',
+      onSelect: () => {
+        renderGame();
+        if (onDone) onDone();
+      }
+    });
+    showChoiceModal('💥 THE NEMESIS: สกิลเมื่อลงสนาม', 'เลือกทำลายยูนิทฝ่ายตรงข้าม 1 ใบ:', choices);
+  } else {
+    oppMonsters.sort((a, b) => getEffectivePower(b.m, opp) - getEffectivePower(a.m, opp));
+    const target = oppMonsters[0];
+    const res = destroyBoardMonster(opp, target.slot, false, true);
+    if (res.destroyed) {
+      setLog(`💥 [AI ออโต้ - THE NEMESIS] AI สั่งทำลาย "${res.monster.name}" ของคุณ!`);
+    }
+    renderGame();
+    if (onDone) onDone();
+  }
+}
+
 
 /* ============================================================================
    หมวดที่ 4: ระบบประมวลผลความสามารถแบบบล็อก (MODULAR CARD EFFECT ENGINE)
@@ -2781,10 +3051,11 @@ const EffectEngine = {
   canActivateEffect(effectDef, context) {
     const { caster, opponent, sourceCard } = context;
 
-    // ตรวจสอบการถูกใบ้โดย "ผู้บัญชาการ เอล่า" (BT01_08)
-    if (sourceCard && sourceCard.type === 'Monster' && opponent && Array.isArray(opponent.board) && opponent.board.some(m => m && m.id === 'BT01_08')) {
+    // ตรวจสอบการถูกใบ้โดย "ผู้บัญชาการ เอล่า" (BT01_08) หรือ "THE LICH" (BT02_10)
+    const isLichSilencing = opponent && Array.isArray(opponent.board) && opponent.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(opponent.hand) ? opponent.hand.length : 0) > (Array.isArray(caster && caster.hand) ? caster.hand.length : 0);
+    if (sourceCard && sourceCard.type === 'Monster' && opponent && Array.isArray(opponent.board) && (opponent.board.some(m => m && m.id === 'BT01_08') || isLichSilencing)) {
       if (Array.isArray(caster.board) && caster.board.some(m => m && m.uid === sourceCard.uid)) {
-        return { ok: false, reason: `ความสามารถของการ์ดบนสนามไม่ทำงาน เนื่องจากอีกฝ่ายมี "ผู้บัญชาการ เอล่า" บนสนาม!` };
+        return { ok: false, reason: isLichSilencing ? 'ความสามารถของการ์ดบนสนามไม่ทำงาน เนื่องจากอีกฝ่ายมี "THE LICH" บนสนามและการ์ดบนมือมากกว่า!' : 'ความสามารถของการ์ดบนสนามไม่ทำงาน เนื่องจากอีกฝ่ายมี "ผู้บัญชาการ เอล่า" บนสนาม!' };
       }
     }
 
@@ -2992,7 +3263,8 @@ const EffectEngine = {
       return false;
     }
     const opp = context && context.opponent;
-    if (card.type === 'Monster' && opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT01_08')) {
+    const isLichSilencing = opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(opp.hand) ? opp.hand.length : 0) > (Array.isArray(context.caster && context.caster.hand) ? context.caster.hand.length : 0);
+    if (card.type === 'Monster' && opp && Array.isArray(opp.board) && (opp.board.some(m => m && m.id === 'BT01_08') || isLichSilencing)) {
       if (['ON_SUMMON', 'ON_SUMMON_BY_EFFECT', 'ON_KILL_UNIT', 'ON_HIT_LEADER', 'ON_INTERCEPT'].includes(triggerType)) {
         if (onAllDone) onAllDone();
         return false;
@@ -3379,9 +3651,18 @@ const EffectEngine = {
 
       case 'DAMAGE_LEADER': {
         const targetSide = step.side === 'OPPONENT' ? opponent : caster;
-        targetSide.leader.hp = Math.max(0, targetSide.leader.hp - (step.amount || 1));
-        fxLeaderDamage(targetSide, step.amount || 1);
-        setLog(`💥 ${cardTitle} ทำดาเมจใส่ Leader ของ ${targetSide.name} ${step.amount || 1} หน่วย!`);
+        let amount = step.amount || 1;
+        const allBoardMonsters = [...(gameState.player.board || []), ...(gameState.ai.board || [])].filter(Boolean);
+        const krasue = allBoardMonsters.find(m => m && m.id === 'BT02_09' && !m.krasueUsedThisTurn);
+        if (krasue) {
+          krasue.krasueUsedThisTurn = true;
+          amount += 1;
+          setLog(`👻 [ออโต้ / 1 เทิร์น - THE KRASUE] ลีดเดอร์เสียพลังชีวิตจากความสามารถของการ์ด -> เสียเพิ่มอีก 1 หน่วย (รวมเป็น ${amount} หน่วย)!`);
+        }
+        targetSide.leader.hp = Math.max(0, targetSide.leader.hp - amount);
+        fxLeaderDamage(targetSide, amount);
+        setLog(`💥 ${cardTitle} ทำดาเมจใส่ Leader ของ ${targetSide.name} ${amount} หน่วย!`);
+        if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(targetSide);
         checkGameOver();
         next();
         return;
@@ -5039,6 +5320,18 @@ function initiatePlayerSpell(handIndex) {
   // 💣 ระเบิดฮานาบิ (BT02_08)
   if (spell.id === 'BT02_08') {
     executeHanabiBombSpell(player, spell, handIndex);
+    return;
+  }
+
+  // 📖 THE BOOK OF VILE DARKNESS (BT02_14)
+  if (spell.id === 'BT02_14') {
+    setLog('ℹ️ "THE BOOK OF VILE DARKNESS" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อยูนิทหรือลีดเดอร์ถูกโจมตี)');
+    return;
+  }
+
+  // 🥩 UNBODIED FLESH (BT02_15)
+  if (spell.id === 'BT02_15') {
+    setLog('ℹ️ "UNBODIED FLESH" เป็นเวทรีแอคเมื่อฝ่ายตรงข้ามใช้การ์ดเวทมนตร์ (ระบบจะเด้งถามอัตโนมัติเมื่ออีกฝ่ายร่ายเวท)');
     return;
   }
 
@@ -6719,6 +7012,23 @@ function checkDiscardTriggers(contestant, card) {
 }
 
 function isGraveyardSkillLockedByOpponent(contestant) {
+  if (!contestant || typeof gameState === 'undefined') return false;
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  if (!opp || !Array.isArray(opp.board)) return false;
+
+  const oppHandLen = Array.isArray(opp.hand) ? opp.hand.length : 0;
+  const myHandLen = Array.isArray(contestant.hand) ? contestant.hand.length : 0;
+
+  // THE LICH (BT02_10): ถ้ามีการ์ดบนมือน้อยกว่าฝั่งตรงข้าม อีกฝั่งไม่สามารถใช้ความสามารถของการ์ดในนรกได้
+  if (opp.board.some(m => m && m.id === 'BT02_10') && oppHandLen < myHandLen) {
+    return true;
+  }
+
+  // THE NEMESIS (BT02_13): ถ้ามีการ์ดบนมือมากกว่าฝั่งตรงข้าม อีกฝั่งไม่สามารถใช้ความสามารถของการ์ดในนรกได้
+  if (opp.board.some(m => m && m.id === 'BT02_13') && oppHandLen > myHandLen) {
+    return true;
+  }
+
   return false;
 }
 
@@ -7420,6 +7730,8 @@ function executeEndPhaseCleanup(activeContestant) {
         m.tokoyaRestUsedThisTurn = false;
         m.tokoyaStandUsedThisTurn = false;
         m.taitenBattleUsedThisTurn = false;
+        m.krasueUsedThisTurn = false;
+        m.uroborosAttackedTwice = false;
       }
     });
   });
@@ -7674,6 +7986,42 @@ function handleHandCardClick(handIndex) {
       return;
     }
 
+    // 3.7 THE PROJECT UROBOROS-NE (BT02_11)
+    if (clickedCard.id === 'BT02_11') {
+      const hasMastermind = player.graveyard.some(c => c && (c.id === 'BT02_12' || (c.name && c.name.includes('THE MASTERMIND'))));
+      const hasNemesis = player.graveyard.some(c => c && (c.id === 'BT02_13' || (c.name && c.name.includes('THE NEMESIS'))));
+      const hasEmptySlot = player.board.some(m => m === null);
+      const canSpecialSummon = hasMastermind && hasNemesis && hasEmptySlot;
+
+      if (canSpecialSummon) {
+        showChoiceModal(
+          '🧬 THE PROJECT UROBOROS-NE',
+          'เลือกรูปแบบการใช้งาน "THE PROJECT UROBOROS-NE":',
+          [
+            {
+              label: '🧬 สั่งใช้งานจากบนมือ (นำ THE MASTERMIND และ THE NEMESIS จากนรกเข้ามิติมืด เพื่ออัญเชิญยูนิทนี้)',
+              color: '#dc2626',
+              onSelect: () => activateUroborosSpecialSummon(player, handIndex)
+            },
+            {
+              label: '👤 อัญเชิญแบบปกติ (วางลงช่องสนามตามปกติ)',
+              color: '#16a34a',
+              onSelect: () => {
+                askCardUseConfirmation(clickedCard, 'อัญเชิญยูนิตใบนี้ลงสู่สนามของคุณ', () => {
+                  gameState.selectedAttackerSlot = null;
+                  gameState.selectedHandIndex = handIndex;
+                  setLog(`เลือก "${clickedCard.name}" แล้ว — คลิกที่ช่องบนสนามของคุณเพื่อวาง Monster`);
+                  renderGame();
+                });
+              }
+            },
+            { label: '❌ ยกเลิก', color: '#475569', onSelect: () => renderGame() }
+          ]
+        );
+        return;
+      }
+    }
+
     // 4. เด็คขุนเหนือ (NM01, NM02, NM03)
     if (clickedCard.id === 'NM01' || clickedCard.id === 'NM02' || clickedCard.id === 'NM03') {
       handleNueaHandAbilityMenu(handIndex);
@@ -7899,6 +8247,9 @@ function handlePlayerSlotClick(slotIndex) {
     }, () => {
       if (summoned.id === 'BT02_02') triggerHibanaSummonSkill(player);
       if (summoned.id === 'BT02_03') triggerMeganeHanabiSummonSkill(player);
+      if (summoned.id === 'BT02_11') triggerUroborosSummonHeal(player, summoned);
+      if (summoned.id === 'BT02_12') triggerMastermindSummonNemesis(player);
+      if (summoned.id === 'BT02_13') triggerNemesisSummonDestroy(player);
       renderGame();
     });
     return;
@@ -8713,6 +9064,15 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
       clearTimeout(gameState._attackingTimeout);
       gameState._attackingTimeout = null;
     }
+    // 🧬 THE PROJECT UROBOROS-NE (BT02_11): ต่อเนื่อง : ถ้าเรามีการ์ดบนมือน้อยกว่าฝั่งตรงข้าม ยูนิทนี้สามารถโจมตีได้ 2 ครั้ง
+    if (!gameState.gameOver && attackingMonster && attackingMonster.id === 'BT02_11' && attacker.board[attackerSlot] === attackingMonster) {
+      if (attacker.hand.length < defender.hand.length && !attackingMonster.uroborosAttackedTwice) {
+        attackingMonster.uroborosAttackedTwice = true;
+        attackingMonster.state = 'Stand';
+        showCardShowcaseBanner(attackingMonster, 'สกิล Uroboros สแตนด์!', '🧬 การ์ดบนมือน้อยกว่าอีกฝ่าย -> สแตนด์ตัวเองพร้อมโจมตีครั้งที่ 2!', '#dc2626', 1200);
+        setLog(`🧬 [THE PROJECT UROBOROS-NE] การ์ดบนมือน้อยกว่าอีกฝ่าย -> สแตนด์ตัวเองพร้อมโจมตีครั้งที่ 2!`);
+      }
+    }
     renderGame();
     const afterLapine = () => {
       if (!gameState.gameOver && typeof checkLapineAttackTrigger === 'function') {
@@ -8990,11 +9350,50 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (defender.hand.length >= 2)
     && (defender.spellQuota.reactionUsed < 1);
 
+  const bt02_14InHandIdx = defender.hand.findIndex(c => c && c.id === 'BT02_14');
+  const canUseBookOfVile = (bt02_14InHandIdx !== -1)
+    && (defender.spellQuota.reactionUsed < 1);
+
   // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ (ระดับ EASY จะไม่ใช้เวทรีแอคซับซ้อน)
   if (!isLocalDefender) {
     if (aiConfig.difficulty === 'EASY') {
       continueNormalAttackFlow();
       return;
+    }
+
+    if (canUseBookOfVile && (targetType === 'leader' || attackingMonster.power >= 2)) {
+      const curIdx = defender.hand.findIndex(c => c && c.id === 'BT02_14');
+      if (curIdx !== -1) {
+        const spellCard = defender.hand.splice(curIdx, 1)[0];
+        defender.spellQuota.reactionUsed += 1;
+        resetCardStateForZoneChange(spellCard);
+        defender.graveyard.push(spellCard);
+
+        showCardShowcaseBanner(spellCard, 'AI ร่าย THE BOOK OF VILE DARKNESS!', '📖 เปลี่ยนเป้าหมายการโจมตีไปที่ฝ่ายตรงข้าม!', '#dc2626', 1300);
+
+        const retargetSlot = attacker.board.findIndex((m, s) => m && s !== attackerSlot);
+        if (retargetSlot !== -1) {
+          const retargetMonster = attacker.board[retargetSlot];
+          compareAndDestroyMonsters(attacker, attackerSlot, attacker, retargetSlot, (msg) => {
+            setLog(`📖 [AI - THE BOOK OF VILE DARKNESS] เปลี่ยนเป้าหมายโจมตีไปที่ "${retargetMonster.name}"! -> ${msg}`);
+            renderGame();
+            if (onCompleteCallback) onCompleteCallback();
+          });
+          return;
+        } else if (defender.hand.length > 0) {
+          const discarded = defender.hand.pop();
+          resetCardStateForZoneChange(discarded);
+          defender.graveyard.push(discarded);
+          attacker.leader.hp = Math.max(0, attacker.leader.hp - 1);
+          fxLeaderDamage(attacker);
+          setLog(`📖 [AI - THE BOOK OF VILE DARKNESS] ทิ้ง "${discarded.name}" 1 ใบ -> เปลี่ยนเป้าหมายโจมตีใส่ Leader ของ ${attacker.name} โดยตรง (เหลือ ${attacker.leader.hp}/6)!`);
+          if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(attacker);
+          checkGameOver();
+          renderGame();
+          if (onCompleteCallback) onCompleteCallback();
+          return;
+        }
+      }
     }
 
     if (canUsePomPom && (targetType === 'leader' || attackingMonster.power >= 2)) {
@@ -9215,7 +9614,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   }
 
   // 👤 กรณีเราเป็นฝ่ายถูกโจมตี: เด้งถามเฉพาะการ์ดของเราเอง
-  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUsePomPom) {
+  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUsePomPom || canUseBookOfVile) {
     const options = [];
 
     if (canUseForbiddenWarning) {
@@ -9704,6 +10103,99 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           });
 
           showChoiceModal('🚂 POM POM: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:', discardChoices);
+        }
+      });
+    }
+
+    if (canUseBookOfVile) {
+      options.push({
+        cardId: 'BT02_14',
+        label: '📖 ร่าย "THE BOOK OF VILE DARKNESS": เปลี่ยนเป้าหมายการโจมตีไปที่ยูนิทหรือลีดเดอร์ของฝ่ายตรงข้าม!',
+        color: '#dc2626',
+        onSelect: () => {
+          const curIdx = defender.hand.findIndex(c => c && c.id === 'BT02_14');
+          if (curIdx === -1) {
+            continueNormalAttackFlow();
+            return;
+          }
+          const spellCard = defender.hand.splice(curIdx, 1)[0];
+          defender.spellQuota.reactionUsed += 1;
+          resetCardStateForZoneChange(spellCard);
+          defender.graveyard.push(spellCard);
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(spellCard, 'ร่ายเวทมนตร์ THE BOOK OF VILE DARKNESS!', '📖 เปลี่ยนเป้าหมายการโจมตีไปที่ฝ่ายตรงข้าม!', '#dc2626', 1300);
+          }
+
+          const retargetChoices = [];
+          attacker.board.forEach((m, s) => {
+            if (m && s !== attackerSlot) {
+              retargetChoices.push({
+                label: `🎯 เปลี่ยนเป้าหมายไปที่ "${m.name}" (ช่อง ${s + 1})`,
+                color: '#ef4444',
+                card: m,
+                cardId: m.id,
+                onSelect: () => {
+                  compareAndDestroyMonsters(attacker, attackerSlot, attacker, s, (msg) => {
+                    setLog(`📖 [THE BOOK OF VILE DARKNESS] เปลี่ยนเป้าหมายโจมตีไปที่ "${m.name}"! -> ${msg}`);
+                    renderGame();
+                    if (onCompleteCallback) onCompleteCallback();
+                  });
+                }
+              });
+            }
+          });
+          if (defender.hand.length > 0) {
+            retargetChoices.push({
+              label: '👑 เปลี่ยนเป้าหมายไปที่ Leader ของฝ่ายตรงข้าม (ต้องทิ้งการ์ดบนมือ 1 ใบ)',
+              color: '#dc2626',
+              onSelect: () => {
+                const discardChoices = defender.hand.map((card, idx) => ({
+                  label: `ทิ้ง "${card.name}"`,
+                  color: '#dc2626',
+                  card: card,
+                  cardId: card.id,
+                  onSelect: () => {
+                    const discarded = defender.hand.splice(idx, 1)[0];
+                    resetCardStateForZoneChange(discarded);
+                    defender.graveyard.push(discarded);
+                    attacker.leader.hp = Math.max(0, attacker.leader.hp - 1);
+                    fxLeaderDamage(attacker);
+                    setLog(`📖 [THE BOOK OF VILE DARKNESS] ทิ้ง "${discarded.name}" 1 ใบ -> เปลี่ยนเป้าหมายโจมตีใส่ Leader ของ ${attacker.name} โดยตรง (เหลือ ${attacker.leader.hp}/6)!`);
+                    if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(attacker);
+                    checkGameOver();
+                    renderGame();
+                    if (onCompleteCallback) onCompleteCallback();
+                  }
+                }));
+
+                discardChoices.push({
+                  label: '❌ ยกเลิก (กลับไปเลือกเป้าหมายใหม่)',
+                  color: '#475569',
+                  onSelect: () => {
+                    showChoiceModal('📖 THE BOOK OF VILE DARKNESS: เลือกเป้าหมายใหม่', 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
+                  }
+                });
+
+                showChoiceModal('📖 THE BOOK OF VILE DARKNESS: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ด 1 ใบที่จะทิ้งลงนรก:', discardChoices);
+              }
+            });
+          }
+
+          retargetChoices.push({
+            label: '❌ ยกเลิก (ไม่ร่าย THE BOOK OF VILE DARKNESS)',
+            color: '#475569',
+            onSelect: () => {
+              const gIdx = defender.graveyard.lastIndexOf(spellCard);
+              if (gIdx !== -1) defender.graveyard.splice(gIdx, 1);
+              defender.hand.splice(curIdx, 0, spellCard);
+              defender.spellQuota.reactionUsed = Math.max(0, defender.spellQuota.reactionUsed - 1);
+              setLog('📖 [THE BOOK OF VILE DARKNESS] ยกเลิกการร่ายเวทมนตร์ -> คืนการ์ดกลับขึ้นมือ');
+              renderGame();
+              continueNormalAttackFlow();
+            }
+          });
+
+          showChoiceModal('📖 THE BOOK OF VILE DARKNESS: เลือกเป้าหมายใหม่', 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
         }
       });
     }
@@ -11279,6 +11771,9 @@ function performSingleAIMainAction() {
 
       if (summoned.id === 'BT02_02') triggerHibanaSummonSkill(ai);
       if (summoned.id === 'BT02_03') triggerMeganeHanabiSummonSkill(ai);
+      if (summoned.id === 'BT02_11') triggerUroborosSummonHeal(ai, summoned);
+      if (summoned.id === 'BT02_12') triggerMastermindSummonNemesis(ai);
+      if (summoned.id === 'BT02_13') triggerNemesisSummonDestroy(ai);
 
       renderGame();
       return true;
@@ -12600,8 +13095,8 @@ function encodeDeckCode(cfg) {
 function getCardLeaderLock(card) {
   if (!card) return null;
   const id = String(card.futureBaseId || card.id || '');
-  // เด็คคิลเลอร์ (L09): การ์ด KL01-KL13 ล็อกใช้ได้เฉพาะลีดเดอร์ ENTITY
-  if (/^KL/i.test(id)) {
+  // เด็คคิลเลอร์ (L09): การ์ด KL01-KL13 และ BT02_09-BT02_15 ล็อกใช้ได้เฉพาะลีดเดอร์ ENTITY
+  if (/^KL/i.test(id) || card.leaderLock === 'L09' || /^BT02_(09|1[0-5])$/.test(id)) {
     return {
       leaderId: 'L09',
       leaderName: 'ENTITY',

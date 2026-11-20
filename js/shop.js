@@ -118,7 +118,7 @@
     {
       id: 'pack_bt02',
       name: 'ซองบูสเตอร์02',
-      sub: 'ชุดเสริมบูสเตอร์ 02 (ลุ้น SR น้องฮานาบิจาง & น้องฮิบานะจาง)',
+      sub: 'ชุดเสริมบูสเตอร์ 02 (ลุ้น SR ฮานาบิ, ฮิบานะ, Krasue, Lich, Uroboros-NE)',
       color: '#a855f7',
       image: 'images/BT/BT02/1.png',
       backImage: 'images/BT/BT02/2.png',
