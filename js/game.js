@@ -31,10 +31,26 @@ function isFusionMonster(c) { return Boolean(c && (c.isFusion || c.id === 'BT02_
 function hasCardName(card, nameKeyword) { return !!(card && card.name && card.name.includes(nameKeyword)); }
 function hasCardTribe(card, tribeName) {
   if (!card || !tribeName) return false;
-  if (tribeName === 'รางดาว' && card.id && /^BT02_0[1-8]$/.test(card.id)) return true;
-  if (tribeName === 'ENTITY' && card.id && /^BT02_(09|1[0-5])$/.test(card.id)) return true;
-  if (Array.isArray(card.tribe)) return card.tribe.includes(tribeName);
-  return card.tribe === tribeName;
+  const tnLower = String(tribeName).toLowerCase().trim();
+  if (tnLower === 'รางดาว' && card.id && /^BT02_0[1-8]$/.test(card.id)) return true;
+  if ((tnLower === 'entity' || tnLower === 'คิลเลอร์') && card.id && (/^BT02_(09|1[0-5])$/.test(card.id) || /^KL/i.test(card.id))) return true;
+  if (Array.isArray(card.tribe)) {
+    return card.tribe.some(t => {
+      const tl = String(t).toLowerCase().trim();
+      return tl === tnLower || (tnLower === 'คิลเลอร์' && tl === 'entity') || (tnLower === 'entity' && tl === 'คิลเลอร์');
+    });
+  }
+  const ctl = String(card.tribe || '').toLowerCase().trim();
+  if (ctl === tnLower) return true;
+  if ((tnLower === 'คิลเลอร์' && ctl === 'entity') || (tnLower === 'entity' && ctl === 'คิลเลอร์')) return true;
+  return false;
+}
+function isUnknownProtectingAbilities(contestant) {
+  if (!contestant || !Array.isArray(contestant.graveyard) || typeof gameState === 'undefined') return false;
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  const oppGraveLen = (opp && Array.isArray(opp.graveyard)) ? opp.graveyard.length : 0;
+  if (contestant.graveyard.length >= oppGraveLen) return false;
+  return contestant.graveyard.some(c => c && (c.id === 'KL10' || (c.name && c.name.includes('THE UNKNOWN'))));
 }
 function getCardMaxCopies(cardTemplate) { return cardTemplate && cardTemplate.maxCopies !== undefined ? cardTemplate.maxCopies : 2; }
 
@@ -243,8 +259,9 @@ function getEffectivePower(card, ownerContestant) {
 
     // 0.4 ผู้บัญชาการ เอล่า (BT01_08) หรือ THE LICH (BT02_10): ใบ้ความสามารถการ์ดบนสนาม
     const oppContestant = (owner === gameState.player) ? gameState.ai : gameState.player;
-    const isLichSilencing = oppContestant && Array.isArray(oppContestant.board) && oppContestant.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(oppContestant.hand) ? oppContestant.hand.length : 0) > (Array.isArray(owner.hand) ? owner.hand.length : 0);
-    const isSilencedByEla = (oppContestant && Array.isArray(oppContestant.board) && oppContestant.board.some(m => m && m.id === 'BT01_08')) || isLichSilencing;
+    const isUnknownProtected = isUnknownProtectingAbilities(owner);
+    const isLichSilencing = !isUnknownProtected && oppContestant && Array.isArray(oppContestant.board) && oppContestant.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(oppContestant.hand) ? oppContestant.hand.length : 0) > (Array.isArray(owner.hand) ? owner.hand.length : 0);
+    const isSilencedByEla = !isUnknownProtected && (((oppContestant && Array.isArray(oppContestant.board) && oppContestant.board.some(m => m && m.id === 'BT01_08')) || isLichSilencing));
 
     // 0.5 เพื่อนร่วมเดินทาง มิวเท็น (BT01_09): มีโอนามิบนสนามเรา -> ยูนิทเราทุกใบพลัง +1
     if (!isSilencedByEla && owner.board.some(m => m && m.id === 'BT01_09')) {
@@ -267,6 +284,12 @@ function getEffectivePower(card, ownerContestant) {
     // 0.57 THE MASTERMIND ในมิติมืด (BT02_12): บัฟ PROJECT UROBOROS-NE พลัง +1
     if (!isSilencedByEla && (card.id === 'BT02_11' || (card.name && card.name.includes('PROJECT UROBOROS-NE'))) && Array.isArray(owner.darkDimension) && owner.darkDimension.some(d => d && (d.id === 'BT02_12' || (d.name && d.name.includes('THE MASTERMIND'))))) {
       total += 1;
+    }
+
+    // 0.58 THE GHOST FACE (KL06): ต่อเนื่อง : ยูนิทนี้พลังโจมตีเพิ่ม 1 หน่วย ตามจำนวนการ์ดในนรกของฝั่งตรงข้าม ทุกๆ 2 ใบ
+    if (!isSilencedByEla && (card.id === 'KL06' || (card.name && card.name.includes('THE GHOST FACE')))) {
+      const oppGraveLen = (oppContestant && Array.isArray(oppContestant.graveyard)) ? oppContestant.graveyard.length : 0;
+      total += Math.floor(oppGraveLen / 2);
     }
 
     // 0.6 SUNDAY (RD07) ในนรก: ถ้าการ์ดใบนี้อยู่ในนรก ยูนิทบนสนามฝั่งเราทุกใบพลังโจมตีเพิ่ม 1 หน่วย
@@ -503,7 +526,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
 
   // เพื่อนร่วมเดินทาง มิวเท็น (BT01_09): ยูนิทฝั่งเราทุกใบจะไม่ถูกทำลายจากความสามารถ
   const oppOfBoardOwner = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
-  const isOwnerSilencedByEla = oppOfBoardOwner && Array.isArray(oppOfBoardOwner.board) && oppOfBoardOwner.board.some(m => m && m.id === 'BT01_08');
+  const isOwnerSilencedByEla = !isUnknownProtectingAbilities(boardOwner) && oppOfBoardOwner && Array.isArray(oppOfBoardOwner.board) && oppOfBoardOwner.board.some(m => m && m.id === 'BT01_08');
   if (!isOwnerSilencedByEla && !isFromBattle && !oppHasWelt && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT01_09')) {
     setLog(`🛡️ [ต่อเนื่อง - มิวเท็น] ยูนิทฝั่งเราไม่ถูกทำลายจากความสามารถ!`);
     return { destroyed: false, reason: 'muten_protection', monster };
@@ -3041,6 +3064,251 @@ function triggerNemesisSummonDestroy(contestant, onDone = null) {
   }
 }
 
+// ☣️ THE BLIGHT (KL05): ออโต้ เมื่อลงสนาม เลือกการ์ดที่มีชื่อ "THE" จากกองลงนรกได้ 2 ใบ
+function triggerBlightSummonSkill(contestant, onDone = null) {
+  if (!contestant || !Array.isArray(contestant.deck)) {
+    if (onDone) onDone();
+    return;
+  }
+  const isAI = (contestant !== gameState.player);
+  const cardTitle = '[ออโต้ - THE BLIGHT]';
+
+  const filterTheCards = () => contestant.deck.filter(c => c && c.name && c.name.toUpperCase().includes('THE'));
+
+  const finishSummon = (pickedNames) => {
+    contestant.deck = shuffleDeck(contestant.deck, contestant);
+    if (pickedNames.length > 0) {
+      setLog(`☣️ ${cardTitle} ส่งการ์ดที่มีชื่อ "THE" (${pickedNames.join(', ')}) จากกองลงนรก ${pickedNames.length} ใบ และสับกองเรียบร้อย!`);
+      showCardShowcaseBanner(
+        { name: 'THE BLIGHT', image: 'images/Killer/6.png' },
+        'ออโต้ THE BLIGHT!',
+        `ส่ง ${pickedNames.join(', ')} ลงนรก และสับกอง!`,
+        '#dc2626',
+        1300
+      );
+    } else {
+      setLog(`☣️ ${cardTitle} ไม่ได้เลือกส่งการ์ดลงนรก (สับกองการ์ดเรียบร้อย)`);
+    }
+    renderGame();
+    if (onDone) onDone();
+  };
+
+  const pickedNames = [];
+  const maxPick = 2;
+
+  if (isAI) {
+    for (let i = 0; i < maxPick; i++) {
+      const matches = filterTheCards();
+      if (matches.length === 0) break;
+      let pick = matches.find(c => c.id === 'KL10') || matches.find(c => c.id === 'KL02') || matches[0];
+      const dIdx = contestant.deck.indexOf(pick);
+      if (dIdx !== -1) {
+        const removed = contestant.deck.splice(dIdx, 1)[0];
+        resetCardStateForZoneChange(removed);
+        contestant.graveyard.push(removed);
+        pickedNames.push(removed.name);
+      }
+    }
+    finishSummon(pickedNames);
+    return;
+  }
+
+  const promptNextPick = (pickNumber) => {
+    const matches = filterTheCards();
+    if (matches.length === 0 || pickNumber > maxPick) {
+      finishSummon(pickedNames);
+      return;
+    }
+
+    const uniqueMap = new Map();
+    matches.forEach(c => { if (!uniqueMap.has(c.id)) uniqueMap.set(c.id, c); });
+    const options = Array.from(uniqueMap.values()).map(targetCard => ({
+      label: `ส่ง "${targetCard.name}" ลงนรก`,
+      color: '#dc2626',
+      card: targetCard,
+      onSelect: () => {
+        const dIdx = contestant.deck.findIndex(c => c && c.id === targetCard.id);
+        if (dIdx !== -1) {
+          const removed = contestant.deck.splice(dIdx, 1)[0];
+          resetCardStateForZoneChange(removed);
+          contestant.graveyard.push(removed);
+          pickedNames.push(removed.name);
+        }
+        promptNextPick(pickNumber + 1);
+      }
+    }));
+
+    options.push({
+      label: pickedNames.length > 0 ? '✅ พอแล้ว / จบการเลือก' : '❌ ไม่ส่งการ์ดลงนรก',
+      color: '#475569',
+      onSelect: () => finishSummon(pickedNames)
+    });
+
+    showChoiceModal(
+      '☣️ ออโต้: THE BLIGHT',
+      `เลือกการ์ดที่มีชื่อ "THE" จากกองการ์ดลงนรก (ใบที่ ${pickNumber}/${maxPick}):\nการ์ดที่เลือกลงนรกแล้ว: ${pickedNames.length > 0 ? pickedNames.join(', ') : 'ยังไม่มี'}`,
+      options
+    );
+  };
+
+  promptNextPick(1);
+}
+
+// 👻 THE GHOST FACE (KL06): ออโต้ เมื่อลงสนาม สุ่มทิ้งการ์ดบนมือฝั่งตรงข้าม 1 ใบ
+function triggerGhostFaceSummonSkill(contestant, onDone = null) {
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  if (!opp || !Array.isArray(opp.hand) || opp.hand.length === 0) {
+    setLog(`👻 [ออโต้ - THE GHOST FACE] ฝ่ายตรงข้ามไม่มีการ์ดบนมือให้ทิ้ง!`);
+    if (onDone) onDone();
+    return;
+  }
+  const randIdx = Math.floor(Math.random() * opp.hand.length);
+  const discarded = opp.hand.splice(randIdx, 1)[0];
+  resetCardStateForZoneChange(discarded);
+  opp.graveyard.push(discarded);
+
+  showCardShowcaseBanner(
+    { name: 'THE GHOST FACE', image: 'images/Killer/7.png' },
+    'ออโต้ THE GHOST FACE!',
+    `👻 สุ่มทิ้งการ์ดบนมืออีกฝ่าย 1 ใบ: "${discarded.name}"!`,
+    '#dc2626',
+    1300
+  );
+  setLog(`👻 [ออโต้ - THE GHOST FACE] สุ่มทิ้งการ์ดบนมือของ${opp === gameState.player ? 'คุณ' : 'ฝ่ายตรงข้าม'} 1 ใบ: "${discarded.name}" ลงนรก!`);
+  checkDiscardTriggers(opp, discarded);
+  renderGame();
+  if (onDone) onDone();
+}
+
+// ☣️ THE BLIGHT (KL05): ออโต้ เมื่อยูนิทนี้ทำลายยูนิทฝ่ายตรงข้ามได้ สามารถทิ้งการ์ด 1 ใบ เพื่อทำลายยูนิทฝ่ายตรงข้ามที่พลังโจมตีน้อยกว่าหรือเท่ากับยูนิทนี้ 2 ใบ
+function triggerBlightKillSkill(killerContestant, killerMonster, victimContestant, onDone = null) {
+  if (!killerContestant || !killerMonster || !victimContestant) {
+    if (onDone) onDone();
+    return;
+  }
+  if (!Array.isArray(killerContestant.hand) || killerContestant.hand.length === 0) {
+    if (onDone) onDone();
+    return;
+  }
+  const isPlayer = (killerContestant === gameState.player);
+  const blightPower = getEffectivePower(killerMonster, killerContestant);
+
+  const eligibleTargets = victimContestant.board
+    .map((m, idx) => (m && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
+    .filter(Boolean);
+
+  if (eligibleTargets.length === 0) {
+    if (onDone) onDone();
+    return;
+  }
+
+  const doDestroyTargets = (chosenSlots) => {
+    chosenSlots.forEach(slot => {
+      const res = destroyBoardMonster(victimContestant, slot, false, true);
+      if (res && res.destroyed) {
+        setLog(`☣️ [ออโต้ - THE BLIGHT] ทำลาย "${res.monster.name}" ของฝ่ายตรงข้าม!`);
+      }
+    });
+    renderGame();
+    if (onDone) onDone();
+  };
+
+  if (!isPlayer) {
+    let worstIdx = 0, minP = 999;
+    killerContestant.hand.forEach((c, i) => {
+      const p = (c.type === 'Monster') ? (c.power || 0) : 1;
+      if (p < minP) { minP = p; worstIdx = i; }
+    });
+    const discarded = killerContestant.hand.splice(worstIdx, 1)[0];
+    resetCardStateForZoneChange(discarded);
+    killerContestant.graveyard.push(discarded);
+    checkDiscardTriggers(killerContestant, discarded);
+    setLog(`☣️ [AI ออโต้ - THE BLIGHT] ทิ้งการ์ด "${discarded.name}" 1 ใบ เพื่อทำลายยูนิทฝ่ายคุณ!`);
+
+    eligibleTargets.sort((a, b) => getEffectivePower(b.m, victimContestant) - getEffectivePower(a.m, victimContestant));
+    const toDestroy = eligibleTargets.slice(0, 2).map(t => t.slot);
+    doDestroyTargets(toDestroy);
+    return;
+  }
+
+  showChoiceModal(
+    '☣️ THE BLIGHT (เมื่อทำลายยูนิทสำเร็จ)',
+    `ต้องการทิ้งการ์ด 1 ใบ เพื่อทำลายยูนิทฝ่ายตรงข้ามที่พลัง <= ${blightPower} จำนวน 2 ใบหรือไม่?`,
+    [
+      {
+        label: `💥 ทิ้งการ์ด 1 ใบ เพื่อทำลายยูนิทอีกฝ่าย 2 ใบ (Power <= ${blightPower})`,
+        color: '#dc2626',
+        onSelect: () => {
+          const discardOptions = killerContestant.hand.map((c, hIdx) => ({
+            label: `ทิ้ง "${c.name}"`,
+            color: '#dc2626',
+            card: c,
+            onSelect: () => {
+              const discarded = killerContestant.hand.splice(hIdx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              killerContestant.graveyard.push(discarded);
+              checkDiscardTriggers(killerContestant, discarded);
+              setLog(`☣️ [THE BLIGHT] คุณทิ้ง "${discarded.name}" ลงนรก`);
+
+              const currentTargets = victimContestant.board
+                .map((m, idx) => (m && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
+                .filter(Boolean);
+
+              if (currentTargets.length === 0) {
+                renderGame();
+                if (onDone) onDone();
+                return;
+              }
+
+              if (currentTargets.length <= 2) {
+                doDestroyTargets(currentTargets.map(t => t.slot));
+                return;
+              }
+
+              const pick1Choices = currentTargets.map(t => ({
+                label: `ทำลาย "${t.m.name}" (Power ${getEffectivePower(t.m, victimContestant)}) ช่องที่ ${t.slot + 1}`,
+                color: '#b91c1c',
+                card: t.m,
+                onSelect: () => {
+                  const firstSlot = t.slot;
+                  const remainTargets = victimContestant.board
+                    .map((m, idx) => (m && idx !== firstSlot && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
+                    .filter(Boolean);
+
+                  if (remainTargets.length === 0) {
+                    doDestroyTargets([firstSlot]);
+                    return;
+                  }
+
+                  const pick2Choices = remainTargets.map(t2 => ({
+                    label: `ทำลาย "${t2.m.name}" (Power ${getEffectivePower(t2.m, victimContestant)}) ช่องที่ ${t2.slot + 1}`,
+                    color: '#b91c1c',
+                    card: t2.m,
+                    onSelect: () => {
+                      doDestroyTargets([firstSlot, t2.slot]);
+                    }
+                  }));
+                  showChoiceModal('☣️ THE BLIGHT: เลือกเป้าหมายใบที่ 2', 'เลือกยูนิทฝ่ายตรงข้ามใบที่ 2 ที่จะทำลาย:', pick2Choices);
+                }
+              }));
+              showChoiceModal('☣️ THE BLIGHT: เลือกเป้าหมายใบที่ 1', 'เลือกยูนิทฝ่ายตรงข้ามใบที่ 1 ที่จะทำลาย:', pick1Choices);
+            }
+          }));
+          showChoiceModal('☣️ THE BLIGHT: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ดบนมือ 1 ใบเพื่อทิ้งลงนรก:', discardOptions);
+        }
+      },
+      {
+        label: '❌ ไม่ใช้สกิล',
+        color: '#475569',
+        onSelect: () => {
+          renderGame();
+          if (onDone) onDone();
+        }
+      }
+    ]
+  );
+}
+
 
 /* ============================================================================
    หมวดที่ 4: ระบบประมวลผลความสามารถแบบบล็อก (MODULAR CARD EFFECT ENGINE)
@@ -3051,9 +3319,10 @@ const EffectEngine = {
   canActivateEffect(effectDef, context) {
     const { caster, opponent, sourceCard } = context;
 
-    // ตรวจสอบการถูกใบ้โดย "ผู้บัญชาการ เอล่า" (BT01_08) หรือ "THE LICH" (BT02_10)
-    const isLichSilencing = opponent && Array.isArray(opponent.board) && opponent.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(opponent.hand) ? opponent.hand.length : 0) > (Array.isArray(caster && caster.hand) ? caster.hand.length : 0);
-    if (sourceCard && sourceCard.type === 'Monster' && opponent && Array.isArray(opponent.board) && (opponent.board.some(m => m && m.id === 'BT01_08') || isLichSilencing)) {
+    // ตรวจสอบการถูกใบ้โดย "ผู้บัญชาการ เอล่า" (BT01_08) หรือ "THE LICH" (BT02_10) (ยกเว้นมี THE UNKNOWN KL10 ในนรกคุ้มกัน)
+    const isUnknownProtected = isUnknownProtectingAbilities(caster);
+    const isLichSilencing = !isUnknownProtected && opponent && Array.isArray(opponent.board) && opponent.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(opponent.hand) ? opponent.hand.length : 0) > (Array.isArray(caster && caster.hand) ? caster.hand.length : 0);
+    if (!isUnknownProtected && sourceCard && sourceCard.type === 'Monster' && opponent && Array.isArray(opponent.board) && (opponent.board.some(m => m && m.id === 'BT01_08') || isLichSilencing)) {
       if (Array.isArray(caster.board) && caster.board.some(m => m && m.uid === sourceCard.uid)) {
         return { ok: false, reason: isLichSilencing ? 'ความสามารถของการ์ดบนสนามไม่ทำงาน เนื่องจากอีกฝ่ายมี "THE LICH" บนสนามและการ์ดบนมือมากกว่า!' : 'ความสามารถของการ์ดบนสนามไม่ทำงาน เนื่องจากอีกฝ่ายมี "ผู้บัญชาการ เอล่า" บนสนาม!' };
       }
@@ -3263,8 +3532,9 @@ const EffectEngine = {
       return false;
     }
     const opp = context && context.opponent;
-    const isLichSilencing = opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(opp.hand) ? opp.hand.length : 0) > (Array.isArray(context.caster && context.caster.hand) ? context.caster.hand.length : 0);
-    if (card.type === 'Monster' && opp && Array.isArray(opp.board) && (opp.board.some(m => m && m.id === 'BT01_08') || isLichSilencing)) {
+    const isUnknownProtected = isUnknownProtectingAbilities(context && context.caster);
+    const isLichSilencing = !isUnknownProtected && opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT02_10') && (Array.isArray(opp.hand) ? opp.hand.length : 0) > (Array.isArray(context.caster && context.caster.hand) ? context.caster.hand.length : 0);
+    if (!isUnknownProtected && card.type === 'Monster' && opp && Array.isArray(opp.board) && (opp.board.some(m => m && m.id === 'BT01_08') || isLichSilencing)) {
       if (['ON_SUMMON', 'ON_SUMMON_BY_EFFECT', 'ON_KILL_UNIT', 'ON_HIT_LEADER', 'ON_INTERCEPT'].includes(triggerType)) {
         if (onAllDone) onAllDone();
         return false;
@@ -6961,8 +7231,8 @@ function checkDiscardTriggers(contestant, card) {
   const pContestant = gameState.player;
   const aiContestant = gameState.ai;
   if (pContestant && aiContestant) {
-    const playerSilenced = Array.isArray(aiContestant.board) && aiContestant.board.some(m => m && m.id === 'BT01_08');
-    const aiSilenced = Array.isArray(pContestant.board) && pContestant.board.some(m => m && m.id === 'BT01_08');
+    const playerSilenced = !isUnknownProtectingAbilities(pContestant) && Array.isArray(aiContestant.board) && aiContestant.board.some(m => m && m.id === 'BT01_08');
+    const aiSilenced = !isUnknownProtectingAbilities(aiContestant) && Array.isArray(pContestant.board) && pContestant.board.some(m => m && m.id === 'BT01_08');
 
     // ตรวจสอบฝั่ง Player
     if (!playerSilenced && Array.isArray(pContestant.board)) {
@@ -8250,6 +8520,8 @@ function handlePlayerSlotClick(slotIndex) {
       if (summoned.id === 'BT02_11') triggerUroborosSummonHeal(player, summoned);
       if (summoned.id === 'BT02_12') triggerMastermindSummonNemesis(player);
       if (summoned.id === 'BT02_13') triggerNemesisSummonDestroy(player);
+      if (summoned.id === 'KL05' || (summoned.name && summoned.name.includes('THE BLIGHT'))) triggerBlightSummonSkill(player);
+      if (summoned.id === 'KL06' || (summoned.name && summoned.name.includes('THE GHOST FACE'))) triggerGhostFaceSummonSkill(player);
       renderGame();
     });
     return;
@@ -8391,6 +8663,15 @@ if (aiLeaderBoxEl) {
   aiLeaderBoxEl.addEventListener('click', () => {
     if (gameState.gameOver || gameState.activeTurn !== 'player' || gameState.phase !== 'Battle Phase') return;
     if (gameState.pendingAction || gameState.selectedAttackerSlot === null) return;
+
+    if (Array.isArray(gameState.ai.board)) {
+      const unknownCard = gameState.ai.board.find(m => m !== null && (m.id === 'KL10' || (m.name && m.name.includes('THE UNKNOWN'))));
+      if (unknownCard && gameState.ai.board.some(m => m !== null)) {
+        setLog(`⚠️ [ออโต้ - THE UNKNOWN] เมื่อฝ่ายตรงข้ามจะโจมตี ต้องเลือกยูนิทเป็นเป้าหมายก่อนเสมอ!`);
+        showCardShowcaseBanner(unknownCard, 'ออโต้ THE UNKNOWN!', 'ต้องเลือกยูนิทเป็นเป้าหมายก่อนเสมอ!', '#dc2626', 1300);
+        return;
+      }
+    }
 
     executeAttack(gameState.player, gameState.ai, gameState.selectedAttackerSlot, 'leader', null);
   });
@@ -8848,7 +9129,7 @@ function checkLapineAttackTrigger(attacker, onDone = null) {
   }
 
   const opp = (attacker === gameState.player) ? gameState.ai : gameState.player;
-  const isSilenced = opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT01_08');
+  const isSilenced = !isUnknownProtectingAbilities(attacker) && opp && Array.isArray(opp.board) && opp.board.some(m => m && m.id === 'BT01_08');
   if (isSilenced) {
     setLog('⚠️ [ผู้หวนคืน ลาพิเน่] สกิลไม่ทำงาน เนื่องจากอีกฝ่ายมี "ผู้บัญชาการ เอล่า" บนสนาม!');
     finish();
@@ -9106,6 +9387,25 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
       setLog(`🐍 [สกิลลิเวียธาน บาปความริษยา] เปลี่ยนเป้าหมายการโจมตีของ "${attackingMonster.name}" มาที่ "ลิเวียธาน บาปความริษยา" แทน!`);
     }
     attackingMonster.tauntedByLeviathanUid = null;
+  }
+
+  // 👻 ตรวจสอบว่าฝ่ายป้องกันมี "THE UNKNOWN" (KL10) บนสนามหรือไม่: เมื่อฝั่งตรงข้ามจะโจมตีต้องเลือกยูนิทเป็นเป้าหมายก่อนเสมอ
+  if (targetType === 'leader' && Array.isArray(defender.board)) {
+    const unknownCard = defender.board.find(m => m !== null && (m.id === 'KL10' || (m.name && m.name.includes('THE UNKNOWN'))));
+    const hasMonsters = defender.board.some(m => m !== null);
+    if (unknownCard && hasMonsters) {
+      setLog(`⚠️ [ออโต้ - THE UNKNOWN] เมื่อฝ่ายตรงข้ามจะโจมตี ต้องเลือกยูนิทเป็นเป้าหมายก่อนเสมอ! ไม่สามารถโจมตีลีดเดอร์ได้!`);
+      showCardShowcaseBanner(unknownCard, 'ออโต้ THE UNKNOWN!', 'ต้องเลือกยูนิทเป็นเป้าหมายก่อนเสมอ!', '#dc2626', 1300);
+      gameState.isAttacking = false;
+      if (gameState._attackingTimeout) {
+        clearTimeout(gameState._attackingTimeout);
+        gameState._attackingTimeout = null;
+      }
+      gameState.selectedAttackerSlot = null;
+      renderGame();
+      if (onCompleteCallback) onCompleteCallback();
+      return;
+    }
   }
 
   attackingMonster.state = 'Rest';
@@ -10895,15 +11195,22 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
     }
 
     if (resB.destroyed) {
-      EffectEngine.triggerCardEffects(monsterA, 'ON_KILL_UNIT', {
-        caster: contestantA,
-        opponent: contestantB,
-        sourceCard: monsterA,
-        sourceSlot: slotA,
-        isAI: contestantA !== gameState.player
-      }, () => {
-        if (onAfterCombat) onAfterCombat(msg);
-      });
+      const proceedKillA = () => {
+        EffectEngine.triggerCardEffects(monsterA, 'ON_KILL_UNIT', {
+          caster: contestantA,
+          opponent: contestantB,
+          sourceCard: monsterA,
+          sourceSlot: slotA,
+          isAI: contestantA !== gameState.player
+        }, () => {
+          if (onAfterCombat) onAfterCombat(msg);
+        });
+      };
+      if (monsterA && (monsterA.id === 'KL05' || (monsterA.name && monsterA.name.includes('THE BLIGHT')))) {
+        triggerBlightKillSkill(contestantA, monsterA, contestantB, proceedKillA);
+      } else {
+        proceedKillA();
+      }
     } else if (onAfterCombat) {
       onAfterCombat(msg);
     }
@@ -10915,15 +11222,22 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
       : `"${monsterB.name}" (${totalB}) พลังสูงกว่า! แต่ "${monsterA.name}" (${totalA}) ได้รับการปกป้อง ไม่ออกจากสนาม!${luciferNote}`;
 
     if (resA.destroyed) {
-      EffectEngine.triggerCardEffects(monsterB, 'ON_KILL_UNIT', {
-        caster: contestantB,
-        opponent: contestantA,
-        sourceCard: monsterB,
-        sourceSlot: slotB,
-        isAI: contestantB !== gameState.player
-      }, () => {
-        if (onAfterCombat) onAfterCombat(msg);
-      });
+      const proceedKillB = () => {
+        EffectEngine.triggerCardEffects(monsterB, 'ON_KILL_UNIT', {
+          caster: contestantB,
+          opponent: contestantA,
+          sourceCard: monsterB,
+          sourceSlot: slotB,
+          isAI: contestantB !== gameState.player
+        }, () => {
+          if (onAfterCombat) onAfterCombat(msg);
+        });
+      };
+      if (monsterB && (monsterB.id === 'KL05' || (monsterB.name && monsterB.name.includes('THE BLIGHT')))) {
+        triggerBlightKillSkill(contestantB, monsterB, contestantA, proceedKillB);
+      } else {
+        proceedKillB();
+      }
     } else if (onAfterCombat) {
       onAfterCombat(msg);
     }
@@ -10935,9 +11249,16 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
       const resB = destroyBoardMonster(contestantB, slotB, true, false);
       const msg = `🍔 [สกิลเบลเซบับ บาปตะกละ] พลังเท่ากัน (${totalA}) แต่ "${monsterA.name}" ชนะการต่อสู้ทันทีและไม่ออกจากสนาม!${luciferNote}`;
       if (resB.destroyed) {
-        EffectEngine.triggerCardEffects(monsterA, 'ON_KILL_UNIT', {
-          caster: contestantA, opponent: contestantB, sourceCard: monsterA, sourceSlot: slotA, isAI: contestantA !== gameState.player
-        }, () => { if (onAfterCombat) onAfterCombat(msg); });
+        const proceedKillA = () => {
+          EffectEngine.triggerCardEffects(monsterA, 'ON_KILL_UNIT', {
+            caster: contestantA, opponent: contestantB, sourceCard: monsterA, sourceSlot: slotA, isAI: contestantA !== gameState.player
+          }, () => { if (onAfterCombat) onAfterCombat(msg); });
+        };
+        if (monsterA && (monsterA.id === 'KL05' || (monsterA.name && monsterA.name.includes('THE BLIGHT')))) {
+          triggerBlightKillSkill(contestantA, monsterA, contestantB, proceedKillA);
+        } else {
+          proceedKillA();
+        }
       } else if (onAfterCombat) {
         onAfterCombat(msg);
       }
@@ -10947,9 +11268,16 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
       const resA = destroyBoardMonster(contestantA, slotA, true, false);
       const msg = `🍔 [สกิลเบลเซบับ บาปตะกละ] พลังเท่ากัน (${totalB}) แต่ "${monsterB.name}" ชนะการต่อสู้ทันทีและไม่ออกจากสนาม!${luciferNote}`;
       if (resA.destroyed) {
-        EffectEngine.triggerCardEffects(monsterB, 'ON_KILL_UNIT', {
-          caster: contestantB, opponent: contestantA, sourceCard: monsterB, sourceSlot: slotB, isAI: contestantB !== gameState.player
-        }, () => { if (onAfterCombat) onAfterCombat(msg); });
+        const proceedKillB = () => {
+          EffectEngine.triggerCardEffects(monsterB, 'ON_KILL_UNIT', {
+            caster: contestantB, opponent: contestantA, sourceCard: monsterB, sourceSlot: slotB, isAI: contestantB !== gameState.player
+          }, () => { if (onAfterCombat) onAfterCombat(msg); });
+        };
+        if (monsterB && (monsterB.id === 'KL05' || (monsterB.name && monsterB.name.includes('THE BLIGHT')))) {
+          triggerBlightKillSkill(contestantB, monsterB, contestantA, proceedKillB);
+        } else {
+          proceedKillB();
+        }
       } else if (onAfterCombat) {
         onAfterCombat(msg);
       }
@@ -11774,6 +12102,8 @@ function performSingleAIMainAction() {
       if (summoned.id === 'BT02_11') triggerUroborosSummonHeal(ai, summoned);
       if (summoned.id === 'BT02_12') triggerMastermindSummonNemesis(ai);
       if (summoned.id === 'BT02_13') triggerNemesisSummonDestroy(ai);
+      if (summoned.id === 'KL05' || (summoned.name && summoned.name.includes('THE BLIGHT'))) triggerBlightSummonSkill(ai);
+      if (summoned.id === 'KL06' || (summoned.name && summoned.name.includes('THE GHOST FACE'))) triggerGhostFaceSummonSkill(ai);
 
       renderGame();
       return true;
@@ -12434,9 +12764,10 @@ function aiPlayBattlePhase(slotIndex) {
 
   const aiPower = getEffectivePower(monster, ai);
   const playerHasTsururu = player.board.some(m => m !== null && m.id === 'DM05');
+  const playerHasUnknown = player.board.some(m => m !== null && (m.id === 'KL10' || (m.name && m.name.includes('THE UNKNOWN'))));
 
   const playerHasStandBlocker = player.board.some(m => m !== null && m.state === 'Stand');
-  if (diff === 'HARD' && player.leader.hp === 1 && !playerHasStandBlocker) {
+  if (!playerHasUnknown && diff === 'HARD' && player.leader.hp === 1 && !playerHasStandBlocker) {
     executeAttack(ai, player, slotIndex, 'leader', null, () => {
       setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 1150);
     });
@@ -12463,6 +12794,13 @@ function aiPlayBattlePhase(slotIndex) {
     executeAttack(ai, player, slotIndex, 'monster', bestTargetSlot, () => {
       setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 1150);
     });
+  } else if (playerHasUnknown && player.board.some(m => m !== null)) {
+    const targetSlot = player.board.findIndex(m => m !== null);
+    if (targetSlot !== -1) {
+      executeAttack(ai, player, slotIndex, 'monster', targetSlot, () => {
+        setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 1150);
+      });
+    }
   } else {
     executeAttack(ai, player, slotIndex, 'leader', null, () => {
       setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 1150);
