@@ -2,6 +2,8 @@
    หมวดที่ 1: ฐานข้อมูลการ์ดทั้งหมด (DATA-DRIVEN CARD DATABASE)
    แยกข้อมูลการ์ดและบล็อกความสามารถ (effects) ออกจากตัวประมวลผลอย่างชัดเจน
    ============================================================================ */
+window.BOF_VERSION = '20261120Q';
+
 /* การ์ดและรายชื่อเด็คย้ายไป js/cards/*.js (โหลดก่อนไฟล์นี้) */
 const DEFAULT_DECK_LIST = DECK_LISTS.L01;
 const DEFAULT_NUEA_DECK_LIST = DECK_LISTS.L02;
@@ -29,13 +31,8 @@ function isHanabiCard(c) { return Boolean(c && c.name && c.name.includes('ฮา
 function isHibanaCard(c) { return Boolean(c && c.name && c.name.includes('ฮิบานะ')); }
 function isFusionMonster(c) { return Boolean(c && (c.isFusion || c.id === 'BT02_04' || (c.name && c.name.includes('สปาร์กซี่คอน')))); }
 function isDragonicOverlordTheX(c) {
-  if (!c) return false;
-  if (c.id === 'KL07' || c.id === 'KL08' || c.id === 'KL02' || (c.id && c.id.startsWith('KL')) || (c.id && c.id.startsWith('BT02_'))) return false;
-  if (c.tribe === 'ENTITY' || hasCardTribe(c, 'ENTITY') || hasCardTribe(c, 'คิลเลอร์')) return false;
-  if (c.name && c.name.toUpperCase().includes('XENOMORPH')) return false;
-  if (c.id === 'KG04') return true;
-  if (!c.name) return false;
-  return c.name.includes('โอเวอร์ลอร์ด The X') || c.name.includes('โอเวอร์ลอร์ด THE X') || /Dragonic\s*Overlord.*The\s*X/i.test(c.name);
+  if (!c || c.id !== 'KG04') return false;
+  return Boolean(c.name && (c.name.includes('The X') || c.name.includes('THE X')));
 }
 function hasCardName(card, nameKeyword) { return !!(card && card.name && card.name.includes(nameKeyword)); }
 function hasCardTribe(card, tribeName) {
@@ -6554,7 +6551,7 @@ function initiatePlayerSpell(handIndex) {
   // 🔥 ลีเจี้ยน เมท (KG10): มี The X และ The End ในนรก -> อีกฝ่ายทิ้งมือ 2 ใบ หรือ เสียเลือด 1 HP
   if (spell.id === 'KG10') {
     const hasTheX = player.graveyard.some(c => c && c.id === 'KG04' && isDragonicOverlordTheX(c));
-    const hasTheEnd = player.graveyard.some(c => c && (c.name.toLowerCase().includes('the end') || c.id === 'KG02'));
+    const hasTheEnd = player.graveyard.some(c => c && c.id === 'KG02');
     if (!hasTheX || !hasTheEnd) {
       setLog('❌ ต้องมีการ์ดที่มี "the x" และ "the end" ในนรกของคุณอย่างละ 1 ใบก่อน!');
       return;
