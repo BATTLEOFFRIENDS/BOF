@@ -9215,7 +9215,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   }
 
   // 👤 กรณีเราเป็นฝ่ายถูกโจมตี: เด้งถามเฉพาะการ์ดของเราเอง
-  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUseIseult || canUsePomPom) {
+  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUsePomPom) {
     const options = [];
 
     if (canUseForbiddenWarning) {
