@@ -206,6 +206,26 @@ function checkSparkconCancelBeforeAction(caster, card, proceedCallback, cancelCa
   };
 
   if (canUseUnbodied) {
+    const isPvpRemote = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open && opp === gameState.ai);
+    if (isPvpRemote) {
+      requestPvpChoice(
+        '🥩 เวทมนตร์รีแอค: UNBODIED FLESH',
+        `ฝ่ายตรงข้ามกำลังจะใช้การ์ดเวทมนตร์ "${card.name}"!\n\nต้องการร่าย "UNBODIED FLESH" จากมือ เพื่อยกเลิกความสามารถของการ์ดนั้นหรือไม่?`,
+        [
+          { label: '🚫 ร่าย UNBODIED FLESH (ยกเลิกความสามารถ)', color: '#dc2626' },
+          { label: '❌ ไม่ใช้ UNBODIED FLESH', color: '#475569' }
+        ],
+        (choiceIdx) => {
+          if (choiceIdx === 0) {
+            executeUnbodiedCancel();
+          } else {
+            checkSparkcon();
+          }
+        }
+      );
+      return;
+    }
+
     if (opp === gameState.ai) {
       if (typeof aiConfig !== 'undefined' && aiConfig.difficulty !== 'EASY') {
         executeUnbodiedCancel();
@@ -1483,12 +1503,14 @@ function showChoiceModal(title, description, options, extra = null) {
       const b = document.getElementById('bof-peek-floating-bar');
       if (b) b.style.display = 'none';
       modal.style.display = 'none';
+      if (typeof gameState !== 'undefined' && gameState) gameState.isWaitingForChoice = false;
       if (opt.onSelect) opt.onSelect();
     };
     btnContainer.appendChild(btn);
   });
 
   modal.style.display = 'flex';
+  if (typeof gameState !== 'undefined' && gameState) gameState.isWaitingForChoice = true;
 }
 
 function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
@@ -6334,7 +6356,35 @@ function initiatePlayerSpell(handIndex) {
 
   // 🥩 UNBODIED FLESH (BT02_15)
   if (spell.id === 'BT02_15') {
-    setLog('ℹ️ "UNBODIED FLESH" เป็นเวทรีแอคเมื่อฝ่ายตรงข้ามใช้การ์ดเวทมนตร์ (ระบบจะเด้งถามอัตโนมัติเมื่ออีกฝ่ายร่ายเวท)');
+    showChoiceModal(
+      '🥩 UNBODIED FLESH (เวทมนตร์รีแอค)',
+      `📜 ความสามารถ:\nเมื่อฝั่งตรงข้ามกำลังจะใช้การ์ดเวทมนตร์ สามารถยกเลิกความสามารถของการ์ดนั้น\n\nโควต้า Reaction Spell ของคุณ: ${player.spellQuota.reactionUsed >= 1 ? 'ใช้ไปแล้วในเทิร์นนี้ (0/1)' : 'พร้อมใช้งาน (1/1)'}\n\n💡 การ์ดใบนี้เป็น Reaction Spell สำหรับขัดขวางเวทมนตร์ของฝ่ายตรงข้าม:\nระบบจะเด้งป๊อปอัปให้สั่งใช้งานโดยอัตโนมัติทันทีเมื่ออีกฝ่ายสั่งร่ายเวทมนตร์ครับ`,
+      [
+        {
+          label: '🎯 ทดสอบ: ให้ AI ร่ายเวทจำลองทันที (เพื่อทดสอบการเด้งป๊อปอัปขัดขวาง)',
+          color: '#10b981',
+          onSelect: () => {
+            const ai = gameState.ai;
+            if (!ai) return;
+            ai.hand.push(createCardInstance(CARD_DATABASE.find(c => c.id === 'S01') || { id: 'S01', name: 'วันฟอจิต', type: 'NormalSpell' }, 'DUMMY-SPELL'));
+            ai.spellQuota.normalUsed = 0;
+            setLog('🎯 [ระบบทดสอบ] จำลองให้ AI สั่งร่ายเวท "วันฟอจิต" เพื่อทดสอบป๊อปอัป UNBODIED FLESH!');
+            setTimeout(() => {
+              executeAISpellCast(ai, ai.hand.length - 1, (sp) => {
+                setLog(`✨ AI ร่ายเวท "${sp.name}" สำเร็จ (หากไม่ถูกยกเลิก)`);
+                renderGame();
+              });
+            }, 300);
+          }
+        },
+        {
+          label: '❌ ปิดหน้าต่าง',
+          color: '#475569',
+          onSelect: () => renderGame()
+        }
+      ],
+      { previewCards: [spell] }
+    );
     return;
   }
 
@@ -8636,6 +8686,10 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.leader.abilityUsedThisTurn = false;
   contestant.spellQuota.normalUsed = 0;
   contestant.spellQuota.reactionUsed = 0;
+  if (typeof gameState !== 'undefined' && gameState) {
+    if (gameState.player && gameState.player.spellQuota) gameState.player.spellQuota.reactionUsed = 0;
+    if (gameState.ai && gameState.ai.spellQuota) gameState.ai.spellQuota.reactionUsed = 0;
+  }
   contestant.theEndRevivedThisTurn = false;
   contestant.slasherRevivedThisTurn = false;
   contestant.xenomorphRevivedThisTurn = false;
@@ -16950,6 +17004,19 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     }
     if (cardTpl.type === 'ReactionSpell') {
       p.hand.push(makeSandboxCard(cardId));
+      if (cardId === 'BT02_15') {
+        p.spellQuota.reactionUsed = 0;
+        a.hand.push(makeSandboxCard('S01'));
+        a.spellQuota.normalUsed = 0;
+        setLog('🎯 [โหมดทดสอบ] จำลองให้ AI สั่งร่ายเวทมนตร์ "วันฟอจิต" เพื่อทดสอบการเด้งป๊อปอัปของ UNBODIED FLESH!');
+        setTimeout(() => {
+          executeAISpellCast(a, a.hand.length - 1, (sp) => {
+            setLog(`✨ AI ร่ายเวท "${sp.name}" สำเร็จ (หากไม่ถูกยกเลิก)`);
+            renderGame();
+          });
+        }, 500);
+        return;
+      }
       if (cardId === 'DS02') {
         p.board[0] = makeSandboxCard('DM08'); // เอมิบนสนาม
         p.graveyard.push(makeSandboxCard('DM01'), makeSandboxCard('DM04'));
