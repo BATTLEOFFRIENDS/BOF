@@ -41,6 +41,7 @@
   <script src="js/cards/schema.js"></script>
   <script src="js/bof-icons.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/combo-replays-data.js"></script>
 
   <script>
   // Robust Headless UI Mocks
@@ -698,6 +699,34 @@
         && p.spellQuota.reactionUsed < 1
         && p.hand.some(c => c && c.id === 'BT02_15');
       assert(canUseUnbodied === true, 'UNBODIED FLESH is ready to intercept enemy spell');
+    });
+
+    testGroup('KILLER COMBO GUIDES & REPLAY DATA: L09 Combos', () => {
+      assert(window.BOF_COMBO_REPLAYS && typeof window.BOF_COMBO_REPLAYS === 'object', 'BOF_COMBO_REPLAYS is defined');
+      assert(!!window.BOF_COMBO_REPLAYS.killer_xeno_slasher, 'killer_xeno_slasher replay exists');
+      assert(!!window.BOF_COMBO_REPLAYS.killer_blight_trapper, 'killer_blight_trapper replay exists');
+      assert(!!window.BOF_COMBO_REPLAYS.killer_uroboros_nemesis, 'killer_uroboros_nemesis replay exists');
+      assert(!!window.BOF_COMBO_REPLAYS.rangdao_sparkcon_fusion, 'rangdao_sparkcon_fusion replay exists');
+
+      const killerCombos = [
+        window.BOF_COMBO_REPLAYS.killer_xeno_slasher,
+        window.BOF_COMBO_REPLAYS.killer_blight_trapper,
+        window.BOF_COMBO_REPLAYS.killer_uroboros_nemesis
+      ];
+      killerCombos.forEach(r => {
+        const setupCards = [
+          r.setup.meLeader,
+          ...(r.setup.me || []).filter(Boolean),
+          ...(r.setup.hand || []),
+          ...(r.setup.meGrave || []),
+          ...(r.setup.meVoid || [])
+        ];
+        setupCards.forEach(cid => {
+          const rawId = cid.split('#')[0];
+          const found = CARD_DATABASE.find(c => c.id === rawId);
+          assert(!!found, `Card ${rawId} used in Killer combo exists in CARD_DATABASE`);
+        });
+      });
     });
 
     // ==========================================

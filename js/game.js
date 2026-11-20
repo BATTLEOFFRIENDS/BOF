@@ -18335,37 +18335,39 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     {
       leaderId: 'L09',
       deckName: '💀 เด็คคิลเลอร์ (ENTITY)',
-      overview: 'จุดเด่น: โจมตีกัดกินพลังชีวิต บดขยี้มอนสเตอร์และกองการ์ดของคู่แข่ง อัญเชิญฆาตกรชุบชีวิตขึ้นมาจากขุมนรกเมื่อลีดเดอร์เสีย HP (Xenomorph, Slasher, Executioner), และใช้ The Blight กับ The Nemesis บุกทำลายยกแผง!',
+      overview: 'จุดเด่น: โจมตีกัดกินพลังชีวิต บดขยี้มอนสเตอร์และกองการ์ดของคู่แข่ง อัญเชิญฆาตกรชุบชีวิตขึ้นมาจากขุมนรกเมื่อลีดเดอร์เสีย HP (Xenomorph, Slasher, Executioner), สังหารกวาดล้างสนามด้วย The Blight และอัญเชิญสูงสุด PROJECT UROBOROS-NE ตีเบิ้ล 2 ครั้ง!',
       combos: [
         {
-          id: 'killer_xeno_revive',
-          title: '👽 คอมโบ 1: ฝันร้ายข้ามภพ THE XENOMORPH ชุบจากนรก & THE SLASHER บั่นทอน HP!',
-          cards: ['KL07', 'KL02', 'L09'],
+          id: 'killer_xeno_slasher',
+          title: '👽 คอมโบ 1: ฝันร้ายคืนชีพ THE XENOMORPH & THE SLASHER บั่นทอน HP!',
+          cards: ['KL07', 'KL02', 'KL12', 'L09'],
           steps: [
-            '1. มี "THE XENOMORPH (KL07)" อยู่ในนรก และมี "THE SLASHER (KL02)" บนสนาม',
-            '2. เมื่อลีดเดอร์เราเสีย HP สกิลสั่งใช้งานจากนรกของ THE XENOMORPH จะทำงาน → คลิกอัญเชิญลงสู่สนามฟรี!',
-            '3. เมื่อลงสนาม สกิลออโต้จะถามให้ทิ้งการ์ด 1 ใบ → ทิ้งการ์ดบนมือ 1 ใบเพื่อฟื้นฟูเลือดลีดเดอร์เรา +1 HP ทันที!',
-            '4. ในเทิร์นถัดไป เมื่อฝ่ายตรงข้ามจั่วการ์ด สกิลออโต้ของ THE SLASHER จะบั่นทอนเลือดลีดเดอร์ศัตรูลง 1 HP!'
+            '1. มี "THE SLASHER (KL02)" บนสนาม และมี "THE XENOMORPH (KL07)" ในนรก',
+            '2. เมื่อจบเทิร์นเราและคู่ต่อสู้สั่งโจมตีลีดเดอร์เราจนเสีย HP (เลือก "ไม่ขัดขวาง" ในหน้าต่างป้องกัน)',
+            '3. สกิลสั่งใช้งานจากนรกของ THE XENOMORPH จะทำงานทันที → คลิกอัญเชิญลงสู่สนาม และทิ้งการ์ดบนมือ 1 ใบเพื่อฟื้นฟูเลือดลีดเดอร์เรา +1 HP!',
+            '4. เข้าเทิร์นเรา ร่ายเวท "OMNIPRESENT EVIL (KL12)" สั่งให้อีกฝ่ายจั่ว 2 ใบและเสีย 1 HP → ทริกเกอร์สกิลของ THE SLASHER ยิงซ้ำอีก 1 HP (รวมเป็น 2 HP) พร้อมสั่งโจมตีปิดเกม!'
           ]
         },
         {
-          id: 'killer_blight_sweep',
-          title: '☣️ คอมโบ 2: THE BLIGHT ระเบิดสังหารกวาดล้างสนาม & UNBODIED FLESH สวนเวท!',
-          cards: ['KL05', 'BT02_15', 'KL11'],
+          id: 'killer_blight_trapper',
+          title: '☣️ คอมโบ 2: THE BLIGHT สังหารต่อเนื่อง & ชุบ THE TRAPPER ฟรีลงสนาม!',
+          cards: ['KL05', 'KL04', 'BT02_15'],
           steps: [
-            '1. สั่ง "THE BLIGHT (KL05)" โจมตีทำลายยูนิตฝ่ายตรงข้ามสำเร็จในการต่อสู้',
-            '2. สกิลออโต้ของ The Blight จะทำงานทันที → เลือกทิ้งการ์ดบนมือ 1 ใบเพื่อทำลายยูนิตฝ่ายตรงข้ามที่พลัง ≤ The Blight เพิ่มอีกสูงสุด 2 ใบทันที!',
-            '3. มีเวทมนตร์รีแอค "UNBODIED FLESH (BT02_15)" คอยคุ้มกันบนมือ เมื่อคู่ต่อสู้สั่งร่ายการ์ดเวทมนตร์ ป๊อปอัปจะเด้งขึ้นมาให้กดยกเลิกความสามารถเวทมนตร์นั้นทันที!'
+            '1. สั่ง "THE BLIGHT (KL05)" โจมตีทำลายยูนิตฝ่ายตรงข้ามในการต่อสู้',
+            '2. เมื่อทำลายสำเร็จ สกิลออโต้ของ The Blight จะทำงาน → เลือกทิ้ง "THE TRAPPER (KL04)" บนมือ 1 ใบ เพื่อระเบิดทำลายยูนิตฝ่ายตรงข้ามที่เหลือเพิ่มอีกสูงสุด 2 ใบทันที!',
+            '3. เมื่อ The Trapper ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที → เลือกอัญเชิญ The Trapper ลงสู่สนามฟรีทันที (ได้ทั้งล้างสนามศัตรู 2 ใบ และได้ยูนิตลงสนามฟรี)!',
+            '4. มีเวทมนตร์รีแอค "UNBODIED FLESH (BT02_15)" คอยคุ้มกันบนมือ เมื่อคู่ต่อสู้สั่งร่ายการ์ดเวทมนตร์ ป๊อปอัปจะเด้งขึ้นมาให้กดยกเลิกความสามารถเวทมนตร์นั้นทันที!'
           ]
         },
         {
-          id: 'killer_dark_nemesis',
-          title: '🧬 คอมโบ 3: มิติสังหาร THE NEMESIS คุ้มกัน UROBOROS-NE สแตร์นตีเบิ้ล 2 ครั้ง!',
-          cards: ['BT02_13', 'BT02_12', 'KL09'],
+          id: 'killer_uroboros_nemesis',
+          title: '🧬 คอมโบ 3: มิติมืดสังหาร ปลุก PROJECT UROBOROS-NE ตีเบิ้ล 2 ครั้ง!',
+          cards: ['BT02_11', 'BT02_12', 'BT02_13'],
           steps: [
-            '1. นำ "THE NEMESIS (BT02_13)" เข้าสู่มิติมืด',
-            '2. เมื่อ The Nemesis อยู่ในมิติมืด "PROJECT UROBOROS-NE (BT02_12)" บนสนามเราจะไม่รับผลของความสามารถการ์ดฝ่ายตรงข้ามโดยสิ้นเชิง!',
-            '3. สั่ง UROBOROS-NE โจมตีครั้งที่ 1 จบ สกิลออโต้จะสแตร์น (Stand) ตัวเองขึ้นมา เพื่อสั่งโจมตีครั้งที่ 2 ใส่ยูนิตหรือลีดเดอร์อีกฝ่ายเพื่อปิดเกม!'
+            '1. มี "THE MASTERMIND (BT02_12)" และ "THE NEMESIS (BT02_13)" ในนรก และมี "THE PROJECT UROBOROS-NE (BT02_11)" อยู่บนมือ',
+            '2. คลิกที่ UROBOROS-NE บนมือ → สั่งใช้งานนำ Mastermind และ Nemesis จากนรกเข้าสู่มิติมืดเพื่ออัญเชิญ UROBOROS-NE ลงสู่สนาม!',
+            '3. สกิลเมื่อลงสนามทำงาน → ทิ้งการ์ดบนมือ 1 ใบเพื่อฟื้นฟูเลือดลีดเดอร์เรา +3 HP!',
+            '4. ในมิติมืด Mastermind บัฟพลังให้ UROBOROS-NE +1 (เป็น Power 4) และ Nemesis คุ้มกันไม่รับผลสกิลศัตรู พร้อมสกิลต่อเนื่องสั่งโจมตีได้ถึง 2 ครั้งในเทิร์นเดียว!'
           ]
         }
       ]
@@ -18911,7 +18913,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     if (!foundCombo || !foundDeck) return;
 
     // คอมโบที่ต้องให้ AI โจมตีสวนในเทิร์นถัดไป ต้องเปิด AI จริง (ไม่ข้ามเทิร์น AI)
-    const needsAIAttack = (comboId === 'jit_allforjit' || comboId === 'doom_maya_lock' || comboId === 'rangdao_pompom_express' || comboId === 'killer_xeno_revive');
+    const needsAIAttack = (comboId === 'jit_allforjit' || comboId === 'doom_maya_lock' || comboId === 'rangdao_pompom_express' || comboId === 'killer_xeno_slasher');
     const targetAILeaderId = (comboId === 'rangdao_pompom_express' || comboId === 'rangdao_danheng_protection') ? 'L04' : (comboId && comboId.startsWith('killer_') ? 'L01' : 'L01');
     preparePracticeArena(foundDeck.leaderId, targetAILeaderId, !needsAIAttack);
 
@@ -19836,46 +19838,56 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       }
 
       // ==================== เด็คคิลเลอร์ (L09) ====================
-      case 'killer_xeno_revive': {
+      case 'killer_xeno_slasher': {
         p.leader.hp = 2;
         p.board = [makeCard('KL02'), null, null]; // THE SLASHER บนสนาม
         p.graveyard = [makeCard('KL07')];         // THE XENOMORPH ในนรก
-        p.hand = [makeCard('KL01')];              // การ์ดบนมือไว้ทิ้งฮีล
-        ai.board = [makeCard('M01'), null, null]; // บาคุจิตของ AI สั่งโจมตี
-        ai.leader.hp = 4;
+        p.hand = [makeCard('KL01'), makeCard('KL12')]; // KL01 ไว้ทิ้งฮีล + KL12 ไว้ร่าย
+        ai.board = [makeCard('M01'), null, null]; // บาคุจิตของ AI
+        ai.leader.hp = 3;
         steps = [
           {
             action: 'NEXT_PHASE',
             pointerText: '👆 กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อให้ AI โจมตีเข้ามา!',
-            title: 'สเต็ป 1/3: จบเทิร์นเพื่อรอให้ AI โจมตีใส่ลีดเดอร์เรา',
-            desc: 'จบเทิร์นเพื่อรอให้ AI สั่ง "บาคุจิต (M01)" โจมตีเข้ามา เมื่อลีดเดอร์ของเราเสีย HP สกิลในนรกของ THE XENOMORPH จะทำงาน!',
+            title: 'สเต็ป 1/4: จบเทิร์นเพื่อรอให้ AI โจมตีใส่ลีดเดอร์เรา',
+            desc: 'จบเทิร์นเพื่อรอให้ AI สั่ง "บาคุจิต (M01)" โจมตีเข้ามา (เมื่อหน้าต่างป้องกันเด้งขึ้นมา ให้เลือก "ไม่ขัดขวาง" เพื่อให้ลีดเดอร์เสียเลือด)',
             isDone: () => gameState.activeTurn === 'ai'
           },
           {
             action: 'CLICK_CHOICE',
             choiceKeywords: ['THE XENOMORPH', 'อัญเชิญ', 'สนาม'],
             choicePointerText: '👆 คลิกยืนยันสั่งชุบ THE XENOMORPH ขึ้นมาจากนรก!',
-            title: 'สเต็ป 2/3: สั่งใช้ THE XENOMORPH จากนรก ฟื้นขึ้นสู่สนาม & ฮีลเลือด +1!',
-            desc: 'เมื่อลีดเดอร์เราเสีย HP หน้าต่างสกิลในนรกจะเด้งขึ้นมา -> ให้คลิกเลือก "อัญเชิญ THE XENOMORPH ลงสนาม" และเลือกทิ้งการ์ดบนมือ 1 ใบเพื่อฟื้นฟูเลือดลีดเดอร์ +1 HP!',
+            title: 'สเต็ป 2/4: สั่งใช้ THE XENOMORPH จากนรก ฟื้นขึ้นสู่สนาม & ฮีลเลือด +1!',
+            desc: 'เมื่อลีดเดอร์เราเสีย HP หน้าต่างสกิลในนรกจะเด้งขึ้นมา -> ให้คลิกเลือก "อัญเชิญ THE XENOMORPH ลงสนาม" และคลิกทิ้งการ์ดบนมือ 1 ใบเพื่อฟื้นฟูเลือดลีดเดอร์ +1 HP!',
             isDone: () => p.board.some(m => m && (m.id === 'KL07' || (m.name && m.name.includes('XENOMORPH'))))
+          },
+          {
+            action: 'CLICK_HAND',
+            cardId: 'KL12',
+            choiceOptionIndex: 0,
+            pointerText: '👆 1. คลิกที่การ์ดเวท "OMNIPRESENT EVIL" บนมือ',
+            choicePointerText: '👆 2. กดยืนยันร่ายเวทมนตร์',
+            title: 'สเต็ป 3/4: เข้าเทิร์นเรา ร่าย "OMNIPRESENT EVIL" บังคับจั่ว 2 ใบ & ยิงเลือด!',
+            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกร่ายเวท "OMNIPRESENT EVIL (KL12)" บนมือ -> อีกฝ่ายจั่ว 2 ใบและเสีย 1 HP พร้อมทริกเกอร์สกิลของ THE SLASHER ยิงซ้ำอีก 1 HP (รวมเป็น 2 HP)!',
+            isDone: () => p.spellQuota.normalUsed >= 1 && gameState.activeTurn === 'player'
           },
           {
             action: 'ATTACK_LEADER',
             cardId: 'KL07',
             pointerText: '👆 1. คลิกที่ "THE XENOMORPH" บนสนาม',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI ปิดเกม!',
-            title: 'สเต็ป 3/3: เข้าเทิร์นเรา สั่งโจมตีคว้าชัยชนะ!',
-            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกที่ "THE XENOMORPH" หรือ "THE SLASHER" โจมตีใส่ Leader ของ AI เพื่อคว้าชัยชนะ!',
+            title: 'สเต็ป 4/4: สั่ง THE XENOMORPH โจมตีปิดเกมคว้าชัยชนะ!',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "THE XENOMORPH (KL07)" บนสนามเรา โจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะ!',
             isDone: () => p.attacksThisTurn >= 1 || gameState.gameOver || gameState.ai.leader.hp <= 0
           }
         ];
         break;
       }
 
-      case 'killer_blight_sweep': {
+      case 'killer_blight_trapper': {
         p.board = [makeCard('KL05'), null, null]; // THE BLIGHT (Power 2)
-        p.hand = [makeCard('KL03')];              // THE TRAPPER บนมือไว้ทิ้ง
-        ai.board = [makeCard('NM05'), makeCard('NM05'), null]; // สายลับไพร่เหนือ (Power 1) ให้ทำลาย
+        p.hand = [makeCard('KL04'), makeCard('BT02_15')]; // THE TRAPPER บนมือไว้ทิ้ง + UNBODIED FLESH
+        ai.board = [makeCard('NM05'), makeCard('NM05'), null]; // สายลับไพร่เหนือ (Power 1) ให้ทำลาย 2 ตัว
         ai.leader.hp = 2;
         steps = [
           {
@@ -19884,45 +19896,73 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             targetBoardCardId: 'NM05',
             pointerText: '👆 1. คลิกที่ "THE BLIGHT" บนสนาม',
             targetPointerText: '👆 2. คลิกโจมตีทำลายยูนิต AI ตัวแรก!',
-            title: 'สเต็ป 1/2: สั่ง THE BLIGHT โจมตีทำลายยูนิตฝ่ายตรงข้าม',
+            title: 'สเต็ป 1/3: สั่ง THE BLIGHT โจมตีทำลายยูนิตฝ่ายตรงข้าม',
             desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "THE BLIGHT (KL05)" สั่งโจมตีทำลายยูนิตตัวแรกของ AI!',
             isDone: () => ai.board.filter(Boolean).length <= 1
           },
           {
             action: 'CLICK_CHOICE',
             choiceKeywords: ['ทิ้งการ์ด', 'ทำลาย', 'BLIGHT'],
-            choicePointerText: '👆 คลิกยืนยันทิ้งการ์ด 1 ใบเพื่อระเบิดทำลายยูนิต AI อีกตัว!',
-            title: 'สเต็ป 2/2: สกิล THE BLIGHT ทำงาน! ทิ้งการ์ดทำลายยูนิตอีกฝ่ายกวาดล้างสนาม!',
+            choicePointerText: '👆 คลิกยืนยันทิ้ง "THE TRAPPER" บนมือ!',
+            title: 'สเต็ป 2/3: สกิล THE BLIGHT ทำงาน! ทิ้ง THE TRAPPER ทำลายยูนิตที่เหลือ!',
             desc: 'เมื่อทำลายยูนิตสำเร็จ สกิลออโต้ของ The Blight จะทำงานทันที -> ให้คลิกยืนยันทิ้ง "THE TRAPPER" บนมือ 1 ใบเพื่อทำลายยูนิตที่เหลือของ AI กวาดล้างสนามจนหมดสิ้น!',
-            isDone: () => ai.board.every(m => m === null) && !gameState.pendingAction
+            isDone: () => ai.board.every(m => m === null) && p.graveyard.some(c => c && c.id === 'KL04')
+          },
+          {
+            action: 'CLICK_CHOICE',
+            choiceKeywords: ['THE TRAPPER', 'อัญเชิญ', 'สนาม'],
+            choicePointerText: '👆 คลิกยืนยันชุบ THE TRAPPER ลงสนามฟรี!',
+            title: 'สเต็ป 3/3: สกิล THE TRAPPER ทำงาน! อัญเชิญตัวเองลงสนามฟรีทันที!',
+            desc: 'เมื่อ THE TRAPPER ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที -> คลิกเลือกอัญเชิญ THE TRAPPER ลงสนามฟรี ได้ทั้งล้างสนามศัตรูและได้ยูนิตลงสนามฟรี!',
+            isDone: () => p.board.some(m => m && m.id === 'KL04') && !gameState.pendingAction
           }
         ];
         break;
       }
 
-      case 'killer_dark_nemesis': {
-        p.board = [makeCard('BT02_12'), null, null]; // PROJECT UROBOROS-NE บนสนาม
-        p.darkDimension = [makeCard('BT02_13')];      // THE NEMESIS ในมิติมืด
-        ai.board = [makeCard('DN02'), null, null];    // แรปเตอร์ (Power 2)
-        ai.leader.hp = 3;
+      case 'killer_uroboros_nemesis': {
+        p.board = [null, null, null];
+        p.hand = [makeCard('BT02_11'), makeCard('KL01')]; // UROBOROS-NE + KL01 ไว้ทิ้งฮีล
+        p.graveyard = [makeCard('BT02_12'), makeCard('BT02_13')]; // MASTERMIND + NEMESIS ในนรก
+        ai.board = [makeCard('M01'), null, null]; // Bakujit (Power 2)
+        ai.hand = [makeCard('M02'), makeCard('M05')]; // 2 cards in hand (player hand 0 < ai hand 2)
+        ai.leader.hp = 4;
         steps = [
           {
+            action: 'CLICK_HAND',
+            cardId: 'BT02_11',
+            choiceOptionIndex: 0,
+            pointerText: '👆 1. คลิกที่ "THE PROJECT UROBOROS-NE" บนมือ',
+            choicePointerText: '👆 2. กดยืนยันสั่งใช้งานจากบนมือ',
+            title: 'สเต็ป 1/4: สั่งใช้งาน UROBOROS-NE ส่ง Mastermind & Nemesis เข้ามิติมืด!',
+            desc: 'คลิกที่ "THE PROJECT UROBOROS-NE (BT02_11)" บนมือ -> กดยืนยันสั่งใช้งาน นำ The Mastermind และ The Nemesis จากนรกเข้าสู่มิติมืดเพื่ออัญเชิญลงสู่สนาม!',
+            isDone: () => p.board.some(m => m && m.id === 'BT02_11')
+          },
+          {
+            action: 'CLICK_CHOICE',
+            choiceKeywords: ['ทิ้ง', 'ฟื้นฟู', 'HP', '3'],
+            choicePointerText: '👆 คลิกเลือกทิ้งการ์ดเพื่อฟื้นฟูเลือดลีดเดอร์ +3 HP!',
+            title: 'สเต็ป 2/4: สกิลลงสนาม UROBOROS-NE ทิ้งการ์ด 1 ใบ ฟื้นฟูเลือดลีดเดอร์ +3 HP!',
+            desc: 'เมื่อ UROBOROS-NE ลงสนาม สกิลจะทำงานทันที -> คลิกเลือกทิ้งการ์ดบนมือ 1 ใบเพื่อฟื้นฟูเลือดลีดเดอร์เรา +3 HP!',
+            isDone: () => p.graveyard.some(c => c && c.id === 'KL01') && !gameState.pendingAction
+          },
+          {
             action: 'ATTACK_MONSTER',
-            cardId: 'BT02_12',
-            targetBoardCardId: 'DN02',
-            pointerText: '👆 1. คลิกที่ "PROJECT UROBOROS-NE"',
-            targetPointerText: '👆 2. คลิกโจมตีทำลายยูนิตของ AI!',
-            title: 'สเต็ป 1/2: โจมตีครั้งที่ 1 (The Nemesis ในมิติมืดคุ้มกันไม่รับผลสกิล)',
-            desc: 'เข้าสู่ Battle Phase แล้วสั่ง "PROJECT UROBOROS-NE" โจมตีทำลายมอนสเตอร์ของ AI -> เมื่อจบการโจมตีครั้งแรก สกิลออโต้จะสแตร์น (Stand) ตัวเองขึ้นมาใหม่ทันที!',
-            isDone: () => p.attacksThisTurn >= 1 && p.board.some(m => m && m.id === 'BT02_12' && m.state === 'Stand')
+            cardId: 'BT02_11',
+            targetBoardCardId: 'M01',
+            pointerText: '👆 1. คลิกที่ "THE PROJECT UROBOROS-NE" (Power 4 ไม่รับผลสกิล)',
+            targetPointerText: '👆 2. คลิกโจมตีทำลายยูนิต AI!',
+            title: 'สเต็ป 3/4: โจมตีครั้งที่ 1 ทำลายยูนิต AI (สแตร์นลุกขึ้นมาอัตโนมัติ!)',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกสั่ง UROBOROS-NE (Power 4) โจมตีทำลายยูนิต AI -> เมื่อจบการโจมตี สกิลออโต้จะ Stand ตัวเองขึ้นมาใหม่ทันที!',
+            isDone: () => p.attacksThisTurn >= 1 && p.board.some(m => m && m.id === 'BT02_11' && m.state === 'Stand')
           },
           {
             action: 'ATTACK_LEADER',
-            cardId: 'BT02_12',
-            pointerText: '👆 1. คลิกที่ "PROJECT UROBOROS-NE" อีกครั้ง',
+            cardId: 'BT02_11',
+            pointerText: '👆 1. คลิกที่ "THE PROJECT UROBOROS-NE" อีกครั้ง',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI ปิดเกม!',
-            title: 'สเต็ป 2/2: โจมตีครั้งที่ 2 ใส่ Leader AI ปิดเกมทันที!',
-            desc: 'คลิกที่ "PROJECT UROBOROS-NE (BT02_12)" ที่เพิ่งสแตร์นกลับขึ้นมา แล้วคลิกโจมตีใส่ Leader ของ AI เป็นครั้งที่ 2 เพื่อปิดเกมคว้าชัยชนะ!',
+            title: 'สเต็ป 4/4: โจมตีครั้งที่ 2 ปิดเกมคว้าชัยชนะ!',
+            desc: 'คลิกสั่ง UROBOROS-NE ที่ลุกขึ้นมา Stand โจมตีใส่ Leader ของ AI เป็นครั้งที่ 2 เพื่อปิดเกมและคว้าชัยชนะอย่างเด็ดขาด!',
             isDone: () => p.attacksThisTurn >= 2 || gameState.gameOver || gameState.ai.leader.hp <= 0
           }
         ];
