@@ -14324,6 +14324,11 @@ function attachCardTooltipEvents(element, card, ownerContestant = null) {
 }
 
 function createCardElement(card, ownerContestant = null) {
+  if (!card) {
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'card';
+    return emptyDiv;
+  }
   const effectivePower = getEffectivePower(card, ownerContestant);
   const div = document.createElement('div');
   div.className = `card ${card.type} ${card.state || ''}`;
@@ -17335,7 +17340,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     }
     if (cardId === 'DN03') {
       p.board[0] = makeSandboxCard('DN03');
-      a.board[0] = makeSandboxCard('M07'); // Power 1 ตีเข้ามาไม่เข้ากระดองแองคิโลซอรัส
+      a.board[0] = makeSandboxCard('M02'); // Power 1 ตีเข้ามาไม่เข้ากระดองไทรเซราทอปส์
       forceAIAttackPlayer('leader', null);
       return;
     }
@@ -17356,15 +17361,16 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       }
       if (cardId === 'DS02') {
         p.board[0] = makeSandboxCard('DM08'); // เอมิบนสนาม
-        p.graveyard.push(makeSandboxCard('DM01'), makeSandboxCard('DM04'));
+        p.graveyard.push(makeSandboxCard('DM01'), makeSandboxCard('DM02'), makeSandboxCard('DM03'), makeSandboxCard('DM04'), makeSandboxCard('DM05'));
       } else if (cardId === 'DNS03') {
         p.board[0] = makeSandboxCard('DN05'); // ทีเร็กซ์ Power 4
         p.board[1] = makeSandboxCard('DN01'); // สเตโกซอรัส Power 2
       } else if (cardId === 'DMS02') {
+        p.board[0] = makeSandboxCard('DMM01');
         p.darkDimension.push(makeSandboxCard('DMS03')); // ดินแดนปีศาจในมิติมืด
         p.graveyard.push(makeSandboxCard('DMM01'), makeSandboxCard('DMM02'));
       } else if (cardId === 'OS03') {
-        p.board[0] = makeSandboxCard('OM08'); // ไอเจย์นักบิดบนสนาม
+        p.board[0] = makeSandboxCard('OM02'); // ไอแบงค์บ้าเกมบนสนาม
         p.graveyard.push(makeSandboxCard('OM01'), makeSandboxCard('OM02'), makeSandboxCard('OS01'));
       } else if (cardId === 'KL11' || cardId === 'RD10') {
         p.hand.push(makeSandboxCard(cardId === 'KL11' ? 'KL02' : 'RD01'));
@@ -17394,12 +17400,13 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         p.board[1] = makeSandboxCard('M01');
         p.hand.push(makeSandboxCard('S01'));
         break;
-      case 'S02': // ระเบิดจิต (ทิ้งมือ 1 ทำลาย 1)
-        p.hand.push(makeSandboxCard('S02'), makeSandboxCard('M07'));
+      case 'S02': // เชี่ย หุ้นตก
+        p.hand.push(makeSandboxCard('S02'), makeSandboxCard('M02'));
         break;
-      case 'S03': // จิตฮีล (ทิ้งมือ 2 ฮีล लीडเดอร์ +1)
+      case 'S03': // หนึ่งเดียวเพื่อทุกสิ่ง
         p.leader.hp = 4;
-        p.hand.push(makeSandboxCard('S03'), makeSandboxCard('M07'), makeSandboxCard('M01'));
+        p.board[0] = makeSandboxCard('M01');
+        p.hand.push(makeSandboxCard('S03'), makeSandboxCard('M02'), makeSandboxCard('M01'));
         break;
       case 'S04': // ทุกสิ่งเพื่อหนึ่งเดียว (ต้องมียูนิต Stand บนสนามเรา >= 2 ใบ)
         p.board[0] = makeSandboxCard('M01');
@@ -17434,9 +17441,10 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         a.board = [makeSandboxCard('M01'), null, null];
         p.hand.push(makeSandboxCard('NM05'));
         break;
-      case 'NS01': // กองทัพหลวงเหนือ (ทหาร 3 ใบบนสนาม)
+      case 'NS01': // หมอไพร่เหนือ
         p.board = [makeSandboxCard('NM02'), makeSandboxCard('NM03'), makeSandboxCard('NM04')];
-        a.board = [makeSandboxCard('M01'), makeSandboxCard('M02'), makeSandboxCard('M07')];
+        a.board = [makeSandboxCard('M01'), makeSandboxCard('M02'), makeSandboxCard('M03')];
+        p.graveyard = [makeSandboxCard('NM01')];
         p.hand.push(makeSandboxCard('NS01'));
         break;
       case 'NS02': // สั่งประหาร
@@ -17460,7 +17468,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       case 'DM04': // เดบิรุน
         p.board[0] = makeSandboxCard('DM04');
         p.graveyard.push(makeSandboxCard('DS01'), makeSandboxCard('DM01'));
-        p.deck.push(makeSandboxCard('DS03'));
+        p.deck.push(makeSandboxCard('DS01'));
         p.hand.push(makeSandboxCard('DM04'));
         closeSandboxModal();
         renderGame();
@@ -17566,42 +17574,40 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       case 'DMM05': // ลิเวียธาน
       case 'DMM06': // เบลเฟกอร์
       case 'DMM07': // แมมมอน
-      case 'DMM08': // ซามาเอล
       case 'DMS01': // สัญญาปีศาจ
       case 'DMS03': // ดินแดนปีศาจ
-      case 'DMS04': // พิธีกรรมอัญเชิญปีศาจ
         p.leader = makeSandboxCard('L05');
         p.darkDimension = [
           makeSandboxCard('DMS03'),
           makeSandboxCard('DMS01'),
-          ...['DMM01', 'DMM02', 'DMM03', 'DMM05', 'DMM06', 'DMM07', 'DMM08', 'DMM01', 'DMM02', 'DMM03', 'DMM05', 'DMM06', 'DMM07'].map(cid => makeSandboxCard(cid))
+          ...['DMM01', 'DMM02', 'DMM03', 'DMM04', 'DMM05', 'DMM06', 'DMM07', 'DMM01', 'DMM02', 'DMM03', 'DMM05', 'DMM06', 'DMM07'].map(cid => makeSandboxCard(cid))
         ]; // 15 ใบในมิติมืด
         p.graveyard = [makeSandboxCard('DMM01'), makeSandboxCard('DMM02'), makeSandboxCard('DMM04')];
         p.board[0] = makeSandboxCard('DMM03');
         p.hand.push(makeSandboxCard(cardId), makeSandboxCard('DMM01'));
         break;
-      case 'DMM04': // ซาตาน บาปแห่งความโกรธ (ครบ 7 บาป + มิติมืด 15 ใบ)
+      case 'DMM04': // ซาตาน บาปโทสะ
         p.leader = makeSandboxCard('L05');
+        p.leader.hp = 1;
         p.darkDimension = [
           makeSandboxCard('DMS03'),
           ...Array.from({ length: 14 }, () => makeSandboxCard('DMS01'))
         ]; // 15 ใบในมิติมืด
-        p.board = [makeSandboxCard('DMM01'), makeSandboxCard('DMM02'), null];
-        p.graveyard = ['DMM03', 'DMM05', 'DMM06', 'DMM07', 'DMM08'].map(cid => makeSandboxCard(cid));
-        p.hand.push(makeSandboxCard('DMM04'));
+        p.board = [makeSandboxCard('DMM04'), makeSandboxCard('DMM02'), null];
+        p.graveyard = ['DMM03', 'DMM05', 'DMM06', 'DMM07'].map(cid => makeSandboxCard(cid));
+        p.hand.push(makeSandboxCard('DMM01'), makeSandboxCard('DMM02'), makeSandboxCard('DMM03'), makeSandboxCard('DMM05'), makeSandboxCard('DMM06'));
         break;
 
       // --- เด็คโอ๊ต ---
       case 'OM01': // ไอโอ๊ตบ้าการ์ตูน
       case 'OM03': // ไอจิตบ้ากาม
       case 'OM07': // ไอดีนบ้าHee
-      case 'OM08': // ไอเจย์นักบิด
       case 'OS01': // ท่าไม้ตาย(มั้ง)
-      case 'OS02': // โดนแน่มึง
+      case 'OS02': // สงครามความบ้า
         p.leader = makeSandboxCard('L06');
         p.board = [makeSandboxCard('OM01'), makeSandboxCard('OM02'), null];
         p.graveyard = [makeSandboxCard('OM01'), makeSandboxCard('OM02'), makeSandboxCard('OM03'), makeSandboxCard('OS01')];
-        p.hand.push(makeSandboxCard(cardId), makeSandboxCard('OS01'));
+        p.hand.push(makeSandboxCard(cardId), makeSandboxCard('OS01'), makeSandboxCard('OM01'), makeSandboxCard('OM02'));
         break;
       case 'OM02': // ไอแบงค์บ้าเกม (เปิด 2 ใบบนสุดคอล OM01 / OM07)
         p.leader = makeSandboxCard('L06');
@@ -17729,7 +17735,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       outBox.innerHTML = `<div style="padding:12px;color:#38bdf8;font-weight:bold;">⏳ กำลังรันตรวจเช็กสกิลการ์ดทั้ง ${CARD_DATABASE.length} ใบ (Schema + รูปภาพ + เงื่อนไขสกิล + จำลองการทำงาน Player/AI)...</div>`;
     }
 
-    const schemaReport = typeof validateCards === 'function' ? validateCards() : { ok: true, issues: [] };
+    const rawSchema = typeof validateCards === 'function' ? validateCards() : [];
+    const schemaIssues = Array.isArray(rawSchema) ? rawSchema : (Array.isArray(rawSchema?.issues) ? rawSchema.issues : []);
+    const schemaReport = { ok: schemaIssues.length === 0, issues: schemaIssues };
 
     // 1. ตรวจสอบการโหลดรูปภาพของการ์ดทั้ง 72 ใบ
     const checkImage = (src) => new Promise(resolve => {
@@ -17875,7 +17883,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     outBox.innerHTML = `
       <div class="bof-diag-summary ${allOk ? 'is-pass' : 'is-fail'}">
         <div>
-          <strong>${allOk ? '✅ ตรวจเช็กการ์ดทั้ง 72 ใบผ่านครบ 100%!' : `⚠️ พบจุดต้องตรวจสอบ ${failCount} ใบ`}</strong>
+          <strong>${allOk ? `✅ ตรวจเช็กการ์ดทั้ง ${CARD_DATABASE.length} ใบผ่านครบ 100%!` : `⚠️ พบจุดต้องตรวจสอบ ${failCount} ใบ`}</strong>
           <div style="font-size:12px;margin-top:2px;color:#cbd5e1;">
             ผ่านการตรวจสอบ: <b>${passCount}/${CARD_DATABASE.length} ใบ</b> · Schema & เด็คมาตรฐาน: <b>${schemaReport.ok ? 'ปกติ (0 issues)' : `พบ ${schemaReport.issues.length} รายการ`}</b>
           </div>
