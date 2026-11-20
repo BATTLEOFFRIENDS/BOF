@@ -3,7 +3,17 @@
 // หน้าตาอยู่ใน css/deck-themes.css · เปิด index.html?fxpreview เพื่อกดดูทุกเอฟเฟกต์บนกระดานจริง
 (function () {
   const COLORS = { L01: '#3ee08f', L02: '#f0a347', L03: '#e8c977', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#4fa3e3', L09: '#dc2626' };
-  const FULL_MATS = { L01: 'deku', L03: 'doom', L08: 'rangdao' }; // เด็คที่มีสนามเต็มรูปแบบ (ที่เหลือได้แค่ออร่าสีประจำเด็ค)
+  const FULL_MATS = {
+    L01: 'deku',
+    L02: 'nuea',
+    L03: 'doom',
+    L04: 'dino',
+    L05: 'demon',
+    L06: 'oat',
+    L07: 'madoka',
+    L08: 'rangdao',
+    L09: 'killer'
+  }; // ครบทั้ง 9 เด็คมีสนามเต็มรูปแบบประจำเด็คตัวเอง
   const DOOM_PAIR = ['DM01', 'DM02']; // โอนามิ + โรเซเลีย (คู่หู)
   const GAUGE_STEP = 25;               // บัฟฮีโร่ 1 ครั้ง = เกจฟูลคาวล์ +25%
   const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -56,6 +66,83 @@
     <circle cx="850" cy="240" r="3" fill="#e0f2fe"/>
   </svg>`;
 
+  const KILLER_FX = `<svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="killer-mist">
+    <path class="killer-claw c1" d="M0 0 L160 90 L210 70 L280 180" stroke="#dc2626" stroke-width="2.5" fill="none" opacity="0.6"/>
+    <path class="killer-claw c2" d="M1000 0 L840 90 L790 70 L720 180" stroke="#dc2626" stroke-width="2.5" fill="none" opacity="0.6"/>
+    <line class="killer-slash s1" x1="280" y1="40" x2="380" y2="240" stroke="#ef4444" stroke-width="2" stroke-dasharray="8 6"/>
+    <line class="killer-slash s2" x1="310" y1="30" x2="410" y2="250" stroke="#b91c1c" stroke-width="2.8"/>
+    <line class="killer-slash s3" x1="340" y1="50" x2="440" y2="230" stroke="#ef4444" stroke-width="2" stroke-dasharray="10 4"/>
+    <line class="killer-slash s4" x1="680" y1="50" x2="580" y2="230" stroke="#ef4444" stroke-width="2" stroke-dasharray="8 6"/>
+    <line class="killer-slash s5" x1="710" y1="30" x2="610" y2="250" stroke="#b91c1c" stroke-width="2.8"/>
+    <line class="killer-slash s6" x1="740" y1="40" x2="640" y2="240" stroke="#ef4444" stroke-width="2" stroke-dasharray="10 4"/>
+    <circle cx="280" cy="180" r="4" fill="#dc2626" filter="drop-shadow(0 0 6px #ef4444)"/>
+    <circle cx="720" cy="180" r="4" fill="#dc2626" filter="drop-shadow(0 0 6px #ef4444)"/>
+    <circle cx="500" cy="150" r="5" fill="#7f1d1d" filter="drop-shadow(0 0 10px #dc2626)"/>
+  </svg>`;
+
+  const MADOKA_FX = `<svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="madoka-magic">
+    <g transform="translate(500,150)" class="magic-circle">
+      <circle r="120" stroke="#f472b6" stroke-width="1.8" fill="none" opacity="0.65"/>
+      <circle r="100" stroke="#ec4899" stroke-width="1.2" stroke-dasharray="6 6" fill="none" opacity="0.8"/>
+      <circle r="60" stroke="#fbcfe8" stroke-width="1" fill="none" opacity="0.7"/>
+      <polygon points="0,-95 24,-24 90,-24 38,18 56,86 0,46 -56,86 -38,18 -90,-24 -24,-24" stroke="#f472b6" stroke-width="1.2" fill="none" opacity="0.6"/>
+    </g>
+    <path class="madoka-ribbon r1" d="M0 120 Q240 60 500 120 T1000 120" stroke="#f472b6" stroke-width="1.8" fill="none" opacity="0.5"/>
+    <path class="madoka-ribbon r2" d="M0 180 Q240 240 500 180 T1000 180" stroke="#ec4899" stroke-width="1.4" stroke-dasharray="4 6" fill="none" opacity="0.45"/>
+    <circle cx="200" cy="90" r="3.5" fill="#fff" filter="drop-shadow(0 0 6px #f472b6)"/>
+    <circle cx="800" cy="90" r="3.5" fill="#fff" filter="drop-shadow(0 0 6px #f472b6)"/>
+    <circle cx="350" cy="210" r="4" fill="#fbcfe8" filter="drop-shadow(0 0 8px #ec4899)"/>
+    <circle cx="650" cy="210" r="4" fill="#fbcfe8" filter="drop-shadow(0 0 8px #ec4899)"/>
+  </svg>`;
+
+  const DEMON_FX = `<svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="demon-flame">
+    <g transform="translate(500,150)" class="demon-seal">
+      <circle r="110" stroke="#dc2626" stroke-width="2" fill="none" opacity="0.7"/>
+      <circle r="92" stroke="#ef4444" stroke-width="1.2" stroke-dasharray="8 4" fill="none" opacity="0.6"/>
+      <polygon points="0,-90 53,73 -86,-28 86,-28 -53,73" stroke="#b91c1c" stroke-width="1.5" fill="none" opacity="0.65"/>
+    </g>
+    <path class="demon-fire f1" d="M100 300 Q150 200 180 230 T260 170 T340 300" stroke="#ef4444" stroke-width="2" fill="none" opacity="0.5"/>
+    <path class="demon-fire f2" d="M660 300 Q740 170 820 230 T900 300" stroke="#dc2626" stroke-width="2" fill="none" opacity="0.5"/>
+    <circle cx="180" cy="230" r="4" fill="#fca5a5" filter="drop-shadow(0 0 8px #dc2626)"/>
+    <circle cx="820" cy="230" r="4" fill="#fca5a5" filter="drop-shadow(0 0 8px #dc2626)"/>
+  </svg>`;
+
+  const NUEA_FX = `<svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="nuea-slash">
+    <path class="nuea-blade b1" d="M50 80 Q250 40 500 150 T950 220" stroke="#f59e0b" stroke-width="2.8" fill="none" opacity="0.65"/>
+    <path class="nuea-blade b2" d="M100 220 Q400 160 700 80 T900 120" stroke="#fbbf24" stroke-width="2" stroke-dasharray="10 5" fill="none" opacity="0.5"/>
+    <line x1="220" y1="90" x2="300" y2="210" stroke="#d97706" stroke-width="3" stroke-linecap="round"/>
+    <line x1="250" y1="80" x2="330" y2="200" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="280" y1="90" x2="360" y2="210" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="330" cy="200" r="4" fill="#fef3c7" filter="drop-shadow(0 0 6px #f59e0b)"/>
+  </svg>`;
+
+  const DINO_FX = `<svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="dino-lab">
+    <path class="dino-helix h1" d="M50 150 Q150 70 250 150 T450 150 T650 150 T850 150 T950 150" stroke="#84cc16" stroke-width="1.8" fill="none" opacity="0.55"/>
+    <path class="dino-helix h2" d="M50 150 Q150 230 250 150 T450 150 T650 150 T850 150 T950 150" stroke="#eab308" stroke-width="1.8" fill="none" opacity="0.55"/>
+    <path d="M120 70 L180 180 M150 60 L210 170 M180 70 L240 180" stroke="#a3e635" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <path d="M880 70 L820 180 M850 60 L790 170 M820 70 L760 180" stroke="#a3e635" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  </svg>`;
+
+  const OAT_FX = `<svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="oat-comic">
+    <line x1="0" y1="40" x2="300" y2="120" stroke="#fb923c" stroke-width="3" stroke-dasharray="12 6" opacity="0.55"/>
+    <line x1="1000" y1="40" x2="700" y2="120" stroke="#f43f5e" stroke-width="3" stroke-dasharray="12 6" opacity="0.55"/>
+    <line x1="0" y1="260" x2="280" y2="190" stroke="#fbbf24" stroke-width="2.5" opacity="0.5"/>
+    <line x1="1000" y1="260" x2="720" y2="190" stroke="#ec4899" stroke-width="2.5" opacity="0.5"/>
+    <polygon points="500,80 520,130 570,120 540,150 580,180 530,170 510,220 490,170 440,180 470,150 440,120 490,130" stroke="#fb923c" stroke-width="2" fill="none" opacity="0.6"/>
+  </svg>`;
+
+  const MAT_MAP = {
+    deku: DEKU_FX,
+    nuea: NUEA_FX,
+    doom: DOOM_FX,
+    dino: DINO_FX,
+    demon: DEMON_FX,
+    oat: OAT_FX,
+    madoka: MADOKA_FX,
+    rangdao: RANGDAO_FX,
+    killer: KILLER_FX
+  };
+
   function fxLayer(half, kind) {
     let el = half.querySelector(':scope > .deck-mat-fx');
     if (el && el.dataset.kind === kind) return el;
@@ -65,7 +152,7 @@
     el.className = 'deck-mat-fx';
     el.dataset.kind = kind;
     el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = kind === 'deku' ? DEKU_FX : (kind === 'rangdao' ? RANGDAO_FX : DOOM_FX);
+    el.innerHTML = MAT_MAP[kind] || DOOM_FX;
     half.prepend(el);
     return el;
   }

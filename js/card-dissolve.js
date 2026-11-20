@@ -31,8 +31,8 @@
   // ---------- เด็ค / ความแรง ----------
   function deckOf(card, owner) {
     const id = String((card && (card.futureBaseId || card.id)) || '');
-    if (/^KL/.test(id)) return 'killer';
-    if (/^RD/.test(id)) return 'rangdao';
+    if (/^KL/.test(id) || /^BT02_(09|1[0-5])$/.test(id)) return 'killer';
+    if (/^RD/.test(id) || /^BT02_0[1-8]$/.test(id)) return 'rangdao';
     if (/^MD/.test(id)) return 'madoka';
     if (/^DM[MS]/.test(id)) return 'demon';
     if (/^DN/.test(id)) return 'dino';
@@ -1046,9 +1046,148 @@
         }
         later(900, c.done);
       });
+    // ---------------- คิลเลอร์ / ENTITY: กรงเล็บกรีด + เลือดสาด + หมอกดำ ----------------
+    killer(c) {
+      const RED = '220, 38, 38', DARK = '15, 0, 5';
+      vignette(1900, 'rgba(25, 0, 5, .82)');
+      c.tex = cardTexture(c.el, c.W, c.H);
+      const pre = c.ghost.animate([
+        { filter: 'none', transform: 'none' },
+        { filter: 'brightness(1.6) drop-shadow(0 0 16px #dc2626)', transform: 'scale(1.02) translate(-2px, 1px)' },
+        { filter: 'brightness(2.2) saturate(1.8) drop-shadow(0 0 24px #ef4444)', transform: 'scale(1.05) translate(2px, -1px)' }
+      ], { duration: 380, fill: 'forwards' });
+
+      const slashes = [
+        { x1: c.rect.left + c.W * .1, y1: c.rect.top + c.H * .15, x2: c.rect.right - c.W * .1, y2: c.rect.bottom - c.H * .2 },
+        { x1: c.rect.left + c.W * .2, y1: c.rect.top + c.H * .05, x2: c.rect.right, y2: c.rect.bottom - c.H * .35 },
+        { x1: c.rect.left, y1: c.rect.top + c.H * .25, x2: c.rect.right - c.W * .2, y2: c.rect.bottom - c.H * .1 }
+      ];
+      addDraw({ life: .45, draw(g, k) {
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = k < .4 ? k / .4 : 1 - (k - .4) / .6;
+        g.strokeStyle = '#dc2626';
+        g.shadowColor = '#ef4444';
+        g.shadowBlur = 14;
+        g.lineWidth = 3.5;
+        g.beginPath();
+        slashes.forEach(s => {
+          const mx = s.x1 + (s.x2 - s.x1) * Math.min(1, k * 2.5);
+          const my = s.y1 + (s.y2 - s.y1) * Math.min(1, k * 2.5);
+          g.moveTo(s.x1, s.y1); g.lineTo(mx, my);
+        });
+        g.stroke();
+      } });
+
+      later(400, () => {
+        settle(pre); c.ghost.style.visibility = 'hidden';
+        buzz(34); shake(true);
+        flash(c.cx, c.cy, c.W * 1.1, RED, .35);
+        shockwave(c.cx, c.cy, 7, c.W * 2.1, RED, .45, 5);
+        spikeBurst(c.cx, c.cy, c.W * 1.4, RED, .4, 16, 0, '#ffffff');
+
+        shardsOf(c.W, c.H, 4, 4).forEach(s => {
+          c.pushPiece(s, {
+            kind: 'shard',
+            vx: (s.cx - c.cx) * rnd(1.4, 2.8),
+            vy: (s.cy - c.cy) * rnd(1.4, 2.8) - rnd(30, 80),
+            drag: 1.5,
+            edge: 'rgba(220, 38, 38, .95)', edgeW: 1.8, tint: 'rgba(127, 29, 29, .35)'
+          });
+        });
+
+        for (let i = 0; i < 24 * c.n; i++) {
+          const a = rnd(0, TAU), v = rnd(120, 380);
+          addPart({
+            kind: 'glow', x: c.cx, y: c.cy,
+            vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20,
+            drag: 2.1, life: rnd(.5, 1.0), size: rnd(4, 9),
+            rgb: Math.random() < .4 ? '255, 100, 100' : RED
+          });
+        }
+        for (let i = 0; i < 16 * c.n; i++) {
+          const a = rnd(0, TAU), v = rnd(50, 160);
+          addPart({
+            kind: 'smoke', x: c.cx + rnd(-20, 20), y: c.cy + rnd(-20, 20),
+            vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30,
+            drag: 1.8, life: rnd(.8, 1.4), size: rnd(12, 22), grow: 1.6,
+            rgb: DARK, alpha: .9
+          });
+        }
+        later(900, c.done);
+      });
+    },
+
+    // ---------------- มาโดกะ: วงแหวนเวทมนตร์ + ผลึกแก้วชมพูแตก ----------------
+    madoka(c) {
+      const PINK = '244, 114, 182', MAGENTA = '236, 72, 153', WH = '255, 240, 248';
+      vignette(1800, 'rgba(30, 8, 24, .75)');
+      c.tex = cardTexture(c.el, c.W, c.H);
+      const pre = c.ghost.animate([
+        { filter: 'none', transform: 'none' },
+        { filter: 'brightness(1.9) drop-shadow(0 0 16px #f472b6)', transform: 'scale(1.03)' },
+        { filter: 'brightness(2.5) saturate(1.6) drop-shadow(0 0 24px #ec4899)', transform: 'scale(1.06)' }
+      ], { duration: 400, fill: 'forwards' });
+
+      addDraw({ life: .7, draw(g, k) {
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = k < .5 ? k * 2 : 1 - (k - .5) * 2;
+        const r = c.W * (0.3 + k * 0.8);
+        g.strokeStyle = '#f472b6';
+        g.shadowColor = '#ec4899';
+        g.shadowBlur = 16;
+        g.lineWidth = 2.2;
+        g.beginPath(); g.arc(c.cx, c.cy, r, 0, TAU); g.stroke();
+        g.lineWidth = 1.2;
+        g.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const a = (i * 144 - 90 + k * 90) * Math.PI / 180;
+          const x = c.cx + r * 0.85 * Math.cos(a), y = c.cy + r * 0.85 * Math.sin(a);
+          i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+        }
+        g.closePath(); g.stroke();
+      } });
+
+      later(420, () => {
+        settle(pre); c.ghost.style.visibility = 'hidden';
+        buzz(28); shake(false);
+        flash(c.cx, c.cy, c.W * 1.0, PINK, .35);
+        shockwave(c.cx, c.cy, 6, c.W * 2.0, PINK, .45, 4);
+        shockwave(c.cx, c.cy, 4, c.W * 2.5, MAGENTA, .55, 2.5, .05);
+        spikeBurst(c.cx, c.cy, c.W * 1.3, PINK, .38, 14, 0, WH);
+
+        const CRYSTAL_COLS = ['#f472b6', '#ec4899', '#fbcfe8', '#ffffff', '#db2777'];
+        shardsOf(c.W, c.H, 4, 5).forEach(s => {
+          c.pushPiece(s, {
+            kind: 'shard',
+            vx: (s.cx - c.cx) * rnd(1.2, 2.4),
+            vy: (s.cy - c.cy) * rnd(1.2, 2.4) - rnd(25, 65),
+            drag: 1.6,
+            edge: 'rgba(244, 114, 182, .95)', edgeW: 1.6, tint: 'rgba(236, 72, 153, .28)'
+          });
+        });
+
+        for (let i = 0; i < 22 * c.n; i++) {
+          const a = rnd(0, TAU), v = rnd(110, 360);
+          addPart({
+            kind: 'star', x: c.cx, y: c.cy,
+            vx: Math.cos(a) * v, vy: Math.sin(a) * v - 25,
+            drag: 2.0, life: rnd(.5, 1.0), size: rnd(4, 9),
+            fill: CRYSTAL_COLS[i % CRYSTAL_COLS.length], rot: rnd(0, 6), vr: rnd(-8, 8)
+          });
+        }
+        for (let i = 0; i < 18 * c.n; i++) {
+          const a = rnd(0, TAU), v = rnd(50, 180);
+          addPart({
+            kind: 'glow', x: c.cx, y: c.cy,
+            vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+            drag: 2.1, life: rnd(.6, 1.2), size: rnd(2.5, 5),
+            rgb: i % 2 ? PINK : MAGENTA
+          });
+        }
+        later(900, c.done);
+      });
     },
   };
-  SCENES.madoka = SCENES.doom;
 
   // ============================================================================
   // deck = ธีมของผู้ทำลาย (game.js ส่งมา) · ไม่ส่ง = ธีมของการ์ดเอง

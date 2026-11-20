@@ -22,6 +22,7 @@
     oat: { rgb: '255, 105, 180', core: '#fff0f8', glow: '#ff69b4' },
     madoka: { rgb: '244, 114, 182', core: '#fdf2f8', glow: '#ec4899' },
     rangdao: { rgb: '56, 189, 248', core: '#f0f9ff', glow: '#38bdf8' },
+    killer: { rgb: '220, 38, 38', core: '#fff0f0', glow: '#dc2626' },
   };
   const OAT_COLORS = ['#ff69b4', '#ffd23f', '#3ec7ff', '#9b5cff', '#5ef2a0'];
   const amount = () => (F().small() ? .6 : 1) * (F().lite() ? .7 : 1);
@@ -73,6 +74,37 @@
       const cx = a.x + (b.x - a.x) * m, cy = a.y + (b.y - a.y) * m;
       for (let i = 0; i < 4; i++) {
         addPart({ kind: 'star', x: cx + rnd(-15, 15), y: cy + rnd(-15, 15), vx: rnd(-80, 80), vy: rnd(-80, 80), drag: 3, life: rnd(.2, .4), size: rnd(3, 5), fill: '#38bdf8', rot: rnd(0, 6), vr: rnd(-6, 6) });
+      }
+    },
+    madoka(a, b, p) {
+      const { addDraw, addPart } = F();
+      addDraw({ life: TRAIL, draw(g, k) {
+        g.globalCompositeOperation = 'lighter'; g.globalAlpha = fadeOut(k);
+        beam(g, a, b, reach(k), 4.5, '#fff0f8', '#ec4899');
+      } });
+      const m = reach(0.5);
+      const cx = a.x + (b.x - a.x) * m, cy = a.y + (b.y - a.y) * m;
+      for (let i = 0; i < 4; i++) {
+        addPart({ kind: 'star', x: cx + rnd(-12, 12), y: cy + rnd(-12, 12), vx: rnd(-70, 70), vy: rnd(-70, 70), drag: 3, life: rnd(.2, .4), size: rnd(3, 5), fill: '#f472b6', rot: rnd(0, 6), vr: rnd(-6, 6) });
+      }
+    },
+    killer(a, b, p) {
+      const { addDraw, addPart } = F();
+      addDraw({ life: TRAIL, draw(g, k) {
+        g.globalCompositeOperation = 'lighter'; g.globalAlpha = fadeOut(k);
+        const m = reach(k);
+        [-6, 0, 6].forEach(offset => {
+          const dx = -(b.y - a.y), dy = (b.x - a.x);
+          const len = Math.hypot(dx, dy) || 1;
+          const ox = (dx / len) * offset, oy = (dy / len) * offset;
+          const aOff = { x: a.x + ox, y: a.y + oy }, bOff = { x: b.x + ox, y: b.y + oy };
+          beam(g, aOff, bOff, m, 2.8, '#ffe4e6', '#dc2626');
+        });
+      } });
+      const m = reach(0.5);
+      const cx = a.x + (b.x - a.x) * m, cy = a.y + (b.y - a.y) * m;
+      for (let i = 0; i < 4; i++) {
+        addPart({ kind: 'smoke', x: cx + rnd(-10, 10), y: cy + rnd(-10, 10), vx: rnd(-40, 40), vy: rnd(-40, 40), drag: 2.5, life: rnd(.25, .45), size: rnd(6, 12), rgb: '20, 0, 5', alpha: .8 });
       }
     },
   };
@@ -147,6 +179,37 @@
         addPart({ kind: 'star', x: b.x, y: b.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, drag: 3.5, life: rnd(.35, .6), size: rnd(4, 8), fill: STAR_COLS[i % STAR_COLS.length], rot: rnd(0, 6), vr: rnd(-8, 8) });
       }
     },
+    madoka(b, p, heavy) {
+      const { addDraw, addPart, shockwave, flash, spikeBurst } = F(), n = amount(), R = heavy ? 54 : 40;
+      flash(b.x, b.y, heavy ? 85 : 60, '255, 200, 230', .3);
+      shockwave(b.x, b.y, 7, R * 1.5, p.rgb, .35, 3.5);
+      spikeBurst(b.x, b.y, R * 1.2, p.rgb, .3, 12, 0, '#ffffff');
+      const PINK_COLS = ['#f472b6', '#ec4899', '#db2777', '#ffffff', '#fbcfe8'];
+      for (let i = 0; i < Math.round((heavy ? 16 : 10) * n); i++) {
+        const ang = rnd(0, Math.PI * 2), v = rnd(160, 380);
+        addPart({ kind: 'star', x: b.x, y: b.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, drag: 3.2, life: rnd(.3, .6), size: rnd(4, 8), fill: PINK_COLS[i % PINK_COLS.length], rot: rnd(0, 6), vr: rnd(-8, 8) });
+      }
+    },
+    killer(b, p, heavy) {
+      const { addDraw, addPart, shockwave, flash, spikeBurst } = F(), n = amount(), R = heavy ? 56 : 42;
+      flash(b.x, b.y, heavy ? 90 : 65, '255, 80, 80', .32);
+      shockwave(b.x, b.y, 8, R * 1.7, p.rgb, .35, 4);
+      spikeBurst(b.x, b.y, R * 1.3, p.rgb, .28, 14, 0, '#ffffff');
+      [-12, 0, 12].forEach((o, i) => {
+        const A = { x: b.x - R * .6 + o, y: b.y - R * .7 }, B = { x: b.x + R * .6 + o, y: b.y + R * .7 };
+        addDraw({ life: .35, delay: i * .025, draw(g, k) {
+          g.globalAlpha = 1 - Math.max(0, (k - .4) / .6);
+          const m = Math.min(1, k / .25), x = A.x + (B.x - A.x) * m, y = A.y + (B.y - A.y) * m;
+          g.lineCap = 'round'; g.shadowColor = '#dc2626'; g.shadowBlur = 14;
+          g.strokeStyle = '#ffe4e6'; g.lineWidth = 4.5; g.beginPath(); g.moveTo(A.x, A.y); g.lineTo(x, y); g.stroke();
+          g.shadowBlur = 0; g.strokeStyle = '#991b1b'; g.lineWidth = 2; g.stroke();
+        } });
+      });
+      for (let i = 0; i < Math.round((heavy ? 18 : 12) * n); i++) {
+        const ang = rnd(0, Math.PI * 2), v = rnd(180, 400);
+        addPart({ kind: 'streak', x: b.x, y: b.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, drag: 3.5, life: rnd(.25, .5), size: rnd(1.4, 2.4), rgb: '220, 38, 38' });
+      }
+    },
   };
 
   function strike(deck, a, b, heavy) {
@@ -198,6 +261,23 @@
       }
       for (let i = 0; i < 12 * n; i++) {
         addPart({ kind: 'streak', x: c.l + rnd(0, c.w), y: c.t + c.h * rnd(.5, 1), vx: rnd(-20, 20), vy: rnd(-280, -120), drag: 2.2, life: rnd(.3, .5), size: rnd(1.2, 2.2), rgb: '168, 85, 247' });
+      }
+    },
+    madoka(c, p, n, { addPart, shockwave }) {
+      shockwave(c.cx, c.cy, c.R * .4, c.R * 1.9, '244, 114, 182', .45, 3);
+      const PINK_COLS = ['#f472b6', '#ec4899', '#ffffff'];
+      for (let i = 0; i < 16 * n; i++) {
+        const ang = rnd(0, Math.PI * 2), r = c.R * rnd(0.5, 1.4);
+        addPart({ kind: 'star', x: c.cx + Math.cos(ang) * r, y: c.cy + Math.sin(ang) * r, vx: Math.cos(ang) * rnd(20, 80), vy: Math.sin(ang) * rnd(20, 80) - 30, drag: 2, life: rnd(.4, .7), size: rnd(4, 7), fill: PINK_COLS[i % PINK_COLS.length], rot: rnd(0, 6), vr: rnd(-6, 6) });
+      }
+    },
+    killer(c, p, n, { addPart, shockwave }) {
+      shockwave(c.cx, c.cy, c.R * .3, c.R * 1.8, '220, 38, 38', .4, 4);
+      for (let i = 0; i < 18 * n; i++) {
+        addPart({ kind: 'glow', x: c.l + rnd(0, c.w), y: c.t + c.h * rnd(.5, 1), vx: rnd(-25, 25), vy: rnd(-240, -90), wob: rnd(0, 6), life: rnd(.35, .65), size: rnd(2.5, 5), rgb: '220, 38, 38' });
+      }
+      for (let i = 0; i < 8 * n; i++) {
+        addPart({ kind: 'smoke', x: c.l + rnd(0, c.w), y: c.t + c.h, vx: rnd(-30, 30), vy: rnd(-60, -20), life: rnd(.6, 1.0), size: rnd(9, 16), grow: 1.4, rgb: '18, 2, 4', alpha: .8 });
       }
     },
   };

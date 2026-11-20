@@ -78,6 +78,190 @@
   border-color: rgba(56, 189, 248, .55);
 }
 
+/* ---------- สนามคิลเลอร์ (L09): ดินแดนหมอกเอนทิตี ---------- */
+#bof-game-arena .mat-half[data-mat="killer"] {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(220, 38, 38, 0.22), transparent 70%),
+    linear-gradient(180deg, rgba(30, 4, 8, .88), rgba(16, 2, 4, .95));
+  border-color: rgba(220, 38, 38, .55);
+  box-shadow: inset 0 0 40px rgba(220, 38, 38, 0.2);
+}
+.deck-mat-fx[data-kind="killer"] .killer-claw {
+  animation: killer-claw-pulse 3.5s ease-in-out infinite alternate;
+}
+.deck-mat-fx[data-kind="killer"] .killer-slash {
+  animation: killer-slash-flicker 4s ease-in-out infinite alternate;
+}
+@keyframes killer-claw-pulse {
+  0% { opacity: 0.35; transform: scale(0.97); }
+  100% { opacity: 0.85; filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.85)); transform: scale(1.02); }
+}
+@keyframes killer-slash-flicker {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.75; filter: drop-shadow(0 0 6px #ef4444); }
+}
+:where(.mat-half[data-mat="killer"]) .slot {
+  border-color: rgba(220, 38, 38, .5);
+  background: rgba(35, 5, 10, .75);
+}
+:where(.mat-half[data-mat="killer"]) .slot:hover {
+  border-color: rgba(239, 68, 68, .8);
+  box-shadow: 0 0 14px rgba(220, 38, 38, .55);
+}
+.mat-half[data-mat="killer"] .info-box {
+  border-color: rgba(220, 38, 38, .6);
+}
+
+/* ---------- สนามมาโดกะ (L07): วงแหวนเวทมนตร์สาวน้อยเวทมนตร์ ---------- */
+#bof-game-arena .mat-half[data-mat="madoka"] {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(244, 114, 182, 0.2), transparent 70%),
+    linear-gradient(180deg, rgba(32, 8, 26, .85), rgba(18, 4, 15, .94));
+  border-color: rgba(244, 114, 182, .55);
+  box-shadow: inset 0 0 36px rgba(244, 114, 182, 0.18);
+}
+.deck-mat-fx[data-kind="madoka"] .magic-circle {
+  animation: madoka-spin 25s linear infinite;
+  transform-origin: 500px 150px;
+}
+.deck-mat-fx[data-kind="madoka"] .madoka-ribbon {
+  animation: madoka-glow 3.5s ease-in-out infinite alternate;
+}
+@keyframes madoka-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes madoka-glow {
+  0% { opacity: 0.3; }
+  100% { opacity: 0.8; filter: drop-shadow(0 0 7px #f472b6); }
+}
+:where(.mat-half[data-mat="madoka"]) .slot {
+  border-color: rgba(244, 114, 182, .5);
+  background: rgba(38, 12, 32, .75);
+}
+:where(.mat-half[data-mat="madoka"]) .slot:hover {
+  border-color: rgba(236, 72, 153, .8);
+  box-shadow: 0 0 14px rgba(244, 114, 182, .55);
+}
+.mat-half[data-mat="madoka"] .info-box {
+  border-color: rgba(244, 114, 182, .6);
+}
+
+/* ---------- สนามปีศาจ (L05): วงแหวนเปลวเพลิงนรก ---------- */
+#bof-game-arena .mat-half[data-mat="demon"] {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(192, 132, 252, 0.18), transparent 70%),
+    linear-gradient(180deg, rgba(28, 6, 36, .86), rgba(15, 2, 20, .94));
+  border-color: rgba(192, 132, 252, .5);
+  box-shadow: inset 0 0 36px rgba(192, 132, 252, 0.16);
+}
+.deck-mat-fx[data-kind="demon"] .demon-seal {
+  animation: demon-pulse 5s ease-in-out infinite alternate;
+}
+.deck-mat-fx[data-kind="demon"] .demon-fire {
+  animation: demon-flicker 3s ease-in-out infinite alternate;
+}
+@keyframes demon-pulse {
+  0% { opacity: 0.4; }
+  100% { opacity: 0.85; filter: drop-shadow(0 0 8px rgba(192, 132, 252, 0.8)); }
+}
+@keyframes demon-flicker {
+  0% { opacity: 0.3; transform: scaleY(0.9); }
+  100% { opacity: 0.75; transform: scaleY(1.05); filter: drop-shadow(0 0 6px #dc2626); }
+}
+:where(.mat-half[data-mat="demon"]) .slot {
+  border-color: rgba(192, 132, 252, .45);
+  background: rgba(30, 8, 42, .75);
+}
+:where(.mat-half[data-mat="demon"]) .slot:hover {
+  border-color: rgba(220, 38, 38, .75);
+  box-shadow: 0 0 14px rgba(192, 132, 252, .5);
+}
+.mat-half[data-mat="demon"] .info-box {
+  border-color: rgba(192, 132, 252, .55);
+}
+
+/* ---------- สนามขุนเหนือ (L02): คมดาบพยัคฆ์ทอง ---------- */
+#bof-game-arena .mat-half[data-mat="nuea"] {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(240, 163, 71, 0.2), transparent 70%),
+    linear-gradient(180deg, rgba(34, 18, 6, .86), rgba(18, 9, 3, .94));
+  border-color: rgba(240, 163, 71, .55);
+  box-shadow: inset 0 0 36px rgba(240, 163, 71, 0.16);
+}
+.deck-mat-fx[data-kind="nuea"] .nuea-blade {
+  animation: nuea-glow 3.5s ease-in-out infinite alternate;
+}
+@keyframes nuea-glow {
+  0% { opacity: 0.35; }
+  100% { opacity: 0.85; filter: drop-shadow(0 0 8px #f59e0b); }
+}
+:where(.mat-half[data-mat="nuea"]) .slot {
+  border-color: rgba(240, 163, 71, .45);
+  background: rgba(42, 22, 8, .75);
+}
+:where(.mat-half[data-mat="nuea"]) .slot:hover {
+  border-color: rgba(251, 191, 36, .8);
+  box-shadow: 0 0 14px rgba(240, 163, 71, .5);
+}
+.mat-half[data-mat="nuea"] .info-box {
+  border-color: rgba(240, 163, 71, .55);
+}
+
+/* ---------- สนามไดโน (L04): ห้องทดลองฟอสซิลอำพัน ---------- */
+#bof-game-arena .mat-half[data-mat="dino"] {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(163, 230, 53, 0.18), transparent 70%),
+    linear-gradient(180deg, rgba(22, 32, 6, .86), rgba(11, 18, 3, .94));
+  border-color: rgba(163, 230, 53, .5);
+  box-shadow: inset 0 0 36px rgba(163, 230, 53, 0.15);
+}
+.deck-mat-fx[data-kind="dino"] .dino-helix {
+  animation: dino-pulse 4s ease-in-out infinite alternate;
+}
+@keyframes dino-pulse {
+  0% { opacity: 0.35; }
+  100% { opacity: 0.85; filter: drop-shadow(0 0 6px #a3e635); }
+}
+:where(.mat-half[data-mat="dino"]) .slot {
+  border-color: rgba(163, 230, 53, .45);
+  background: rgba(26, 38, 8, .75);
+}
+:where(.mat-half[data-mat="dino"]) .slot:hover {
+  border-color: rgba(190, 242, 100, .8);
+  box-shadow: 0 0 14px rgba(163, 230, 53, .5);
+}
+.mat-half[data-mat="dino"] .info-box {
+  border-color: rgba(163, 230, 53, .55);
+}
+
+/* ---------- สนามไอโอ๊ต (L06): แอคชั่นคอมิกป๊อป ---------- */
+#bof-game-arena .mat-half[data-mat="oat"] {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(251, 146, 60, 0.2), transparent 70%),
+    linear-gradient(180deg, rgba(36, 14, 6, .86), rgba(20, 7, 3, .94));
+  border-color: rgba(251, 146, 60, .55);
+  box-shadow: inset 0 0 36px rgba(251, 146, 60, 0.16);
+}
+.deck-mat-fx[data-kind="oat"] line,
+.deck-mat-fx[data-kind="oat"] polygon {
+  animation: oat-burst 2.8s ease-in-out infinite alternate;
+}
+@keyframes oat-burst {
+  0% { opacity: 0.35; transform: scale(0.96); }
+  100% { opacity: 0.85; filter: drop-shadow(0 0 8px #fb923c); transform: scale(1.04); }
+}
+:where(.mat-half[data-mat="oat"]) .slot {
+  border-color: rgba(251, 146, 60, .45);
+  background: rgba(44, 18, 8, .75);
+}
+:where(.mat-half[data-mat="oat"]) .slot:hover {
+  border-color: rgba(253, 186, 116, .8);
+  box-shadow: 0 0 14px rgba(251, 146, 60, .5);
+}
+.mat-half[data-mat="oat"] .info-box {
+  border-color: rgba(251, 146, 60, .55);
+}
+
 /* ---------- ออร่าเทิร์น (ทุกเด็ค ใช้ --deck-c) ---------- */
 #bof-game-arena .mat-half.turn-active { border-color: var(--deck-c); box-shadow: 0 0 18px color-mix(in srgb, var(--deck-c) 45%, transparent), inset 0 0 26px color-mix(in srgb, var(--deck-c) 22%, transparent); animation: aura-breathe 2.8s ease-in-out infinite; }
 #bof-game-arena .mat-half.turn-idle { filter: brightness(.78) saturate(.85); }
@@ -119,7 +303,9 @@
 .mat-half[data-back="L04"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%231d2a06' stroke='%23a3e635' stroke-width='2'/%3E%3Cpath d='M12 30 Q14 18 20 9 M18 31 Q20 20 26 11 M24 32 Q26 22 31 15' fill='none' stroke='%23d9f99d' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E"); }
 .mat-half[data-back="L05"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%232a0b3d' stroke='%23c084fc' stroke-width='2'/%3E%3Cpath d='M11 10 Q13 20 20 22 Q27 20 29 10 Q26 16 20 16 Q14 16 11 10Z M15 25 Q20 33 25 25' fill='%23e9d5ff' stroke='%23e9d5ff' stroke-width='1.2'/%3E%3C/svg%3E"); }
 .mat-half[data-back="L06"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%23331405' stroke='%23fb923c' stroke-width='2'/%3E%3Cpath d='M20 20 m0 -2 a2 2 0 1 1 -2 2 a4 4 0 1 1 4 4 a6 6 0 1 1 -6 -6 a8 8 0 1 1 8 8 a10 10 0 0 1 -10 -10' fill='none' stroke='%23fed7aa' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.mat-half[data-back="L07"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%232b0721' stroke='%23f472b6' stroke-width='2'/%3E%3Cpath d='M20 7 Q26 14 26 21 A6 6 0 0 1 14 21 Q14 14 20 7Z' fill='%23fbcfe8' stroke='%23ec4899' stroke-width='1.5'/%3E%3Ccircle cx='20' cy='22' r='2.5' fill='%23ffffff'/%3E%3C/svg%3E"); }
 .mat-half[data-back="L08"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%230b1b36' stroke='%2338bdf8' stroke-width='2'/%3E%3Cpath d='M20 6 L22 17 L33 20 L22 23 L20 34 L18 23 L7 20 L18 17 Z' fill='%237dd3fc' stroke='%2338bdf8' stroke-width='1'/%3E%3Ccircle cx='20' cy='20' r='3' fill='%23ffffff'/%3E%3C/svg%3E"); }
+.mat-half[data-back="L09"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%23240306' stroke='%23dc2626' stroke-width='2'/%3E%3Cpath d='M12 8 L28 32 M28 8 L12 32' stroke='%23ef4444' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='20' r='5' fill='%23dc2626'/%3E%3C/svg%3E"); }
 
 /* ---------- เอฟเฟกต์โจมตี ---------- */
 #deck-attack-fx { position: fixed; inset: 0; pointer-events: none; z-index: 320; }
