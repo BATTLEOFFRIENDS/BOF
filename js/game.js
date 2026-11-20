@@ -28,6 +28,13 @@ function isHanabiOrHibanaCard(c) { return Boolean(c && c.name && (c.name.include
 function isHanabiCard(c) { return Boolean(c && c.name && c.name.includes('ฮานาบิ')); }
 function isHibanaCard(c) { return Boolean(c && c.name && c.name.includes('ฮิบานะ')); }
 function isFusionMonster(c) { return Boolean(c && (c.isFusion || c.id === 'BT02_04' || (c.name && c.name.includes('สปาร์กซี่คอน')))); }
+function isDragonicOverlordTheX(c) {
+  if (!c) return false;
+  if (c.id === 'KG04') return true;
+  if (!c.name) return false;
+  if (c.name.toUpperCase().includes('XENOMORPH')) return false;
+  return /\b(the\s*x)\b/i.test(c.name) || c.name.includes('โอเวอร์ลอร์ด The X') || c.name.includes('โอเวอร์ลอร์ด THE X') || /Dragonic\s*Overlord.*The\s*X/i.test(c.name);
+}
 function hasCardName(card, nameKeyword) { return !!(card && card.name && card.name.includes(nameKeyword)); }
 function hasCardTribe(card, tribeName) {
   if (!card || !tribeName) return false;
@@ -6397,7 +6404,7 @@ function initiatePlayerSpell(handIndex) {
 
   // 🔥 ลีเจี้ยน เมท (KG10): มี The X และ The End ในนรก -> อีกฝ่ายทิ้งมือ 2 ใบ หรือ เสียเลือด 1 HP
   if (spell.id === 'KG10') {
-    const hasTheX = player.graveyard.some(c => c && (c.name.toLowerCase().includes('the x') || c.id === 'KG04'));
+    const hasTheX = player.graveyard.some(c => isDragonicOverlordTheX(c));
     const hasTheEnd = player.graveyard.some(c => c && (c.name.toLowerCase().includes('the end') || c.id === 'KG02'));
     if (!hasTheX || !hasTheEnd) {
       setLog('❌ ต้องมีการ์ดที่มี "the x" และ "the end" ในนรกของคุณอย่างละ 1 ใบก่อน!');
@@ -10361,7 +10368,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (defender.spellQuota.reactionUsed < 1);
 
   const canUseTheXInGrave = !isGraveyardSkillLockedByOpponent(defender)
-    && defender.graveyard.some(c => c && (c.id === 'KG04' || (c.name && c.name.toLowerCase().includes('the x'))))
+    && defender.graveyard.some(c => isDragonicOverlordTheX(c))
     && !defender.kg04UsedThisGame;
 
   const canUseNagisa = defender.hand.some(c => c && c.id === 'MD07')
@@ -10517,7 +10524,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     if (canUseTheXInGrave && (targetType === 'leader' || attackingMonster.power >= 2)) {
       defender.kg04UsedThisGame = true;
-      const xIdx = defender.graveyard.findIndex(c => c && (c.id === 'KG04' || (c.name && c.name.toLowerCase().includes('the x'))));
+      const xIdx = defender.graveyard.findIndex(c => isDragonicOverlordTheX(c));
       if (xIdx !== -1) {
         const xCard = defender.graveyard.splice(xIdx, 1)[0];
         resetCardStateForZoneChange(xCard);
@@ -10888,7 +10895,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         color: '#ef4444',
         onSelect: () => {
           defender.kg04UsedThisGame = true;
-          const xIdx = defender.graveyard.findIndex(c => c && (c.id === 'KG04' || (c.name && c.name.toLowerCase().includes('the x'))));
+          const xIdx = defender.graveyard.findIndex(c => isDragonicOverlordTheX(c));
           if (xIdx === -1) {
             continueNormalAttackFlow();
             return;

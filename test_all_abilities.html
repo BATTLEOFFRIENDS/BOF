@@ -611,6 +611,31 @@
       assert(flesh && flesh.type === 'ReactionSpell' && flesh.tribe === 'ENTITY', 'BT02_15 is ENTITY ReactionSpell');
     });
 
+    testGroup('ENTITY vs KAGERO: THE XENOMORPH (KL07) not confused with The X (KG04)', () => {
+      const { p, a } = initMockGame();
+      const xeno = CARD_DATABASE.find(c => c.id === 'KL07') || { id: 'KL07', name: 'THE XENOMORPH', type: 'Monster' };
+      const theX = CARD_DATABASE.find(c => c.id === 'KG04') || { id: 'KG04', name: 'ดราโกนิค โอเวอร์ลอร์ด The X', type: 'Monster' };
+
+      // Helper check
+      assert(isDragonicOverlordTheX(xeno) === false, 'THE XENOMORPH is NOT identified as The X');
+      assert(isDragonicOverlordTheX(theX) === true, 'KG04 is identified as The X');
+
+      // Check in graveyard during attack reaction check
+      p.graveyard = [createCardInstance(xeno, 'XENO-GRAVE-1')];
+      p.kg04UsedThisGame = false;
+      const canUseTheXInGraveWithXeno = !isGraveyardSkillLockedByOpponent(p)
+        && p.graveyard.some(c => isDragonicOverlordTheX(c))
+        && !p.kg04UsedThisGame;
+      assert(canUseTheXInGraveWithXeno === false, 'THE XENOMORPH in graveyard does not enable The X graveyard reaction');
+
+      // Now add real The X to graveyard
+      p.graveyard.push(createCardInstance(theX, 'THEX-GRAVE-1'));
+      const canUseTheXInGraveWithRealTheX = !isGraveyardSkillLockedByOpponent(p)
+        && p.graveyard.some(c => isDragonicOverlordTheX(c))
+        && !p.kg04UsedThisGame;
+      assert(canUseTheXInGraveWithRealTheX === true, 'KG04 in graveyard correctly enables The X graveyard reaction');
+    });
+
     // ==========================================
     // Summary
     // ==========================================
