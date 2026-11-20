@@ -2388,14 +2388,10 @@
           const badge = item.querySelector('.count-badge');
           if (badge) {
             badge.className = `count-badge ${countInDeck >= ruleMax ? 'maxed' : ''}`;
-            if (ownedCount > 0) {
-              badge.textContent = (window.isMobileUI && window.isMobileUI())
-                ? `${countInDeck}/${ruleMax} · มี ${ownedCount}`
-                : `ใส่ในเด็ค: ${countInDeck}/${ruleMax} (มีในคลัง ${ownedCount} ใบ)`;
+            if (window.isMobileUI && window.isMobileUI()) {
+              badge.textContent = `${countInDeck}/${ruleMax} · มี ${ownedCount}`;
             } else {
-              badge.textContent = (window.isMobileUI && window.isMobileUI())
-                ? `${countInDeck}/${ruleMax}`
-                : `ใส่ในเด็ค: ${countInDeck} / ${ruleMax} ใบ`;
+              badge.textContent = `ใส่ในเด็ค: ${countInDeck}/${ruleMax} (มีในคลัง ${ownedCount} ใบ)`;
             }
           }
 

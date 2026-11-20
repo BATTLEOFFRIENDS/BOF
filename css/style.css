@@ -578,14 +578,17 @@ body {
   margin: 10px 0 8px 0;
 }
 
-.card-pool-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.card-pool-grid,
+#main-pool-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+  gap: 14px 10px;
   background: #11131c;
-  padding: 10px;
+  padding: 12px 10px;
   border-radius: 10px;
   border: 1px solid #282c3e;
+  justify-items: center;
+  align-items: start;
 }
 
 .pool-item,
@@ -593,7 +596,17 @@ body {
   display: flex !important;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+#main-pool-list .card {
+  width: 104px !important;
+  height: 142px !important;
+  aspect-ratio: 750 / 1050;
+  flex-shrink: 0 !important;
+  box-sizing: border-box;
 }
 
 .count-badge {
@@ -604,6 +617,12 @@ body {
   padding: 2px 8px;
   border-radius: 10px;
   border: 1px solid #475569;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .count-badge.maxed {
