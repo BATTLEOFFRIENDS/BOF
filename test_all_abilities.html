@@ -426,14 +426,28 @@
       assert(p.board[1] !== null, 'BT02_03 protects fusion unit from card effect destruction');
     });
 
-    testGroup('BT02: BT02_04 (สปาร์คคอน)', () => {
+    testGroup('BT02: BT02_04 (สปาร์คคอน / สปาร์กซี่คอน)', () => {
       const { p, a } = initMockGame();
       const sp = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_04'), 'SP-1');
       p.board[0] = sp;
 
-      // Immune to opp effects
+      // 1. Immune to opp effects even if opp has Welt (RD06)
+      a.board[0] = createCardInstance(CARD_DATABASE.find(c => c.id === 'RD06'), 'WELT-1');
       destroyBoardMonster(p, 0, false, true);
-      assert(p.board[0] !== null, 'BT02_04 immune to card effect destruction');
+      assert(p.board[0] !== null, 'BT02_04 immune to card effect destruction even when opp has Welt');
+
+      // 2. Immune to REDUCE_POWER
+      const initPower = getEffectivePower(sp, p);
+      EffectEngine.executeSingleStep({ block: 'REDUCE_POWER', target: 'ALL_ENEMIES', amount: 2, duration: 'TURN' }, {
+        caster: a, opponent: p, isAI: true
+      }, () => {});
+      assert(getEffectivePower(sp, p) === initPower, 'BT02_04 unaffected by enemy power reduction (REDUCE_POWER)');
+
+      // 3. Immune to enemy BOUNCE_UNIT
+      EffectEngine.executeSingleStep({ block: 'BOUNCE_UNIT', target: 'OPPONENT', count: 1 }, {
+        caster: a, opponent: p, isAI: true
+      }, () => {});
+      assert(p.board[0] !== null && p.board[0].uid === 'SP-1', 'BT02_04 unaffected by enemy BOUNCE_UNIT');
     });
 
     testGroup('BT02: BT02_05 (ฮิบานะหน้ากากมายา)', () => {
@@ -444,10 +458,26 @@
       a.board[0] = createCardInstance(CARD_DATABASE.find(c => c.id === 'M01'), 'TGT-1');
       a.leader.hp = 6;
 
-      // Hand activation
+      // 1. Hand activation & once per turn
       activateMaskHibanaHandSkill(p, 0);
       assert(a.board[0].isSilencedUntilEndOfTurn === true, 'BT02_05 silences opponent unit');
-      assert(a.leader.hp === 5, 'BT02_05 deals 1 damage to opp leader when Sparkcon is on board');
+      assert(a.leader.hp === 5, 'BT02_05 deals 1 damage to opp leader');
+      assert(p.maskHibanaUsedThisTurn === true, 'BT02_05 marks hand skill as used this turn');
+
+      // 2. After-attack auto skill: returns to hand and calls Hanabi/Hibana
+      const maskAttacker = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_05'), 'MS-ATK');
+      p.board[1] = maskAttacker;
+      p.hibanaMaskAttackUsedThisTurn = false;
+      let afterAttackDone = false;
+      checkHibanaMaskAfterAttack(p, maskAttacker, 1, () => { afterAttackDone = true; });
+      assert(p.hibanaMaskAttackUsedThisTurn === true, 'BT02_05 attack skill marked used this turn');
+      assert(p.board[1] && p.board[1].uid === 'MS-ATK', 'BT02_05 returned to hand and called back to field');
+
+      // 3. Hard once per turn check on after-attack skill
+      const maskAttacker2 = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_05'), 'MS-ATK-2');
+      p.board[1] = maskAttacker2;
+      checkHibanaMaskAfterAttack(p, maskAttacker2, 1, () => {});
+      assert(p.board[1] === maskAttacker2, 'BT02_05 second attack cannot trigger auto return on same turn (hard once per turn)');
     });
 
     testGroup('BT02: BT02_06 (สองตัวป่วน)', () => {

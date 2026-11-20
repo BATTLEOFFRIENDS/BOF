@@ -55,9 +55,16 @@ function isUnknownProtectingAbilities(contestant) {
 function isMonsterImmuneToEnemyEffects(monster, boardOwner = null) {
   if (!monster) return false;
   if (monster.immuneToEnemyEffectsUntilEndOfTurn) return true;
-  if (monster.id === 'BT02_04' || (monster.name && monster.name.includes('สปาร์กซี่คอน'))) return true;
+  if (monster.id === 'BT02_04' || (monster.name && (monster.name.includes('สปาร์กซี่คอน') || monster.name.includes('สปาร์คคอน')))) return true;
+  if (!boardOwner && typeof gameState !== 'undefined') {
+    if (gameState.player && Array.isArray(gameState.player.board) && gameState.player.board.includes(monster)) {
+      boardOwner = gameState.player;
+    } else if (gameState.ai && Array.isArray(gameState.ai.board) && gameState.ai.board.includes(monster)) {
+      boardOwner = gameState.ai;
+    }
+  }
   if (boardOwner && Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(d => d && (d.id === 'BT02_13' || (d.name && d.name.includes('THE NEMESIS')))) && (monster.id === 'BT02_11' || (monster.name && monster.name.includes('PROJECT UROBOROS-NE')))) return true;
-  if (boardOwner && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT02_09') && monster.name && monster.name.includes('THE')) return true;
+  if (boardOwner && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT02_09') && monster.name && (monster.name.toUpperCase().startsWith('THE ') || monster.name.toUpperCase() === 'THE' || (monster.id && monster.id.startsWith('KL')))) return true;
   return false;
 }
 function checkSparkconCancelBeforeAction(caster, card, proceedCallback) {
@@ -604,6 +611,21 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   const oppHasWelt = opp && Array.isArray(opp.board) && opp.board.some(m => m !== null && m.id === 'RD06');
   const hasDanHengIL = Array.isArray(boardOwner.board) && boardOwner.board.some(m => m !== null && m.id === 'RD04');
 
+  if (!isFromBattle) {
+    if (!isByEnemyEffect && typeof gameState !== 'undefined' && gameState.activeTurn) {
+      const activeContestant = gameState.activeTurn === 'player' ? gameState.player : gameState.ai;
+      if (activeContestant !== boardOwner) {
+        isByEnemyEffect = true;
+      }
+    }
+  }
+
+  // สปาร์กซี่คอน (BT02_04) และยูนิทที่ป้องกันผลของฝั่งตรงข้าม: ยูนิทนี้ไม่รับผลความสามารถของฝั่งตรงข้าม
+  if (isByEnemyEffect && isMonsterImmuneToEnemyEffects(monster, boardOwner)) {
+    setLog(`🛡️ [ต่อเนื่อง - ไม่รับผลความสามารถ] "${monster.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
+    return { destroyed: false, reason: 'sparkcon_immune', monster };
+  }
+
   if (isByEnemyEffect && hasDanHengIL && !oppHasWelt) {
     setLog(`🛡️ [DAN HENG จ้าวทรนงคงปฐพี] ปกป้อง "${monster.name}" จากการถูกทำลายด้วยความสามารถ!`);
     return { destroyed: false, reason: 'dan_heng_protection', monster };
@@ -644,11 +666,6 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'megane_protect', monster };
   }
 
-  // สปาร์กซี่คอน (BT02_04): ต่อเนื่อง : ยูนิทนี้ไม่รับผลความสามารถของฝั่งตรงข้าม
-  if (isByEnemyEffect && isMonsterImmuneToEnemyEffects(monster, boardOwner) && !oppHasWelt) {
-    setLog(`🛡️ [ต่อเนื่อง - ไม่รับผลความสามารถ] "${monster.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
-    return { destroyed: false, reason: 'sparkcon_immune', monster };
-  }
 
   // THE KRASUE (BT02_09): ยูนิทที่มีชื่อ "THE" บนสนามเราไม่รับผลจากความสามารถของการ์ดฝั่งตรงข้าม
   if (isByEnemyEffect && !oppHasWelt && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT02_09')) {
@@ -2646,23 +2663,31 @@ function activateMaskHibanaHandSkill(contestant, handIndex) {
 }
 
 function checkHibanaMaskAfterAttack(attacker, attackingMonster, attackerSlot, onComplete) {
-  if (!attackingMonster || attackingMonster.id !== 'BT02_05') {
+  if (!attackingMonster || (attackingMonster.id !== 'BT02_05' && (!attackingMonster.name || !attackingMonster.name.includes('ฮิบานะหน้ากากมายา')))) {
+    if (onComplete) onComplete();
+    return;
+  }
+  if (attacker.hibanaMaskAttackUsedThisTurn) {
     if (onComplete) onComplete();
     return;
   }
   if (attacker.board[attackerSlot] !== attackingMonster) {
+    setLog(`ℹ️ [ฮิบานะหน้ากากมายา] ยูนิทถูกทำลายจากการต่อสู้แล้ว จึงไม่สามารถนำกลับขึ้นมือได้`);
     if (onComplete) onComplete();
     return;
   }
+  attacker.hibanaMaskAttackUsedThisTurn = true;
   const isPlayer = (attacker === gameState.player);
   attacker.board[attackerSlot] = null;
   resetCardStateForZoneChange(attackingMonster);
   attacker.hand.push(attackingMonster);
-  setLog(`🎭 [ออโต้ - ฮิบานะหน้ากากมายา] จบการโจมตี นำ "${attackingMonster.name}" กลับขึ้นมือ!`);
+  setLog(`🎭 [ออโต้ / 1 เทิร์น - ฮิบานะหน้ากากมายา] จบการโจมตี นำ "${attackingMonster.name}" กลับขึ้นมือ!`);
   notifyCardReturnedToHand(attacker, attackingMonster);
 
-  const validHandMonsters = attacker.hand.filter(c => c && c.type === 'Monster' && isHanabiOrHibanaCard(c) && (c.power || 0) <= 2 && c.uid !== attackingMonster.uid);
+  const validHandMonsters = attacker.hand.filter(c => c && c.type === 'Monster' && isHanabiOrHibanaCard(c) && (c.power || 0) <= 2);
   if (validHandMonsters.length === 0) {
+    setLog(`ℹ️ [ฮิบานะหน้ากากมายา] บนมือไม่มียูนิท "ฮานาบิ" หรือ "ฮิบานะ" (พลัง <= 2) ที่สามารถเรียกได้`);
+    renderGame();
     if (onComplete) onComplete();
     return;
   }
@@ -2682,7 +2707,7 @@ function checkHibanaMaskAfterAttack(attacker, attackingMonster, attackerSlot, on
           attacker.board[attackerSlot] = called;
           setLog(`✨ [ฮิบานะหน้ากากมายา] เรียก "${called.name}" ลงสู่สนาม (ช่อง ${attackerSlot + 1}) สำเร็จ!`);
           EffectEngine.triggerCardEffects(called, 'ON_SUMMON', {
-            caster: attacker, opponent: gameState.ai, sourceCard: called, sourceSlot: attackerSlot, isAI: false, isEffectSummon: true
+            caster: attacker, opponent: (attacker === gameState.player ? gameState.ai : gameState.player), sourceCard: called, sourceSlot: attackerSlot, isAI: false, isEffectSummon: true
           }, () => {
             renderGame();
             if (onComplete) onComplete();
@@ -2700,7 +2725,7 @@ function checkHibanaMaskAfterAttack(attacker, attackingMonster, attackerSlot, on
         if (onComplete) onComplete();
       }
     });
-    showChoiceModal('🎭 ฮิบานะหน้ากากมายา', 'เลือกยูนิท "ฮานาบิ" หรือ "ฮิบานะ" (พลัง <= 2) จากมือ 1 ใบลงสนาม:', choices);
+    showChoiceModal('🎭 ฮิบานะหน้ากากมายา', 'เลือกยูนิท "ฮานาบิ" หรือ "ฮิบานะ" (พลัง <= 2) จากมือ 1 ใบลงสนาม (ไม่เกิน 1 ใบ):', choices);
   } else {
     const called = attacker.hand.splice(attacker.hand.indexOf(validHandMonsters[0]), 1)[0];
     resetCardStateForZoneChange(called);
@@ -3373,7 +3398,7 @@ function triggerBlightKillSkill(killerContestant, killerMonster, victimContestan
   const blightPower = getEffectivePower(killerMonster, killerContestant);
 
   const eligibleTargets = victimContestant.board
-    .map((m, idx) => (m && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
+    .map((m, idx) => (m && !isMonsterImmuneToEnemyEffects(m, victimContestant) && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
     .filter(Boolean);
 
   if (eligibleTargets.length === 0) {
@@ -3430,7 +3455,7 @@ function triggerBlightKillSkill(killerContestant, killerMonster, victimContestan
               setLog(`☣️ [THE BLIGHT] คุณทิ้ง "${discarded.name}" ลงนรก`);
 
               const currentTargets = victimContestant.board
-                .map((m, idx) => (m && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
+                .map((m, idx) => (m && !isMonsterImmuneToEnemyEffects(m, victimContestant) && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
                 .filter(Boolean);
 
               if (currentTargets.length === 0) {
@@ -3451,7 +3476,7 @@ function triggerBlightKillSkill(killerContestant, killerMonster, victimContestan
                 onSelect: () => {
                   const firstSlot = t.slot;
                   const remainTargets = victimContestant.board
-                    .map((m, idx) => (m && idx !== firstSlot && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
+                    .map((m, idx) => (m && idx !== firstSlot && !isMonsterImmuneToEnemyEffects(m, victimContestant) && getEffectivePower(m, victimContestant) <= blightPower ? { m, slot: idx } : null))
                     .filter(Boolean);
 
                   if (remainTargets.length === 0) {
@@ -4554,7 +4579,7 @@ const EffectEngine = {
             let bestSlot = -1;
             let maxPwr = -1;
             targetBoardOwner.board.forEach((m, idx) => {
-              if (m && m.id !== 'NM05' && !m.immuneToEnemyEffectsUntilEndOfTurn && getEffectivePower(m, targetBoardOwner) > maxPwr) {
+              if (m && m.id !== 'NM05' && !(isEnemyEffect && isMonsterImmuneToEnemyEffects(m, targetBoardOwner)) && getEffectivePower(m, targetBoardOwner) > maxPwr) {
                 maxPwr = getEffectivePower(m, targetBoardOwner);
                 bestSlot = idx;
               }
@@ -4574,6 +4599,10 @@ const EffectEngine = {
             const targetMonster = targetBoardOwner.board[slotIdx];
             if (!targetMonster) {
               setLog('⚠️ กรุณาคลิกเลือกช่องที่มีมอนสเตอร์อยู่!');
+              return false;
+            }
+            if (isEnemyEffect && isMonsterImmuneToEnemyEffects(targetMonster, targetBoardOwner)) {
+              setLog(`🛡️ "${targetMonster.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
               return false;
             }
             destroyBoardMonster(targetBoardOwner, slotIdx, false, isEnemyEffect);
@@ -4678,7 +4707,7 @@ const EffectEngine = {
 
         if (step.target === 'ALL_ENEMIES') {
           opponent.board.forEach(m => {
-            if (m && !m.immuneToEnemyEffectsUntilEndOfTurn) {
+            if (m && !isMonsterImmuneToEnemyEffects(m, opponent)) {
               m[prop] = (m[prop] || 0) - amount;
             }
           });
@@ -4687,7 +4716,7 @@ const EffectEngine = {
           return;
         }
 
-        const validEnemies = opponent.board.filter(m => m !== null && !m.immuneToEnemyEffectsUntilEndOfTurn);
+        const validEnemies = opponent.board.filter(m => m !== null && !isMonsterImmuneToEnemyEffects(m, opponent));
         if (validEnemies.length === 0) {
           setLog(`ℹ️ ${cardTitle} ไม่มีมอนสเตอร์ฝ่ายตรงข้ามที่สามารถลดพลังได้`);
           next();
@@ -4713,8 +4742,8 @@ const EffectEngine = {
               setLog('⚠️ กรุณาคลิกเลือกช่องที่มียูนิทฝ่ายตรงข้ามอยู่!');
               return false;
             }
-            if (enemy.immuneToEnemyEffectsUntilEndOfTurn) {
-              setLog(`🛡️ "${enemy.name}" ป้องกันความสามารถการ์ดฝ่ายตรงข้ามในเทิร์นนี้!`);
+            if (isMonsterImmuneToEnemyEffects(enemy, opponent)) {
+              setLog(`🛡️ "${enemy.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
               return false;
             }
             enemy[prop] = (enemy[prop] || 0) - amount;
@@ -4732,7 +4761,7 @@ const EffectEngine = {
       case 'FLEX_POWER': {
         const prop = step.duration === 'TURN' ? 'tempPowerMod' : 'permPowerMod';
         if (isAI) {
-          const enemy = opponent.board.find(m => m !== null && m.id !== 'NM05' && !m.immuneToEnemyEffectsUntilEndOfTurn);
+          const enemy = opponent.board.find(m => m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, opponent));
           if (enemy) enemy[prop] -= (step.minusAmount || 1);
           else if (sourceCard) sourceCard[prop] += (step.plusAmount || 1);
           next();
@@ -4754,8 +4783,8 @@ const EffectEngine = {
             } else {
               const enemy = opponent.board[slotIdx];
               if (!enemy) return false;
-              if (enemy.immuneToEnemyEffectsUntilEndOfTurn) {
-                setLog(`🛡️ "${enemy.name}" ไม่ได้รับผลจากความสามารถของการ์ดฝ่ายตรงข้ามในเทิร์นนี้!`);
+              if (isMonsterImmuneToEnemyEffects(enemy, opponent)) {
+                setLog(`🛡️ "${enemy.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
                 return false;
               }
               enemy[prop] -= (step.minusAmount || 1);
@@ -4773,8 +4802,9 @@ const EffectEngine = {
       // --- บล็อกที่ 8: ส่งยูนิตบนสนามกลับขึ้นมือ (BOUNCE_UNIT) ---
       case 'BOUNCE_UNIT': {
         const targetOwner = step.target === 'SELF' ? caster : opponent;
+        const isEnemyBounce = (targetOwner !== caster);
         const validSlots = targetOwner.board
-          .map((m, idx) => (m !== null && !m.immuneToEnemyEffectsUntilEndOfTurn && !m.isUltimateMadoka && m.id !== 'MD09' ? idx : null))
+          .map((m, idx) => (m !== null && !(isEnemyBounce && isMonsterImmuneToEnemyEffects(m, targetOwner)) && !m.isUltimateMadoka && m.id !== 'MD09' ? idx : null))
           .filter(idx => idx !== null);
 
         if (validSlots.length === 0) {
@@ -4806,8 +4836,8 @@ const EffectEngine = {
               setLog(`✨ "${targetMonster.name}" ไม่สามารถถูกส่งกลับขึ้นมือได้!`);
               return false;
             }
-            if (targetOwner !== caster && targetMonster.immuneToEnemyEffectsUntilEndOfTurn) {
-              setLog(`🛡️ "${targetMonster.name}" ป้องกันความสามารถการ์ดฝ่ายตรงข้ามในเทิร์นนี้!`);
+            if (isEnemyBounce && isMonsterImmuneToEnemyEffects(targetMonster, targetOwner)) {
+              setLog(`🛡️ "${targetMonster.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
               return false;
             }
             targetOwner.board[slotIdx] = null;
@@ -8508,6 +8538,7 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.momoGraveUsedThisTurn = false;
   contestant.aceRevivedThisTurn = false;
   contestant.maskHibanaUsedThisTurn = false;
+  contestant.hibanaMaskAttackUsedThisTurn = false;
   contestant.chaosDuoGraveUsedThisTurn = false;
   contestant.harmonyGraveUsedThisTurn = false;
 
@@ -10904,7 +10935,11 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
               const discarded = defender.hand.splice(idx, 1)[0];
               resetCardStateForZoneChange(discarded);
               defender.graveyard.push(discarded);
-              attackingMonster.tempPowerMod -= 1;
+              if (isMonsterImmuneToEnemyEffects(attackingMonster, attacker)) {
+                setLog(`🛡️ [ต่อเนื่อง] "${attackingMonster.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม -> ไม่ถูกลดพลังโจมตี!`);
+              } else {
+                attackingMonster.tempPowerMod -= 1;
+              }
               const homuraCard = defender.board.find(m => m && m.id === 'MD04') || (typeof CARD_DATABASE !== 'undefined' ? CARD_DATABASE.find(c => c.id === 'MD04') : null);
               if (typeof showCardShowcaseBanner === 'function' && homuraCard) {
                 showCardShowcaseBanner(homuraCard, 'สกิล อาเคมิ โฮมุระ ทำงาน!', `⏳ ทิ้ง "${discarded.name}" -> ลดพลัง "${attackingMonster.name}" 1 หน่วย!`, '#6366f1', 1300);
@@ -13243,10 +13278,10 @@ function aiCastBestNormalSpell(ai, player, diff) {
 
   // 1. เชี่ย หุ้นตก (S02)
   const s02Idx = ai.hand.findIndex(c => c.id === 'S02');
-  if (s02Idx !== -1 && player.board.some(m => m !== null && m.id !== 'NM05')) {
+  if (s02Idx !== -1 && player.board.some(m => m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player))) {
     const spell = ai.hand.splice(s02Idx, 1)[0];
     ai.spellQuota.normalUsed += 1;
-    player.board.forEach(m => { if (m && !m.immuneToEnemyEffectsUntilEndOfTurn) m.tempPowerMod -= 3; });
+    player.board.forEach(m => { if (m && !isMonsterImmuneToEnemyEffects(m, player)) m.tempPowerMod -= 3; });
     ai.graveyard.push(spell);
     showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', '📉 ลดพลังยูนิทของคุณทุกใบลง 3 จนจบเทิร์น!', '#10b981');
     setLog('📉 AI ใช้เวทย์ "เชี่ย หุ้นตก" ลดพลังยูนิทของคุณทุกใบลง 3 จนจบเทิร์น!');
@@ -13274,7 +13309,7 @@ function aiCastBestNormalSpell(ai, player, diff) {
 
   // 3. โอ็ยใครเหยียบตีน!!! (S01)
   const s01Idx = ai.hand.findIndex(c => c.id === 'S01');
-  const enemySlot = player.board.findIndex(m => m !== null && m.id !== 'NM05' && !m.immuneToEnemyEffectsUntilEndOfTurn);
+  const enemySlot = player.board.findIndex(m => m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player));
   if (s01Idx !== -1 && ai.hand.length >= 2 && enemySlot !== -1) {
     const spell = ai.hand.splice(s01Idx, 1)[0];
     const discarded = ai.hand.pop();
@@ -13303,7 +13338,7 @@ function aiCastBestNormalSpell(ai, player, diff) {
     if (cCount > 0) ai.board.forEach(m => { if (m && isNueaCard(m)) m.tempPowerMod += cCount; });
     if (lCount > 0) ai.board.forEach(m => { if (m) m.indestructibleUntilNextTurn = true; });
     for (let k = 0; k < rCount; k++) {
-      const targetIdx = player.board.findIndex(m => m !== null && m.id !== 'NM05' && !m.immuneToEnemyEffectsUntilEndOfTurn);
+      const targetIdx = player.board.findIndex(m => m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player));
       if (targetIdx !== -1) destroyBoardMonster(player, targetIdx, false, true);
     }
     showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', '💣 แสดงผลระเบิดปูพรมตามทหารบนสนาม!', '#10b981');
@@ -13314,7 +13349,7 @@ function aiCastBestNormalSpell(ai, player, diff) {
 
   // 5. จีวรบิน (NS05)
   const ns05Idx = ai.hand.findIndex(c => c.id === 'NS05');
-  if (ns05Idx !== -1 && enemySlot !== -1) {
+  if (ns05Idx !== -1 && enemySlot !== -1 && !isMonsterImmuneToEnemyEffects(player.board[enemySlot], player)) {
     const spell = ai.hand.splice(ns05Idx, 1)[0];
     ai.spellQuota.normalUsed += 1;
     ai.graveyard.push(spell);
@@ -15713,6 +15748,7 @@ function handleIncomingPvpData(data) {
                 type: 'ATTACK_RESOLVED',
                 forceEndTurn: false,
                 gameOver: gameState.gameOver,
+                attackerSlot: data.attackerSlot,
                 senderData: gameState.player,
                 receiverData: gameState.ai
               });
@@ -15754,6 +15790,15 @@ function handleIncomingPvpData(data) {
       disableControls();
     }
     pvpState.isApplyingRemote = false;
+
+    if (!data.forceEndTurn && !gameState.gameOver && data.attackerSlot != null) {
+      const attackingM = gameState.player.board[data.attackerSlot];
+      if (attackingM && (attackingM.id === 'BT02_05' || (attackingM.name && attackingM.name.includes('ฮิบานะหน้ากากมายา')))) {
+        checkHibanaMaskAfterAttack(gameState.player, attackingM, data.attackerSlot, () => {
+          syncBoardToOpponent();
+        });
+      }
+    }
     return;
   }
 
