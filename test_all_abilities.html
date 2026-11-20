@@ -729,6 +729,19 @@
       });
     });
 
+    testGroup('COMBO LIFECYCLE & SAFETY: BOFTutorial & BOFComboReplay', () => {
+      assert(window.BOFTutorial && typeof window.BOFTutorial.abortSession === 'function', 'BOFTutorial.abortSession is a function');
+      // Test abortSession cleans state
+      window.BOFTutorial.abortSession();
+      assert(window.BOFTutorial.isTutorialActive() === false, 'isTutorialActive returns false after abortSession');
+
+      if (window.BOFComboReplay) {
+        assert(typeof window.BOFComboReplay.stopAll === 'function', 'BOFComboReplay.stopAll is a function');
+        // calling stopAll should execute cleanly without error
+        window.BOFComboReplay.stopAll();
+      }
+    });
+
     // ==========================================
     // Summary
     // ==========================================

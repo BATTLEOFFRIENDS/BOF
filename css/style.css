@@ -4068,6 +4068,7 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   align-items: center;
   gap: 6px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 4px 2px;
 }
 

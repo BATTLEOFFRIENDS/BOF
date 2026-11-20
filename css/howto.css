@@ -60,7 +60,7 @@
 
 /* ---------- ตัวเลือกเด็ค: แถบเลื่อนแนวนอน วงกลมลีดเดอร์ขอบสีเด็ค ---------- */
 #lb-howto-dialog .lb-combo-deck-selector {
-  flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; margin-bottom: 8px;
+  flex-wrap: nowrap; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px 10px; margin-bottom: 8px;
   scrollbar-width: none; overscroll-behavior-x: contain;
 }
 #lb-howto-dialog .lb-combo-deck-selector::-webkit-scrollbar { display: none; }

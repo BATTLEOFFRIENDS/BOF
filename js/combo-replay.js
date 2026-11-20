@@ -78,7 +78,10 @@
       el.className = 'cr-card' + (c.type === 'Leader' ? ' is-leader' : '');
       el.innerHTML = `<div class="cr-inner"><img class="cr-face" src="${thumb(c.image)}" alt="${c.name}" draggable="false"><img class="cr-back" src="${BACK}" alt="" draggable="false"></div>` +
         (c.type === 'Monster' ? `<b class="cr-pow">${c.power}</b>` : '') + (c.type === 'Leader' ? `<b class="cr-hp">6</b>` : '');
-      el.querySelector('.cr-face').onerror = function () { this.onerror = null; this.src = c.image; };
+      el.querySelector('.cr-face').onerror = function () {
+        this.onerror = function () { this.onerror = null; this.src = BACK; };
+        this.src = (c && c.image) ? c.image : BACK;
+      };
       stage.appendChild(el);
       const o = C[key] = { el, inner: el.querySelector('.cr-inner'), back: el.querySelector('.cr-back'), pow: el.querySelector('.cr-pow'), hp: el.querySelector('.cr-hp'), img: c.image, power: c.power, side: 'me', faceDown: !!faceDown };
       gsap.set(o.back, { opacity: faceDown ? 1 : 0 });
@@ -507,6 +510,12 @@
     });
   }
 
+  function stopAll() {
+    players.forEach(p => {
+      if (p && typeof p.pause === 'function') p.pause(true);
+    });
+  }
+
   function init() {
     const content = document.getElementById('howto-combo-content');
     const tabs = document.getElementById('howto-combo-deck-tabs');
@@ -516,9 +525,17 @@
     if (tabs) mo.observe(tabs, { childList: true });
     enhance();
     const dlg = document.getElementById('lb-howto-dialog');
-    if (dlg) dlg.addEventListener('close', () => players.forEach(p => p.pause(true)));
+    if (dlg) {
+      dlg.addEventListener('close', stopAll);
+      const tabBtns = dlg.querySelectorAll('[data-howto-tab]');
+      tabBtns.forEach(t => {
+        t.addEventListener('click', () => {
+          if (t.dataset.howtoTab !== 'combos') stopAll();
+        });
+      });
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 
-  window.BOFComboReplay = { REPLAYS, players };
+  window.BOFComboReplay = { REPLAYS, players, stopAll };
 })();

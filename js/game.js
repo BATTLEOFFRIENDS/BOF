@@ -1367,6 +1367,12 @@ function showEndMatchModal(title, desc) {
 
 function returnToLobbyScreen() {
   resetMatchLogs();
+  if (window.BOFTutorial && typeof window.BOFTutorial.abortSession === 'function') {
+    window.BOFTutorial.abortSession();
+  }
+  if (window.BOFComboReplay && typeof window.BOFComboReplay.stopAll === 'function') {
+    window.BOFComboReplay.stopAll();
+  }
   // ปิด isMultiplayer ก่อน destroy: ไม่งั้น conn.on('close') ฝั่งเราจะเด้ง "คุณชนะ" ให้คนที่กดออกเอง
   if (typeof pvpState !== 'undefined') pvpState.isMultiplayer = false;
   if (typeof pvpState !== 'undefined' && pvpState.peer) pvpState.peer.destroy();
@@ -12838,6 +12844,9 @@ function handlePlayerSurrender() {
         label: '🏳️ ยืนยันยอมแพ้',
         color: '#dc2626',
         onSelect: () => {
+          if (window.BOFTutorial && typeof window.BOFTutorial.abortSession === 'function') {
+            window.BOFTutorial.abortSession();
+          }
           gameState.player.leader.hp = 0;
           gameState.player.surrendered = true; // ส่งไปกับ senderData ให้อีกฝั่งรู้ว่าแพ้เพราะยอมแพ้
           gameState.gameOver = true;
@@ -15713,6 +15722,12 @@ document.getElementById('btn-save-start')?.addEventListener('click', () => {
 });
 
 function initGame() {
+  if (window.BOFTutorial && typeof window.BOFTutorial.abortSession === 'function') {
+    window.BOFTutorial.abortSession();
+  }
+  if (window.BOFComboReplay && typeof window.BOFComboReplay.stopAll === 'function') {
+    window.BOFComboReplay.stopAll();
+  }
   if (window.BOFSandbox && typeof window.BOFSandbox.setDummyAIEnabled === 'function') {
     window.BOFSandbox.setDummyAIEnabled(false);
   }
@@ -20141,10 +20156,17 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     }
   }
 
+  function abortSession() {
+    guidedSession = null;
+    clearGuidedHighlights();
+    hideTutorialCoachBar();
+  }
+
   window.BOFTutorial = {
     startInteractiveTutorial,
     startComboPracticeSession,
     hideTutorialCoachBar,
+    abortSession,
     isTutorialActive: () => !!guidedSession,
     getSession: () => guidedSession,
     // คอมโบที่ต้องให้ AI ตีสวน (liveAI) ต้องปล่อยให้ AI เล่นเทิร์นจริง
