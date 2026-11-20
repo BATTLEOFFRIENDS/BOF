@@ -473,6 +473,9 @@
       assert(sp.sparkconNegateUsedThisTurn === true, 'Sparkcon negate marked as used this turn');
       assert(getEffectivePower(p.board[1], p) === allyPowerBefore, 'S02 effect did not debuff ally power because it was negated');
       assert(a.graveyard.some(c => c.id === 'S02'), 'Negated spell was destroyed and sent to graveyard');
+
+      // 5. maxCopies = 1
+      assert(getCardMaxCopies(CARD_DATABASE.find(c => c.id === 'BT02_04')) === 1, 'BT02_04 maxCopies is 1');
     });
 
     testGroup('BT02: BT02_05 (ฮิบานะหน้ากากมายา)', () => {

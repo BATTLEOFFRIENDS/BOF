@@ -51,7 +51,7 @@ CARD_DATABASE.push(
     type: 'Monster',
     tribe: 'รางดาว',
     rarity: 'R',
-    maxCopies: 2,
+    maxCopies: 1,
     power: 4,
     image: 'images/BT/BT02/4.png',
     isFusion: true,
