@@ -109,19 +109,7 @@
   pointer-events: auto;
 }
 .um-pick-zone-badge {
-  position: absolute;
-  top: 24px;
-  left: 4px;
-  right: 4px;
-  z-index: 4;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font: 700 10px var(--font-display, sans-serif);
-  color: #fff;
-  background: linear-gradient(135deg, rgba(124, 58, 237, .92), rgba(37, 99, 235, .92));
-  border: 1px solid rgba(255, 255, 255, .35);
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .6);
+  display: none !important;
 }
 .um-pick-caption {
   display: block;

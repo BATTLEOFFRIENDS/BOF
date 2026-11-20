@@ -247,14 +247,6 @@
         cardEl.innerHTML = `<div class="card-art"><img src="${card.image}" alt="${card.name}"></div><div class="card-name">${card.name}</div>`;
       }
 
-      const isNumericBadge = /^\d+(\/\d+)?$/.test(zoneBadgeText.trim());
-      if (zoneBadgeText && !isNumericBadge) {
-        const badge = document.createElement('span');
-        badge.className = 'um-pick-zone-badge';
-        badge.textContent = zoneBadgeText;
-        cardEl.appendChild(badge);
-      }
-
       const cap = document.createElement('span');
       cap.className = 'um-pick-caption';
       cap.textContent = actionCaption;
