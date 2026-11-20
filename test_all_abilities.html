@@ -668,6 +668,29 @@
       // 3. UNBODIED FLESH (BT02_15) in hand intercepts spell
       const unbodied = CARD_DATABASE.find(c => c.id === 'BT02_15');
       assert(unbodied && unbodied.type === 'ReactionSpell', 'BT02_15 is ReactionSpell');
+
+      // 4. THE KRASUE: Each side leader takes +1 damage once per turn
+      const krasue = createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_09') || { id: 'BT02_09', name: 'THE KRASUE' }, 'KRASUE-1');
+      p.board[2] = krasue;
+      p.leader.hp = 6;
+      a.leader.hp = 6;
+      applyLeaderEffectDamage(a, 1, 'Test effect damage to AI');
+      assert(a.leader.hp === 4, 'THE KRASUE increases effect damage to AI leader from 1 to 2');
+      applyLeaderEffectDamage(a, 1, 'Test 2nd effect damage to AI');
+      assert(a.leader.hp === 3, 'THE KRASUE does not boost AI leader damage a second time in same turn');
+      applyLeaderEffectDamage(p, 1, 'Test effect damage to Player');
+      assert(p.leader.hp === 4, 'THE KRASUE increases effect damage to Player leader from 1 to 2 (separate per side)');
+
+      // 5. THE TRAPPER: Discarded when board is full
+      const trapper = createCardInstance(CARD_DATABASE.find(c => c.id === 'KL04') || { id: 'KL04', name: 'THE TRAPPER' }, 'TRAPPER-DISCARD');
+      a.board = [
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M01') || { id: 'M01', name: 'Unit1', power: 1 }, 'U1'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M01') || { id: 'M01', name: 'Unit2', power: 1 }, 'U2'),
+        createCardInstance(CARD_DATABASE.find(c => c.id === 'M01') || { id: 'M01', name: 'Unit3', power: 1 }, 'U3')
+      ];
+      a.graveyard = [trapper];
+      checkDiscardTriggers(a, trapper);
+      assert(a.board.some(m => m && (m.id === 'KL04' || m.name === 'THE TRAPPER')), 'THE TRAPPER placed on full board by replacing a weaker unit for AI');
       p.hand = [createCardInstance(unbodied, 'UNBODIED-H')];
       p.spellQuota.reactionUsed = 0;
       const spellCard = { id: 'S01', name: 'Test Spell', type: 'NormalSpell' };

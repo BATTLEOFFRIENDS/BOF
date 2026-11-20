@@ -642,11 +642,18 @@ function applyLeaderEffectDamage(targetSide, baseAmount = 1, sourceTitle = '') {
   let amount = baseAmount;
   if (typeof gameState !== 'undefined' && gameState) {
     const allBoardMonsters = [...(gameState.player?.board || []), ...(gameState.ai?.board || [])].filter(Boolean);
-    const krasue = allBoardMonsters.find(m => m && (m.id === 'BT02_09' || (m.name && m.name.includes('THE KRASUE'))) && !m.krasueUsedThisTurn);
+    const targetSideKey = (targetSide === gameState.player) ? 'player' : 'ai';
+    const krasue = allBoardMonsters.find(m => {
+      if (!m || (m.id !== 'BT02_09' && !(m.name && m.name.includes('THE KRASUE')))) return false;
+      if (!m.krasueUsedSideThisTurn) m.krasueUsedSideThisTurn = { player: false, ai: false };
+      return !m.krasueUsedSideThisTurn[targetSideKey];
+    });
     if (krasue) {
+      if (!krasue.krasueUsedSideThisTurn) krasue.krasueUsedSideThisTurn = { player: false, ai: false };
+      krasue.krasueUsedSideThisTurn[targetSideKey] = true;
       krasue.krasueUsedThisTurn = true;
       amount += 1;
-      setLog(`👻 [ออโต้ / 1 เทิร์น - THE KRASUE] ลีดเดอร์เสียพลังชีวิตจากความสามารถของการ์ด -> เสียเพิ่มอีก 1 หน่วย (รวมเป็น ${amount} หน่วย)!`);
+      setLog(`👻 [ออโต้ / 1 เทิร์น - THE KRASUE] ลีดเดอร์ของ ${targetSide.name || targetSideKey} เสียพลังชีวิตจากความสามารถของการ์ด -> เสียเพิ่มอีก 1 หน่วย (รวมเป็น ${amount} หน่วย)!`);
     }
   }
   targetSide.leader.hp = Math.max(0, targetSide.leader.hp - amount);
@@ -3524,10 +3531,10 @@ function triggerBlightKillSkill(killerContestant, killerMonster, victimContestan
 
   showChoiceModal(
     '☣️ THE BLIGHT (เมื่อทำลายยูนิทสำเร็จ)',
-    `ต้องการทิ้งการ์ด 1 ใบ เพื่อทำลายยูนิทฝ่ายตรงข้ามที่พลัง <= ${blightPower} จำนวน 2 ใบหรือไม่?`,
+    `ต้องการทิ้งการ์ด 1 ใบ เพื่อทำลายยูนิทฝ่ายตรงข้ามที่พลัง <= ${blightPower} สูงสุด 2 ใบหรือไม่?`,
     [
       {
-        label: `💥 ทิ้งการ์ด 1 ใบ เพื่อทำลายยูนิทอีกฝ่าย 2 ใบ (Power <= ${blightPower})`,
+        label: `💥 ทิ้งการ์ด 1 ใบ เพื่อทำลายยูนิทอีกฝ่ายสูงสุด 2 ใบ (Power <= ${blightPower})`,
         color: '#dc2626',
         onSelect: () => {
           const discardOptions = killerContestant.hand.map((c, hIdx) => ({
@@ -4637,11 +4644,18 @@ const EffectEngine = {
         const targetSide = step.side === 'OPPONENT' ? opponent : caster;
         let amount = step.amount || 1;
         const allBoardMonsters = [...(gameState.player.board || []), ...(gameState.ai.board || [])].filter(Boolean);
-        const krasue = allBoardMonsters.find(m => m && m.id === 'BT02_09' && !m.krasueUsedThisTurn);
+        const targetSideKey = (targetSide === gameState.player) ? 'player' : 'ai';
+        const krasue = allBoardMonsters.find(m => {
+          if (!m || (m.id !== 'BT02_09' && !(m.name && m.name.includes('THE KRASUE')))) return false;
+          if (!m.krasueUsedSideThisTurn) m.krasueUsedSideThisTurn = { player: false, ai: false };
+          return !m.krasueUsedSideThisTurn[targetSideKey];
+        });
         if (krasue) {
+          if (!krasue.krasueUsedSideThisTurn) krasue.krasueUsedSideThisTurn = { player: false, ai: false };
+          krasue.krasueUsedSideThisTurn[targetSideKey] = true;
           krasue.krasueUsedThisTurn = true;
           amount += 1;
-          setLog(`👻 [ออโต้ / 1 เทิร์น - THE KRASUE] ลีดเดอร์เสียพลังชีวิตจากความสามารถของการ์ด -> เสียเพิ่มอีก 1 หน่วย (รวมเป็น ${amount} หน่วย)!`);
+          setLog(`👻 [ออโต้ / 1 เทิร์น - THE KRASUE] ลีดเดอร์ของ ${targetSide.name || targetSideKey} เสียพลังชีวิตจากความสามารถของการ์ด -> เสียเพิ่มอีก 1 หน่วย (รวมเป็น ${amount} หน่วย)!`);
         }
         targetSide.leader.hp = Math.max(0, targetSide.leader.hp - amount);
         fxLeaderDamage(targetSide, amount);
@@ -8015,7 +8029,7 @@ function checkDiscardTriggers(contestant, card) {
   // 🐻 THE TRAPPER (KL04): ออโต้ : เมื่อถูกทิ้งสามารถอัญเชิญการ์ดใบนี้ลงสนาม
   if (card.id === 'KL04' || (card.name && card.name.includes('THE TRAPPER'))) {
     const emptySlot = contestant.board.findIndex(m => m === null);
-    if (emptySlot !== -1) {
+    const getSummonedCard = () => {
       let summoned = null;
       const graveIdx = contestant.graveyard.findIndex(c => c && c.uid === card.uid);
       if (graveIdx !== -1) {
@@ -8028,6 +8042,11 @@ function checkDiscardTriggers(contestant, card) {
           summoned = card;
         }
       }
+      return summoned;
+    };
+
+    if (emptySlot !== -1) {
+      const summoned = getSummonedCard();
       if (summoned) {
         resetCardStateForZoneChange(summoned);
         summoned.state = 'Stand';
@@ -8038,6 +8057,71 @@ function checkDiscardTriggers(contestant, card) {
           notifyUnitCalledFromGrave(summoned, contestant);
         }
         renderGame();
+      }
+    } else {
+      // เมื่อสนามเต็ม 3 ช่อง: ให้เลือกยูนิทบนสนาม 1 ตัวส่งลงนรกเพื่อวางแทนที่
+      if (contestant === gameState.player) {
+        const replaceChoices = contestant.board.map((m, sIdx) => ({
+          label: `💀 ส่ง "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" ลงนรก และวาง THE TRAPPER แทนที่`,
+          color: '#dc2626',
+          card: m,
+          onSelect: () => {
+            const summoned = getSummonedCard();
+            if (!summoned) return;
+            const replaced = contestant.board[sIdx];
+            if (replaced) {
+              resetCardStateForZoneChange(replaced);
+              contestant.graveyard.push(replaced);
+              setLog(`🐻 [ออโต้ - THE TRAPPER] ส่ง "${replaced.name}" ลงนรก เพื่อวาง THE TRAPPER แทนที่`);
+            }
+            resetCardStateForZoneChange(summoned);
+            summoned.state = 'Stand';
+            contestant.board[sIdx] = summoned;
+            showCardShowcaseBanner(summoned, 'ออโต้: THE TRAPPER!', `🐻 ถูกทิ้ง -> วางแทนที่ช่องที่ ${sIdx + 1} ทันที!`, '#dc2626', 1200);
+            setLog(`🐻 [ออโต้ - THE TRAPPER] วางลงสนามช่องที่ ${sIdx + 1} สำเร็จ!`);
+            if (typeof notifyUnitCalledFromGrave === 'function') {
+              notifyUnitCalledFromGrave(summoned, contestant);
+            }
+            renderGame();
+          }
+        }));
+        replaceChoices.push({
+          label: 'ไม่ใช้อัญเชิญ (เก็บไว้ในนรก)',
+          color: '#475569',
+          onSelect: () => {}
+        });
+        showChoiceModal(
+          '🐻 THE TRAPPER: สนามเต็ม 3 ช่อง',
+          'ยูนิท "THE TRAPPER" ถูกทิ้ง แต่สนามของคุณเต็ม 3 ช่องแล้ว ต้องการเลือกยูนิทบนสนาม 1 ตัวส่งลงนรกเพื่อวางแทนที่หรือไม่?',
+          replaceChoices
+        );
+      } else {
+        let minPowerSlot = -1, minP = 999;
+        contestant.board.forEach((m, sIdx) => {
+          if (m) {
+            const p = getEffectivePower(m, contestant);
+            if (p < minP) { minP = p; minPowerSlot = sIdx; }
+          }
+        });
+        if (minPowerSlot !== -1 && minP < 3) {
+          const summoned = getSummonedCard();
+          if (summoned) {
+            const replaced = contestant.board[minPowerSlot];
+            if (replaced) {
+              resetCardStateForZoneChange(replaced);
+              contestant.graveyard.push(replaced);
+            }
+            resetCardStateForZoneChange(summoned);
+            summoned.state = 'Stand';
+            contestant.board[minPowerSlot] = summoned;
+            showCardShowcaseBanner(summoned, 'AI ออโต้: THE TRAPPER!', `🐻 ถูกทิ้ง -> AI วางแทนที่ช่องที่ ${minPowerSlot + 1}!`, '#dc2626', 1200);
+            setLog(`🐻 [AI ออโต้ - THE TRAPPER] ถูกทิ้ง -> วางแทนที่ช่องที่ ${minPowerSlot + 1}!`);
+            if (typeof notifyUnitCalledFromGrave === 'function') {
+              notifyUnitCalledFromGrave(summoned, contestant);
+            }
+            renderGame();
+          }
+        }
       }
     }
   }
@@ -8856,6 +8940,7 @@ function executeEndPhaseCleanup(activeContestant) {
         m.tokoyaStandUsedThisTurn = false;
         m.taitenBattleUsedThisTurn = false;
         m.krasueUsedThisTurn = false;
+        m.krasueUsedSideThisTurn = { player: false, ai: false };
         m.uroborosAttackedTwice = false;
       }
     });
