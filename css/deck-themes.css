@@ -467,15 +467,17 @@ svg.deku-trail { left: 0; top: 0; width: 100vw; height: 100vh; transform: none; 
 #fx-preview-panel button:hover { background: #334155; }
 #fx-preview-panel button:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
 
-/* ---------- มือถือ / ลดการเคลื่อนไหว: เหลือภาพพื้นหลัง + แสงขอบนิ่ง ---------- */
-@media (max-width: 760px), (prefers-reduced-motion: reduce) {
-  .deck-mat-fx { display: none; }
+/* ---------- มือถือ / ลดการเคลื่อนไหว: เหลือภาพพื้นหลัง + แสงขอบนิ่ง ปรับความเข้มให้พอเหมาะ ---------- */
+@media (max-width: 760px) {
+  .deck-mat-fx { opacity: 0.65; }
   .deku-gauge { left: auto; right: -4px; }
   .deku-gauge .bar { height: 70px; }
-  .mat-half[data-mat] .slot { animation: none; }
-  #bof-game-arena .mat-half.turn-active { animation: none; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .deck-mat-fx { opacity: 0.5; }
+  .deck-mat-fx * { animation: none !important; }
+  .mat-half[data-mat] .slot { animation: none; }
+  #bof-game-arena .mat-half.turn-active { animation: none; }
   #bof-game-arena .mat-half.turn-in::after, #bof-game-arena .mat-half.turn-out::after { animation: none; display: none; }
   #bof-game-arena.deck-shake, #bof-game-arena.time-stop, #bof-game-arena.time-rewind { animation: none; filter: none; }
   .doom-pair path, #bof-game-arena .slot.deku-buffed { animation: none; }

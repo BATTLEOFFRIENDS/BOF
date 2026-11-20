@@ -213,8 +213,13 @@
   };
 
   function strike(deck, a, b, heavy) {
-    if (!F() || reduce()) return false;
+    if (!F()) return false;
     const p = PAL[deck] || PAL.jit;
+    if (reduce()) {
+      // โหมดลดการเคลื่อนไหว/ประหยัดพลังงาน: แสดงแสงปะทะนุ่มนวลที่เป้าหมาย ไม่สั่น ไม่ยิงเส้นพุ่ง
+      try { F().flash(b.x, b.y, heavy ? 55 : 38, p.rgb, .25); F().kick(); } catch (e) {}
+      return true;
+    }
     try { (TRAILS[deck] || TRAILS.jit)(a, b, p); F().kick(); later(100, () => { (HITS[deck] || HITS.jit)(b, p, heavy); F().kick(); }); }
     catch (e) { console.warn('[deck-fx]', e); return false; }
     return true;
