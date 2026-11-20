@@ -52,6 +52,79 @@ function isUnknownProtectingAbilities(contestant) {
   if (contestant.graveyard.length >= oppGraveLen) return false;
   return contestant.graveyard.some(c => c && (c.id === 'KL10' || (c.name && c.name.includes('THE UNKNOWN'))));
 }
+function isMonsterImmuneToEnemyEffects(monster, boardOwner = null) {
+  if (!monster) return false;
+  if (monster.immuneToEnemyEffectsUntilEndOfTurn) return true;
+  if (monster.id === 'BT02_04' || (monster.name && monster.name.includes('สปาร์กซี่คอน'))) return true;
+  if (boardOwner && Array.isArray(boardOwner.darkDimension) && boardOwner.darkDimension.some(d => d && (d.id === 'BT02_13' || (d.name && d.name.includes('THE NEMESIS')))) && (monster.id === 'BT02_11' || (monster.name && monster.name.includes('PROJECT UROBOROS-NE')))) return true;
+  if (boardOwner && Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && m.id === 'BT02_09') && monster.name && monster.name.includes('THE')) return true;
+  return false;
+}
+function checkSparkconCancelBeforeAction(caster, card, proceedCallback) {
+  if (typeof gameState === 'undefined' || !gameState || !caster || !card) {
+    if (proceedCallback) proceedCallback();
+    return;
+  }
+  const opp = (caster === gameState.player) ? gameState.ai : gameState.player;
+  if (!opp || !Array.isArray(opp.board)) {
+    if (proceedCallback) proceedCallback();
+    return;
+  }
+  const sparkcon = opp.board.find(m => m && (m.id === 'BT02_04' || (m.name && m.name.includes('สปาร์กซี่คอน'))) && !m.sparkconNegateUsedThisTurn);
+  if (!sparkcon) {
+    if (proceedCallback) proceedCallback();
+    return;
+  }
+
+  const executeCancel = () => {
+    sparkcon.sparkconNegateUsedThisTurn = true;
+    const isAiOpp = (opp === gameState.ai);
+    showCardShowcaseBanner(sparkcon, (isAiOpp ? 'AI ' : '') + 'ออโต้ สปาร์กซี่คอน!', `🚫 ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้น!`, '#a855f7', 1500);
+    setLog(`🚫 [${isAiOpp ? 'AI ' : ''}ออโต้ - สปาร์กซี่คอน] ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้นลงนรก!`);
+
+    const bSlot = Array.isArray(caster.board) ? caster.board.findIndex(m => m && (m.uid === card.uid || m === card)) : -1;
+    if (bSlot !== -1) {
+      destroyBoardMonster(caster, bSlot, false, true);
+    } else {
+      const hIdx = Array.isArray(caster.hand) ? caster.hand.findIndex(c => c && (c.uid === card.uid || c === card)) : -1;
+      if (hIdx !== -1) {
+        const discarded = caster.hand.splice(hIdx, 1)[0];
+        resetCardStateForZoneChange(discarded);
+        caster.graveyard.push(discarded);
+        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(caster, discarded);
+      }
+    }
+    renderGame();
+  };
+
+  if (opp === gameState.ai) {
+    if (typeof aiConfig !== 'undefined' && aiConfig.difficulty !== 'EASY') {
+      executeCancel();
+      return;
+    }
+    if (proceedCallback) proceedCallback();
+    return;
+  }
+
+  showChoiceModal(
+    '💥 ออโต้: สปาร์กซี่คอน',
+    `ฝ่ายตรงข้ามกำลังสั่งใช้งาน "${card.name}"!\n\nต้องการใช้ความสามารถของ "สปาร์กซี่คอน" ยกเลิกความสามารถนั้น และทำลายการ์ดนั้นหรือไม่? (ใช้ได้ 1 ครั้ง/เทิร์น)`,
+    [
+      {
+        label: `🚫 ยกเลิกความสามารถ และทำลาย "${card.name}"`,
+        color: '#dc2626',
+        onSelect: () => executeCancel()
+      },
+      {
+        label: '❌ ไม่ใช้สกิล (ปล่อยให้ทำงาน)',
+        color: '#475569',
+        onSelect: () => {
+          if (proceedCallback) proceedCallback();
+        }
+      }
+    ]
+  );
+}
 function getCardMaxCopies(cardTemplate) { return cardTemplate && cardTemplate.maxCopies !== undefined ? cardTemplate.maxCopies : 2; }
 
 // 📝 ระบบสร้างข้อความอธิบายความสามารถอัตโนมัติจากบล็อก effects (กรณีการ์ดใหม่ไม่ได้เขียน desc เอง)
@@ -539,8 +612,8 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   }
 
   // สปาร์กซี่คอน (BT02_04): ต่อเนื่อง : ยูนิทนี้ไม่รับผลความสามารถของฝั่งตรงข้าม
-  if (isByEnemyEffect && monster.id === 'BT02_04' && !oppHasWelt) {
-    setLog(`🛡️ [ต่อเนื่อง - สปาร์กซี่คอน] "${monster.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
+  if (isByEnemyEffect && isMonsterImmuneToEnemyEffects(monster, boardOwner) && !oppHasWelt) {
+    setLog(`🛡️ [ต่อเนื่อง - ไม่รับผลความสามารถ] "${monster.name}" ไม่รับผลความสามารถของฝั่งตรงข้าม!`);
     return { destroyed: false, reason: 'sparkcon_immune', monster };
   }
 
@@ -1276,6 +1349,24 @@ function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
                 showCardShowcaseBanner(unbodiedCard, 'AI ร่าย UNBODIED FLESH!', `🚫 ยกเลิกความสามารถของ "${card.name}"!`, '#dc2626', 1500);
               }
               setLog(`🚫 [AI - UNBODIED FLESH] AI ร่ายเวทรีแอค "UNBODIED FLESH" ยกเลิกความสามารถของ "${card.name}" สำเร็จ!`);
+              renderGame();
+              return;
+            }
+
+            // ตรวจสอบ สปาร์กซี่คอน (BT02_04) ของ AI: ออโต้ / 1 เทิร์น เมื่อฝั่งตรงข้ามสั่งใช้งานการ์ดหรือความสามารถการ์ด ยกเลิกความสามารถนั้น และทำลายการ์ดนั้น
+            const aiSparkcon = gameState.ai.board.find(m => m && (m.id === 'BT02_04' || (m.name && m.name.includes('สปาร์กซี่คอน'))));
+            if (aiSparkcon && !aiSparkcon.sparkconNegateUsedThisTurn && aiConfig.difficulty !== 'EASY') {
+              aiSparkcon.sparkconNegateUsedThisTurn = true;
+              const curIdx = gameState.player.hand.findIndex(c => c.uid === card.uid);
+              if (curIdx !== -1) {
+                const pSpell = gameState.player.hand.splice(curIdx, 1)[0];
+                if (pSpell.type === 'ReactionSpell') gameState.player.spellQuota.reactionUsed += 1;
+                else gameState.player.spellQuota.normalUsed += 1;
+                resetCardStateForZoneChange(pSpell);
+                gameState.player.graveyard.push(pSpell);
+              }
+              showCardShowcaseBanner(aiSparkcon, 'AI ออโต้ สปาร์กซี่คอน!', `🚫 ยกเลิกการใช้งานของ "${card.name}" และทำลายการ์ดนั้น!`, '#a855f7', 1500);
+              setLog(`🚫 [AI ออโต้ - สปาร์กซี่คอน] ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้นลงนรก!`);
               renderGame();
               return;
             }
@@ -2154,7 +2245,7 @@ function notifyCardReturnedToHand(owner, card) {
         m.state = 'Stand';
         setLog(`💥 [ออโต้ - สปาร์กซี่คอน] การ์ดฝั่งเรากลับขึ้นมือ (${m.sparkconBounceTriggerCountThisTurn}/2)! สแตร์น สปาร์กซี่คอน และทำลายการ์ดฝั่งตรงข้าม 1 ใบ!`);
         const opp = (owner === gameState.player) ? gameState.ai : gameState.player;
-        const validOppSlots = opp.board.map((em, idx) => (em !== null && em.id !== 'BT02_04' && !em.immuneToEnemyEffectsUntilEndOfTurn ? idx : null)).filter(idx => idx !== null);
+        const validOppSlots = opp.board.map((em, idx) => (em !== null && !isMonsterImmuneToEnemyEffects(em, opp) ? idx : null)).filter(idx => idx !== null);
         if (validOppSlots.length > 0) {
           if (owner === gameState.player) {
             promptDestroyEnemyMonster(opp, validOppSlots, '💥 สปาร์กซี่คอน: เลือกทำลายยูนิตฝ่ายตรงข้าม 1 ใบ!');
@@ -2427,15 +2518,56 @@ function checkEnterBattlePhaseHibana(contestant, onComplete) {
   }
 }
 
-function activateMaskHibanaHandSkill(player, handIndex) {
-  if (player.maskHibanaUsedThisTurn) {
-    setLog('❌ สามารถสั่งใช้งาน "ฮิบานะหน้ากากมายา" ได้เพียงเทิร์นละ 1 ครั้งเท่านั้น!');
+function activateMaskHibanaHandSkill(contestant, handIndex) {
+  if (contestant.maskHibanaUsedThisTurn) {
+    setLog('❌ ความสามารถนี้สามารถใช้งานการ์ดชื่อเดียวกันได้เพียงแค่เทิร์นละ 1 ครั้งเท่านั้น!');
     return;
   }
-  const opp = gameState.ai;
-  const oppUnits = opp.board.map((m, idx) => m && !m.immuneToEnemyEffectsUntilEndOfTurn && m.id !== 'BT02_04' ? { m, slot: idx } : null).filter(Boolean);
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  const oppUnits = opp.board.map((m, idx) => m && !isMonsterImmuneToEnemyEffects(m, opp) ? { m, slot: idx } : null).filter(Boolean);
   if (oppUnits.length === 0) {
-    setLog('❌ ฝ่ายตรงข้ามไม่มียูนิทบนสนามให้ยกเลิกความสามารถ!');
+    if (contestant === gameState.player) {
+      setLog('❌ ฝ่ายตรงข้ามไม่มียูนิทบนสนามให้ยกเลิกความสามารถ!');
+    }
+    return;
+  }
+
+  // ตรวจสอบ สปาร์กซี่คอน (BT02_04) ของฝ่ายตรงข้าม
+  const oppSparkcon = opp.board.find(m => m && (m.id === 'BT02_04' || (m.name && m.name.includes('สปาร์กซี่คอน'))) && !m.sparkconNegateUsedThisTurn);
+  if (oppSparkcon && (opp !== gameState.ai || aiConfig.difficulty !== 'EASY')) {
+    oppSparkcon.sparkconNegateUsedThisTurn = true;
+    const card = contestant.hand.splice(handIndex, 1)[0];
+    resetCardStateForZoneChange(card);
+    contestant.graveyard.push(card);
+    contestant.maskHibanaUsedThisTurn = true;
+    const isAiOpp = (opp === gameState.ai);
+    showCardShowcaseBanner(oppSparkcon, (isAiOpp ? 'AI ' : '') + 'ออโต้ สปาร์กซี่คอน!', `🚫 ยกเลิกความสามารถของ "${card.name}" และทำลายการ์ดนั้น!`, '#a855f7', 1500);
+    setLog(`🚫 [${isAiOpp ? 'AI ' : ''}ออโต้ - สปาร์กซี่คอน] ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้นลงนรก!`);
+    renderGame();
+    return;
+  }
+
+  if (contestant !== gameState.player) {
+    oppUnits.sort((a, b) => getEffectivePower(b.m, opp) - getEffectivePower(a.m, opp));
+    const target = oppUnits[0];
+    const card = contestant.hand.splice(handIndex, 1)[0];
+    resetCardStateForZoneChange(card);
+    contestant.graveyard.push(card);
+    contestant.maskHibanaUsedThisTurn = true;
+
+    const targetUnit = opp.board[target.slot];
+    if (targetUnit) {
+      targetUnit.isSilencedUntilEndOfTurn = true;
+      setLog(`🎭 [AI ฮิบานะหน้ากากมายา] ยกเลิกความสามารถของ "${targetUnit.name}" จนจบเทิร์น!`);
+    }
+    opp.leader.hp = Math.max(0, opp.leader.hp - 1);
+    if (typeof fxLeaderDamage === 'function') fxLeaderDamage(opp);
+    setLog(`💔 [AI ฮิบานะหน้ากากมายา] ลีดเดอร์ของคุณสูญเสียพลังชีวิต 1 หน่วย (เหลือ ${opp.leader.hp})!`);
+
+    if (typeof checkDiscardTriggers === 'function') {
+      checkDiscardTriggers(contestant, card);
+    }
+    renderGame();
     return;
   }
 
@@ -2443,10 +2575,10 @@ function activateMaskHibanaHandSkill(player, handIndex) {
     label: `ยกเลิกความสามารถ "${u.m.name}" (ช่อง ${u.slot + 1})`,
     color: '#7c3aed',
     onSelect: () => {
-      const card = player.hand.splice(handIndex, 1)[0];
+      const card = contestant.hand.splice(handIndex, 1)[0];
       resetCardStateForZoneChange(card);
-      player.graveyard.push(card);
-      player.maskHibanaUsedThisTurn = true;
+      contestant.graveyard.push(card);
+      contestant.maskHibanaUsedThisTurn = true;
 
       const targetUnit = opp.board[u.slot];
       if (targetUnit) {
@@ -2458,7 +2590,7 @@ function activateMaskHibanaHandSkill(player, handIndex) {
       setLog(`💔 ลีดเดอร์ฝ่ายตรงข้ามสูญเสียพลังชีวิต 1 หน่วย (เหลือ ${opp.leader.hp})!`);
 
       if (typeof checkDiscardTriggers === 'function') {
-        checkDiscardTriggers(player, card);
+        checkDiscardTriggers(contestant, card);
       }
       renderGame();
     }
@@ -3021,7 +3153,7 @@ function triggerMastermindSummonNemesis(contestant, onDone = null) {
 // 💥 THE NEMESIS (BT02_13): ออโต้ เมื่อลงสนามทำลายยูนิทฝั่งตรงข้าม 1 ใบ
 function triggerNemesisSummonDestroy(contestant, onDone = null) {
   const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
-  const oppMonsters = opp.board.map((m, idx) => (m && !m.immuneToEnemyEffectsUntilEndOfTurn && m.id !== 'BT02_04' ? { m, slot: idx } : null)).filter(Boolean);
+  const oppMonsters = opp.board.map((m, idx) => (m && !isMonsterImmuneToEnemyEffects(m, opp) ? { m, slot: idx } : null)).filter(Boolean);
 
   if (oppMonsters.length === 0) {
     if (onDone) onDone();
@@ -3687,6 +3819,13 @@ const EffectEngine = {
         if (onComplete) onComplete();
       });
     };
+
+    if (effectDef.trigger === 'CAST_SPELL' || effectDef.trigger === 'ACTIVATE_MAIN' || effectDef.trigger === 'ACTIVATE_LEADER') {
+      checkSparkconCancelBeforeAction(context.caster, context.sourceCard, () => {
+        this.runCostQueue(costQueue, context, markSkillUsedAndRunSteps);
+      });
+      return;
+    }
 
     this.runCostQueue(costQueue, context, markSkillUsedAndRunSteps);
   },
@@ -5443,6 +5582,17 @@ function activateMonsterOnBoardPlayer(slotIndex) {
   const player = gameState.player;
   const monster = player.board[slotIndex];
   if (!monster) return;
+
+  // ตรวจสอบ สปาร์กซี่คอน (BT02_04) ของ AI: ออโต้ / 1 เทิร์น เมื่อฝั่งตรงข้ามสั่งใช้งานการ์ดหรือความสามารถการ์ด ยกเลิกความสามารถนั้น และทำลายการ์ดนั้น
+  const aiSparkcon = gameState.ai.board.find(m => m && (m.id === 'BT02_04' || (m.name && m.name.includes('สปาร์กซี่คอน'))) && !m.sparkconNegateUsedThisTurn);
+  if (aiSparkcon && typeof aiConfig !== 'undefined' && aiConfig.difficulty !== 'EASY') {
+    aiSparkcon.sparkconNegateUsedThisTurn = true;
+    showCardShowcaseBanner(aiSparkcon, 'AI ออโต้ สปาร์กซี่คอน!', `🚫 ยกเลิกความสามารถของ "${monster.name}" และทำลายการ์ดนั้น!`, '#a855f7', 1500);
+    setLog(`🚫 [AI ออโต้ - สปาร์กซี่คอน] ยกเลิกการสั่งใช้งานความสามารถของ "${monster.name}" และทำลายยูนิทนั้นลงนรก!`);
+    destroyBoardMonster(player, slotIndex, false, true);
+    renderGame();
+    return;
+  }
 
   // 🌌 TRAILBLAZER (RD01): สั่งใช้งานบนสนาม 1/เทิร์น นำการ์ดจากนรกเราไม่เกิน 2 ใบ กลับเข้ากอง
   if (monster.id === 'RD01') {
@@ -8233,7 +8383,9 @@ function handleHandCardClick(handIndex) {
         'เลือกรูปแบบการใช้งาน "ฮิบานะหน้ากากมายา":',
         [
           {
-            label: '🎭 สั่งใช้งานจากบนมือ (ทิ้งการ์ดนี้ลงนรก ยกเลิกความสามารถยูนิทฝั่งตรงข้าม 1 ใบจนจบเทิร์น และลีดเดอร์เสีย HP 1)',
+            label: player.maskHibanaUsedThisTurn
+              ? '🔒 สั่งใช้งานจากบนมือ (ความสามารถนี้ใช้งานการ์ดชื่อเดียวกันได้เพียงแค่เทิร์นละ 1 ครั้งเท่านั้น)'
+              : '🎭 สั่งใช้งานจากบนมือ (ทิ้งการ์ดนี้ลงนรก ยกเลิกความสามารถยูนิทฝั่งตรงข้าม 1 ใบจนจบเทิร์น และลีดเดอร์เสีย HP 1)',
             disabled: !canSilence,
             color: '#7c3aed',
             onSelect: () => activateMaskHibanaHandSkill(player, handIndex)
