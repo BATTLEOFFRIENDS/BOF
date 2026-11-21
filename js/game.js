@@ -75,7 +75,7 @@ function isMonsterImmuneToEnemyEffects(monster, boardOwner = null) {
   return false;
 }
 function checkSparkconCancelBeforeAction(caster, card, proceedCallback, cancelCallback) {
-  if (typeof gameState === 'undefined' || !gameState || !caster || !card) {
+  if (typeof gameState === 'undefined' || !gameState || !caster || !card || card.type === 'Leader' || /^L0\d$/i.test(card.id)) {
     if (proceedCallback) proceedCallback();
     return;
   }
@@ -121,7 +121,7 @@ function checkSparkconCancelBeforeAction(caster, card, proceedCallback, cancelCa
   };
 
   const checkSparkcon = () => {
-    if (!Array.isArray(opp.board)) {
+    if (!Array.isArray(opp.board) || card.type === 'Leader' || /^L0\d$/i.test(card.id)) {
       if (proceedCallback) proceedCallback();
       return;
     }
@@ -137,8 +137,8 @@ function checkSparkconCancelBeforeAction(caster, card, proceedCallback, cancelCa
       showCardShowcaseBanner(sparkcon, (isAiOpp ? 'AI ' : '') + 'ออโต้ สปาร์กซี่คอน!', `🚫 ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้น!`, '#a855f7', 1500);
       setLog(`🚫 [${isAiOpp ? 'AI ' : ''}ออโต้ - สปาร์กซี่คอน] ยกเลิกการสั่งใช้งานของ "${card.name}" และทำลายการ์ดนั้นลงนรก!`);
 
-      if (card.type === 'Leader') {
-        card.abilityUsedThisTurn = true;
+      if (card.type === 'Leader' || /^L0\d$/i.test(card.id)) {
+        return;
       } else {
         const bSlot = Array.isArray(caster.board) ? caster.board.findIndex(m => m && (m.uid === card.uid || m === card)) : -1;
         if (bSlot !== -1) {
@@ -4447,7 +4447,7 @@ const EffectEngine = {
       });
     };
 
-    if (effectDef.trigger === 'CAST_SPELL' || effectDef.trigger === 'ACTIVATE_MAIN' || effectDef.trigger === 'ACTIVATE_LEADER' || effectDef.trigger === 'ON_SUMMON' || effectDef.trigger === 'ON_SUMMON_BY_EFFECT' || effectDef.trigger === 'ON_KILL_UNIT' || effectDef.trigger === 'ON_HIT_LEADER' || effectDef.trigger === 'ON_INTERCEPT' || effectDef.trigger === 'ON_DESTROY' || effectDef.trigger === 'ON_BATTLE_DESTROY' || effectDef.trigger === 'ACTIVATE_GRAVE') {
+    if (context.sourceCard?.type !== 'Leader' && (effectDef.trigger === 'CAST_SPELL' || effectDef.trigger === 'ACTIVATE_MAIN' || effectDef.trigger === 'ON_SUMMON' || effectDef.trigger === 'ON_SUMMON_BY_EFFECT' || effectDef.trigger === 'ON_KILL_UNIT' || effectDef.trigger === 'ON_HIT_LEADER' || effectDef.trigger === 'ON_INTERCEPT' || effectDef.trigger === 'ON_DESTROY' || effectDef.trigger === 'ON_BATTLE_DESTROY' || effectDef.trigger === 'ACTIVATE_GRAVE')) {
       if (context.caster !== gameState.player) {
         checkSparkconCancelBeforeAction(context.caster, context.sourceCard, () => {
           this.runCostQueue(costQueue, context, markSkillUsedAndRunSteps);
@@ -4456,7 +4456,7 @@ const EffectEngine = {
         });
         return;
       }
-      if (effectDef.trigger !== 'CAST_SPELL' && effectDef.trigger !== 'ACTIVATE_LEADER' && !(effectDef.trigger === 'ACTIVATE_MAIN' && Array.isArray(context.sourceCard?.effects) && context.sourceCard.effects.filter(e => e.trigger === 'ACTIVATE_MAIN').length === 1)) {
+      if (effectDef.trigger !== 'CAST_SPELL' && !(effectDef.trigger === 'ACTIVATE_MAIN' && Array.isArray(context.sourceCard?.effects) && context.sourceCard.effects.filter(e => e.trigger === 'ACTIVATE_MAIN').length === 1)) {
         checkSparkconCancelBeforeAction(context.caster, context.sourceCard, () => {
           this.runCostQueue(costQueue, context, markSkillUsedAndRunSteps);
         }, () => {
@@ -13708,19 +13708,15 @@ function performSingleAIMainAction() {
   if (ai.leader.id === 'L01' && !ai.leader.abilityUsedThisTurn) {
     const targetSlot = ai.board.findIndex(m => m !== null && m.state === 'Stand' && m.id !== 'NM05');
     if (targetSlot !== -1) {
-      checkSparkconCancelBeforeAction(ai, ai.leader, () => {
-        const targetAlly = ai.board[targetSlot];
-        if (targetAlly) {
-          targetAlly.tempPowerMod += 1;
-          ai.leader.abilityUsedThisTurn = true;
-          showCardShowcaseBanner(ai.leader, 'AI ใช้สกิล Leader!', `👑 เพิ่มพลังให้ "${targetAlly.name}" +1!`, '#ec4899');
-          setLog(`👑 [AI มายฮีโร่ เดจิต] เพิ่มพลังให้ "${targetAlly.name}" +1 จนจบเทิร์น!`);
-          renderGame();
-          playSlotAnimation(false, targetSlot, 'fx-skill-glow');
-        }
-      }, () => {
+      const targetAlly = ai.board[targetSlot];
+      if (targetAlly) {
+        targetAlly.tempPowerMod += 1;
         ai.leader.abilityUsedThisTurn = true;
-      });
+        showCardShowcaseBanner(ai.leader, 'AI ใช้สกิล Leader!', `👑 เพิ่มพลังให้ "${targetAlly.name}" +1!`, '#ec4899');
+        setLog(`👑 [AI มายฮีโร่ เดจิต] เพิ่มพลังให้ "${targetAlly.name}" +1 จนจบเทิร์น!`);
+        renderGame();
+        playSlotAnimation(false, targetSlot, 'fx-skill-glow');
+      }
       return true;
     }
   }
@@ -13728,20 +13724,13 @@ function performSingleAIMainAction() {
   if (ai.leader.id === 'L04' && !ai.leader.abilityUsedThisTurn) {
     const dinoGraveIdx = ai.graveyard.findIndex(c => c && c.type === 'Monster' && hasCardTribe(c, 'ไดโน'));
     if (dinoGraveIdx !== -1) {
-      checkSparkconCancelBeforeAction(ai, ai.leader, () => {
-        const curDinoIdx = ai.graveyard.findIndex(c => c && c.type === 'Monster' && hasCardTribe(c, 'ไดโน'));
-        if (curDinoIdx !== -1) {
-          const recovered = ai.graveyard.splice(curDinoIdx, 1)[0];
-          resetCardStateForZoneChange(recovered);
-          ai.hand.push(recovered);
-          ai.leader.abilityUsedThisTurn = true;
-          showCardShowcaseBanner(ai.leader, 'AI ใช้สกิลศูนย์วิจัยไดโน!', `🦖 นำ "${recovered.name}" จากนรกขึ้นมือ!`, '#10b981');
-          setLog(`👑 [AI ศูนย์วิจัยไดโน] นำ "${recovered.name}" จากนรกขึ้นมือ!`);
-          renderGame();
-        }
-      }, () => {
-        ai.leader.abilityUsedThisTurn = true;
-      });
+      const recovered = ai.graveyard.splice(dinoGraveIdx, 1)[0];
+      resetCardStateForZoneChange(recovered);
+      ai.hand.push(recovered);
+      ai.leader.abilityUsedThisTurn = true;
+      showCardShowcaseBanner(ai.leader, 'AI ใช้สกิลศูนย์วิจัยไดโน!', `🦖 นำ "${recovered.name}" จากนรกขึ้นมือ!`, '#10b981');
+      setLog(`👑 [AI ศูนย์วิจัยไดโน] นำ "${recovered.name}" จากนรกขึ้นมือ!`);
+      renderGame();
       return true;
     }
   }
@@ -13749,13 +13738,9 @@ function performSingleAIMainAction() {
   if (ai.leader.id === 'L08' && !ai.leader.abilityUsedThisTurn) {
     const isSpell = (c) => c && (c.type === 'NormalSpell' || c.type === 'ReactionSpell' || c.type === 'NSpell' || c.type === 'RSpell');
     if ((ai.deck || []).some(isSpell) || (ai.graveyard || []).some(isSpell)) {
-      checkSparkconCancelBeforeAction(ai, ai.leader, () => {
-        if (handleRangdaoLeaderActivation(ai)) {
-          playSlotAnimation(false, 'leader', 'fx-skill-glow');
-        }
-      }, () => {
-        ai.leader.abilityUsedThisTurn = true;
-      });
+      if (handleRangdaoLeaderActivation(ai)) {
+        playSlotAnimation(false, 'leader', 'fx-skill-glow');
+      }
       return true;
     }
   }
