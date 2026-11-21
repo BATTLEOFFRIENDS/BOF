@@ -1982,13 +1982,25 @@ function handleUltimateMadokaBattleEnd(contestant, onComplete = null) {
     return;
   }
 
-  // AI ฝั่งคอม: เลือกยูนิทบนมือที่มีพลังโจมตีสูงสุดไม่เกิน 2 ใบ
+    // AI ฝั่งคอม: เลือกยูนิทบนมือที่มีพลังโจมตีสูงสุดไม่เกิน 2 ใบ
   if (contestant !== gameState.player) {
     let placed = 0;
     while (placed < 2) {
       const emptySlot = contestant.board.findIndex(m => m === null);
       if (emptySlot === -1) break;
-      const unitIndex = contestant.hand.findIndex(c => c && c.type === 'Monster');
+      let unitIndex = -1;
+      if (typeof isHardAI === 'function' && isHardAI()) {
+        let bestP = -999;
+        contestant.hand.forEach((c, idx) => {
+          if (c && c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy) {
+            const p = getAIMonsterSummonPriority(contestant, gameState.player, c);
+            if (p > bestP) { bestP = p; unitIndex = idx; }
+          }
+        });
+      }
+      if (unitIndex === -1) {
+        unitIndex = contestant.hand.findIndex(c => c && c.type === 'Monster' && !c.cannotNormalSummon);
+      }
       if (unitIndex === -1) break;
       const card = contestant.hand.splice(unitIndex, 1)[0];
       resetCardStateForZoneChange(card);
@@ -2161,7 +2173,7 @@ function executeMomoCallFromGrave(contestant, momoCard) {
           replaceChoices
         );
       } else {
-        placeMomo(0);
+        placeMomo(typeof pickBestAIOverwriteSlot === 'function' ? pickBestAIOverwriteSlot(contestant) : 0);
       }
     }
   };
@@ -2178,7 +2190,8 @@ function executeMomoCallFromGrave(contestant, momoCard) {
       handOpts
     );
   } else {
-    doCall(0);
+    const bestDiscardIdx = (typeof isHardAI === 'function' && isHardAI()) ? pickBestAIDiscardIndex(contestant) : 0;
+    doCall(bestDiscardIdx !== -1 ? bestDiscardIdx : 0);
   }
 }
 
@@ -2372,11 +2385,15 @@ function promptOpponentDiscard(contestant, count, titleText, logPrefix = null) {
   }
 
   if (contestant !== gameState.player) {
-    const discarded = contestant.hand.pop();
-    resetCardStateForZoneChange(discarded);
-    contestant.graveyard.push(discarded);
-    setLog(`${prefix} ${contestant.name} เลือกทิ้ง "${discarded.name}" 1 ใบลงนรก!`);
-    if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+    const discarded = (typeof isHardAI === 'function' && isHardAI())
+      ? spliceBestAIDiscard(contestant)
+      : contestant.hand.pop();
+    if (discarded) {
+      resetCardStateForZoneChange(discarded);
+      contestant.graveyard.push(discarded);
+      setLog(`${prefix} ${contestant.name} เลือกทิ้ง "${discarded.name}" 1 ใบลงนรก!`);
+      if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestant, discarded);
+    }
     renderGame();
     return;
   }
@@ -4042,7 +4059,10 @@ function checkGhoulAttackSkill(attacker, attackingMonster, defender, onDone) {
   } else {
     let bestSlot = -1, maxP = -1;
     defender.board.forEach((m, s) => {
-      if (m && (m.power || 0) > maxP) { maxP = m.power || 0; bestSlot = s; }
+      if (m && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, defender)) {
+        const p = getEffectivePower(m, defender);
+        if (p > maxP) { maxP = p; bestSlot = s; }
+      }
     });
     if (bestSlot !== -1 && attacker.hand.length > 0) {
       checkSparkconCancelBeforeAction(attacker, attackingMonster, () => {
@@ -4051,7 +4071,9 @@ function checkGhoulAttackSkill(attacker, attackingMonster, defender, onDone) {
           return;
         }
         attackingMonster.ghoulDestroyUsedThisTurn = true;
-        const discarded = attacker.hand.shift();
+        const discarded = (typeof isHardAI === 'function' && isHardAI())
+          ? (spliceBestAIDiscard(attacker) || attacker.hand.shift())
+          : attacker.hand.shift();
         resetCardStateForZoneChange(discarded);
         attacker.graveyard.push(discarded);
         if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(attacker, discarded);
@@ -4498,7 +4520,10 @@ const EffectEngine = {
       const isFromOnami = (sourceCard && sourceCard.id === 'DM01') || !!cost.triggerDiscardSkill;
       if (isAI) {
         for (let i = 0; i < count && caster.hand.length > 0; i++) {
-          const d = caster.hand.pop();
+          const d = (typeof isHardAI === 'function' && isHardAI())
+            ? spliceBestAIDiscard(caster, { isFromOnami, excludeUid: sourceCard ? sourceCard.uid : null })
+            : caster.hand.pop();
+          if (!d) break;
           resetCardStateForZoneChange(d);
           caster.graveyard.push(d);
           if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(caster, d);
@@ -4544,10 +4569,21 @@ const EffectEngine = {
       const count = cost.count || 1;
       if (isAI) {
         let rested = 0;
-        caster.board.forEach(m => {
-          if (m && m.state === 'Stand' && rested < count) {
-            m.state = 'Rest';
-            checkTokoyaRestByEffect(m, caster);
+        const standList = caster.board
+          .map((m, idx) => (m && m.state === 'Stand' ? { m, idx } : null))
+          .filter(Boolean);
+        if (typeof isHardAI === 'function' && isHardAI()) {
+          // ระดับ HARD: เลือก Rest โทโคยาจิต (BT01_02) ก่อนเพราะจะลุกขึ้น Stand ฟรีและได้พลัง +1 หรือตัวที่พลังต่ำสุด
+          standList.sort((a, b) => {
+            const aToko = (a.m.id === 'BT01_02' && !a.m.tokoyaRestUsedThisTurn) ? -100 : getEffectivePower(a.m, caster);
+            const bToko = (b.m.id === 'BT01_02' && !b.m.tokoyaRestUsedThisTurn) ? -100 : getEffectivePower(b.m, caster);
+            return aToko - bToko;
+          });
+        }
+        standList.forEach(item => {
+          if (rested < count && item.m.state === 'Stand') {
+            item.m.state = 'Rest';
+            checkTokoyaRestByEffect(item.m, caster);
             rested++;
           }
         });
@@ -4927,7 +4963,14 @@ const EffectEngine = {
 
         const count = Math.min(step.count || 1, validEnemies.length);
         if (isAI) {
-          const target = validEnemies.find(m => m.id !== 'NM05') || validEnemies[0];
+          let target = validEnemies.find(m => m.id !== 'NM05') || validEnemies[0];
+          if (typeof isHardAI === 'function' && isHardAI()) {
+            const nonSpy = validEnemies.filter(m => m.id !== 'NM05');
+            if (nonSpy.length > 0) {
+              nonSpy.sort((a, b) => getEffectivePower(b, opponent) - getEffectivePower(a, opponent));
+              target = nonSpy[0];
+            }
+          }
           if (target) target[prop] = (target[prop] || 0) - amount;
           next();
           return;
@@ -5017,11 +5060,24 @@ const EffectEngine = {
 
         const count = Math.min(step.count || 1, validSlots.length);
         if (isAI) {
-          const slotIdx = validSlots[0];
+          let slotIdx = validSlots[0];
+          if (typeof isHardAI === 'function' && isHardAI()) {
+            if (isEnemyBounce) {
+              let bestP = -999;
+              validSlots.forEach(s => {
+                const m = targetOwner.board[s];
+                if (m && m.id !== 'NM05') {
+                  const p = getEffectivePower(m, targetOwner) + (m.state === 'Stand' ? 2 : 0);
+                  if (p > bestP) { bestP = p; slotIdx = s; }
+                }
+              });
+            }
+          }
           const bounced = targetOwner.board[slotIdx];
           targetOwner.board[slotIdx] = null;
           resetCardStateForZoneChange(bounced);
           targetOwner.hand.push(bounced);
+          if (typeof notifyCardReturnedToHand === 'function') notifyCardReturnedToHand(targetOwner, bounced);
           next();
           return;
         }
@@ -5142,7 +5198,11 @@ const EffectEngine = {
         }
 
         if (isAI || step.autoPickFirst || candidates.length === 1) {
-          const pickedTemplate = candidates[0];
+          let pickedTemplate = candidates[0];
+          if (isAI && typeof isHardAI === 'function' && isHardAI() && candidates.length > 1) {
+            const sorted = [...candidates].sort((a, b) => (b.power || 2) - (a.power || 2));
+            pickedTemplate = sorted[0];
+          }
           const gIdx = caster.graveyard.findIndex(c => c.uid === pickedTemplate.uid);
           if (gIdx !== -1) {
             const recovered = caster.graveyard.splice(gIdx, 1)[0];
@@ -5205,7 +5265,7 @@ const EffectEngine = {
               }, next);
             } else if (isAI) {
               // ถ้าสนาม AI เต็ม ให้ AI วางทับยูนิทเดิมบนสนามของ AI เอง (ไม่ไปถามผู้เล่น)
-              const overwriteSlot = 0;
+              const overwriteSlot = (typeof pickBestAIOverwriteSlot === 'function') ? pickBestAIOverwriteSlot(caster) : 0;
               const overwritten = sendOverwrittenMonsterToGrave(caster, overwriteSlot);
               caster.board[overwriteSlot] = foundCard;
               setLog(`🌊 ${cardTitle} สนามเต็ม 3 ช่อง — AI วาง "${foundCard.name}" ทับ "${overwritten.name}" บนสนาม AI!`);
@@ -6117,10 +6177,15 @@ const EffectEngine = {
           return;
         }
         if (isAI) {
-          const d = caster.hand.pop();
-          resetCardStateForZoneChange(d);
-          caster.graveyard.push(d);
-          setLog(`🤪 ${cardTitle} จั่วการ์ด 2 ใบ และทิ้ง "${d.name}" 1 ใบ!`);
+          const d = (typeof isHardAI === 'function' && isHardAI())
+            ? spliceBestAIDiscard(caster)
+            : caster.hand.pop();
+          if (d) {
+            resetCardStateForZoneChange(d);
+            caster.graveyard.push(d);
+            if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(caster, d);
+            setLog(`🤪 ${cardTitle} จั่วการ์ด 2 ใบ และทิ้ง "${d.name}" 1 ใบ!`);
+          }
           next();
           return;
         }
@@ -6906,8 +6971,9 @@ function executeHybridSummon(contestant, hybridCardUid, matItemA, matItemB) {
     setLog(`🦖 [ไฮบริด] ส่ง "${matItemA.card.name}" และ "${matItemB.card.name}" ไปมิติมืด -> อัญเชิญ "${hybridCard.name}" ลงช่องที่ ${emptySlot + 1} สำเร็จ!`);
     renderGame();
   } else if (contestant !== gameState.player) {
-    const overwritten = sendOverwrittenMonsterToGrave(contestant, 0);
-    contestant.board[0] = hybridCard;
+    const ovSlot = (typeof pickBestAIOverwriteSlot === 'function') ? pickBestAIOverwriteSlot(contestant) : 0;
+    const overwritten = sendOverwrittenMonsterToGrave(contestant, ovSlot);
+    contestant.board[ovSlot] = hybridCard;
     setLog(`🦖 [ไฮบริด] ส่ง "${matItemA.card.name}" และ "${matItemB.card.name}" ไปมิติมืด -> AI อัญเชิญ "${hybridCard.name}" วางทับ "${overwritten.name}" บนสนาม AI สำเร็จ!`);
     renderGame();
   } else {
@@ -8727,10 +8793,14 @@ function executeElenHandSkill(caster, spellCard, handIndex) {
     triggerHimekoSpellBuff(caster);
     drawCards(caster, 2);
     if (caster.hand.length > 0) {
-      const discarded = caster.hand.pop();
-      resetCardStateForZoneChange(discarded);
-      caster.graveyard.push(discarded);
-      checkDiscardTriggers(caster, discarded);
+      const discarded = (typeof isHardAI === 'function' && isHardAI())
+        ? spliceBestAIDiscard(caster)
+        : caster.hand.pop();
+      if (discarded) {
+        resetCardStateForZoneChange(discarded);
+        caster.graveyard.push(discarded);
+        checkDiscardTriggers(caster, discarded);
+      }
     }
     showCardShowcaseBanner(spell, 'AI ร่ายเวทมนตร์ เอเลน!', '🌿 เลือกการ์ดจากนรก 2 ใบกลับเข้ากอง จั่ว 2 และทิ้ง 1!', '#2563eb', 1300);
     setLog(`🌿 [AI เอเลน] เลือกการ์ดจากนรก 2 ใบกลับเข้ากอง สลับกอง แล้วจั่ว 2 ใบ จากนั้นทิ้งมือ 1 ใบ!`);
@@ -10073,11 +10143,14 @@ function checkAkumaHomuraHandTrigger(contestant, onDone = null) {
       return;
     }
     let sacrificeSlot = -1;
-    let minP = Infinity;
+    let minKeepVal = Infinity;
     contestant.board.forEach((m, s) => {
       if (m) {
-        const p = getEffectivePower(m, contestant);
-        if (p < minP) { minP = p; sacrificeSlot = s; }
+        let keepVal = getEffectivePower(m, contestant);
+        if (typeof isHardAI === 'function' && isHardAI() && m.state === 'Stand') {
+          keepVal += 100; // สังเวยตัวที่ตีไปแล้ว (Rest) ก่อนเสมอ!
+        }
+        if (keepVal < minKeepVal) { minKeepVal = keepVal; sacrificeSlot = s; }
       }
     });
     if (sacrificeSlot !== -1) {
@@ -10513,7 +10586,9 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
     if (attacker !== gameState.player) {
       if (aiConfig.difficulty !== 'EASY') {
         checkSparkconCancelBeforeAction(attacker, attackingMonster, () => {
-          const discarded = attacker.hand.pop();
+          const discarded = (typeof isHardAI === 'function' && isHardAI())
+            ? (spliceBestAIDiscard(attacker) || attacker.hand.pop())
+            : attacker.hand.pop();
           if (discarded) {
             resetCardStateForZoneChange(discarded);
             attacker.graveyard.push(discarded);
@@ -10730,10 +10805,12 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         defender.graveyard.push(spellCard);
 
         checkSparkconCancelBeforeAction(defender, spellCard, () => {
-          const discardIdx = defender.hand.findIndex(c => c && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id))) !== -1
-            ? defender.hand.findIndex(c => c && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id)))
-            : 0;
-          const discarded = defender.hand.splice(discardIdx, 1)[0];
+          const discardIdx = isHardAI()
+            ? pickBestAIDiscardIndex(defender, { preferTribe: 'ENTITY' })
+            : (defender.hand.findIndex(c => c && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id))) !== -1
+              ? defender.hand.findIndex(c => c && (hasCardTribe(c, 'ENTITY') || c.tribe === 'ENTITY' || /^KL/i.test(c.id)))
+              : 0);
+          const discarded = defender.hand.splice(discardIdx !== -1 ? discardIdx : 0, 1)[0];
           resetCardStateForZoneChange(discarded);
           defender.graveyard.push(discarded);
           checkDiscardTriggers(defender, discarded);
@@ -10775,9 +10852,10 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
             });
             return;
           } else if (defender.hand.length > 0) {
-            const discarded = defender.hand.pop();
+            const discarded = isHardAI() ? (spliceBestAIDiscard(defender) || defender.hand.pop()) : defender.hand.pop();
             resetCardStateForZoneChange(discarded);
             defender.graveyard.push(discarded);
+            checkDiscardTriggers(defender, discarded);
             attacker.leader.hp = Math.max(0, attacker.leader.hp - 1);
             fxLeaderDamage(attacker);
             setLog(`📖 [AI - THE BOOK OF VILE DARKNESS] ทิ้ง "${discarded.name}" 1 ใบ -> เปลี่ยนเป้าหมายโจมตีใส่ Leader ของ ${attacker.name} โดยตรง (เหลือ ${attacker.leader.hp}/6)!`);
@@ -10805,11 +10883,17 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         checkSparkconCancelBeforeAction(defender, spellCard, () => {
           triggerHimekoSpellBuff(defender);
 
-          let minPIdx = 0, minP = 999;
-          defender.hand.forEach((c, i) => {
-            const p = c.type === 'Monster' ? (c.power || 0) : 1;
-            if (p < minP) { minP = p; minPIdx = i; }
-          });
+          let minPIdx = 0;
+          if (isHardAI()) {
+            const idx = pickBestAIDiscardIndex(defender, { preferTribe: 'รางดาว' });
+            if (idx !== -1) minPIdx = idx;
+          } else {
+            let minP = 999;
+            defender.hand.forEach((c, i) => {
+              const p = c.type === 'Monster' ? (c.power || 0) : 1;
+              if (p < minP) { minP = p; minPIdx = i; }
+            });
+          }
           const discarded = defender.hand.splice(minPIdx, 1)[0];
           resetCardStateForZoneChange(discarded);
           defender.graveyard.push(discarded);
@@ -11051,6 +11135,94 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         continueNormalAttackFlow();
       });
       return;
+    }
+
+    // 🛡️ (ระดับ HARD) กฎแห่งวัฏจักร (MD12): สแตร์นยูนิทเรา 1 ใบ ได้รับเกราะไม่ออกจากสนาม 1 ครั้ง และบังคับผู้โจมตีมาสู้กับยูนิทนั้น!
+    if (isHardAI() && canUseLawOfCycles) {
+      const atkPwr = getEffectivePower(attackingMonster, attacker);
+      const isDangerousAttack = (targetType === 'leader' && (defender.leader.hp <= 4 || atkPwr >= 2))
+        || (targetType === 'monster' && defender.board[targetSlot] && getEffectivePower(defender.board[targetSlot], defender) <= atkPwr);
+      if (isDangerousAttack) {
+        const curMd12Idx = defender.hand.findIndex(c => c && c.id === 'MD12');
+        if (curMd12Idx !== -1) {
+          const spellCard = defender.hand.splice(curMd12Idx, 1)[0];
+          defender.spellQuota.reactionUsed += 1;
+          resetCardStateForZoneChange(spellCard);
+          defender.graveyard.push(spellCard);
+          checkSparkconCancelBeforeAction(defender, spellCard, () => {
+            let bestAllySlot = -1, bestAllyPwr = -999;
+            defender.board.forEach((m, sIdx) => {
+              if (m && m.id !== 'NM05') {
+                const p = getEffectivePower(m, defender);
+                if (p > bestAllyPwr) { bestAllyPwr = p; bestAllySlot = sIdx; }
+              }
+            });
+            if (bestAllySlot === -1) bestAllySlot = defender.board.findIndex(m => m !== null);
+            if (bestAllySlot !== -1 && defender.board[bestAllySlot]) {
+              const ally = defender.board[bestAllySlot];
+              ally.state = 'Stand';
+              ally.protectedOnce = true;
+              targetType = 'monster';
+              targetSlot = bestAllySlot;
+              showCardShowcaseBanner(spellCard, 'AI ร่ายเวทรีแอค กฎแห่งวัฏจักร!', `🛡️ สแตร์น "${ally.name}" รับเกราะอมตะ 1 ครั้ง และดึงการโจมตีมาที่ใบนี้!`, '#ec4899', 1300);
+              setLog(`🛡️ [AI - กฎแห่งวัฏจักร] สแตร์น "${ally.name}" ได้รับเกราะป้องกันไม่ออกจากสนาม 1 ครั้ง และบังคับ "${attackingMonster.name}" โจมตีมาที่ "${ally.name}"!`);
+              renderGame();
+            }
+            continueNormalAttackFlow();
+          }, () => {
+            continueNormalAttackFlow();
+          });
+          return;
+        }
+      }
+    }
+
+    // ⏳ (ระดับ HARD) อาเคมิ โฮมุระ (MD04): เมื่ออีกฝ่ายโจมตี ทิ้งการ์ดบนมือเพื่อลดพลังตัวโจมตีให้พลิกชนะหรือรอดจากการต่อสู้
+    if (isHardAI() && canUseHomura && !isMonsterImmuneToEnemyEffects(attackingMonster, attacker)) {
+      const atkPwr = getEffectivePower(attackingMonster, attacker);
+      let targetDefenderUnit = null;
+      if (targetType === 'monster' && defender.board[targetSlot]) {
+        targetDefenderUnit = defender.board[targetSlot];
+      } else if (targetType === 'leader') {
+        // หาตัวที่ Stand อยู่และพลังสูงสุดที่จะเอาไป Intercept ได้
+        let maxStandP = -999;
+        defender.board.forEach(m => {
+          if (m && m.state === 'Stand' && m.id !== 'NM05') {
+            const p = getEffectivePower(m, defender);
+            if (p > maxStandP) { maxStandP = p; targetDefenderUnit = m; }
+          }
+        });
+      }
+      if (targetDefenderUnit) {
+        const defPwr = getEffectivePower(targetDefenderUnit, defender);
+        const neededReduction = (atkPwr - defPwr) + 1; // ลดให้ต่ำกว่าตัวรับ 1 หน่วยเพื่อชนะสวนกลับ!
+        if (neededReduction >= 1 && neededReduction <= 2 && defender.hand.length >= neededReduction) {
+          const homuraCard = defender.board.find(m => m && m.id === 'MD04');
+          defender.homuraUsedThisTurn = true;
+          checkSparkconCancelBeforeAction(defender, homuraCard, () => {
+            const discardedNames = [];
+            for (let k = 0; k < neededReduction && defender.hand.length > 0; k++) {
+              const d = spliceBestAIDiscard(defender) || defender.hand.pop();
+              if (d) {
+                resetCardStateForZoneChange(d);
+                defender.graveyard.push(d);
+                attackingMonster.tempPowerMod -= 1;
+                discardedNames.push(d.name);
+                if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(defender, d);
+              }
+            }
+            if (discardedNames.length > 0) {
+              showCardShowcaseBanner(homuraCard, 'AI ใช้สกิล อาเคมิ โฮมุระ!', `⏳ ทิ้งการ์ด ${discardedNames.length} ใบ -> ลดพลัง "${attackingMonster.name}" -${discardedNames.length}!`, '#6366f1', 1200);
+              setLog(`⏳ [AI อาเคมิ โฮมุระ] ทิ้ง "${discardedNames.join(', ')}" -> ลดพลัง "${attackingMonster.name}" ลง ${discardedNames.length} หน่วย!`);
+              renderGame();
+            }
+            continueNormalAttackFlow();
+          }, () => {
+            continueNormalAttackFlow();
+          });
+          return;
+        }
+      }
     }
 
     continueNormalAttackFlow();
@@ -11793,12 +11965,13 @@ function checkLeaderDamagedTriggers(damagedContestant) {
           setLog(`🔥 [AI The End - ในนรก] ลีดเดอร์สูญเสียพลังชีวิต -> อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The end" ลงสนามช่องที่ ${emptySlot + 1}!`);
           renderGame();
         } else {
+          const ovSlot = (typeof pickBestAIOverwriteSlot === 'function') ? pickBestAIOverwriteSlot(damagedContestant) : 0;
           damagedContestant.theEndRevivedThisTurn = true;
           const theEnd = damagedContestant.graveyard.splice(theEndIdx, 1)[0];
           resetCardStateForZoneChange(theEnd);
           theEnd.state = 'Stand';
-          const overwritten = sendOverwrittenMonsterToGrave(damagedContestant, 0);
-          damagedContestant.board[0] = theEnd;
+          const overwritten = sendOverwrittenMonsterToGrave(damagedContestant, ovSlot);
+          damagedContestant.board[ovSlot] = theEnd;
           showCardShowcaseBanner(theEnd, 'AI ใช้สกิล The End จากนรก!', `🔥 ลีดเดอร์เสีย HP -> อัญเชิญ The End วางทับ "${overwritten.name}"!`, '#ef4444', 1100);
           setLog(`🔥 [AI The End - ในนรก] ลีดเดอร์สูญเสียพลังชีวิต -> อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The end" วางทับ "${overwritten.name}"!`);
           renderGame();
@@ -11941,12 +12114,13 @@ function checkLeaderDamagedTriggers(damagedContestant) {
             setLog(`🛡️ [AI กอร์ดอน - ในนรก] ลีดเดอร์สูญเสีย HP -> อัญเชิญ "อัศวินแห่งความจริง กอร์ดอน" ลงช่องที่ ${emptySlot + 1} และฟื้นฟู 1 HP (เหลือ ${damagedContestant.leader.hp}/6)!`);
             renderGame();
           } else {
+            const ovSlot = (typeof pickBestAIOverwriteSlot === 'function') ? pickBestAIOverwriteSlot(damagedContestant) : 0;
             damagedContestant.rp07RevivedThisGame = true;
             const gordon = damagedContestant.graveyard.splice(rp07Idx, 1)[0];
             resetCardStateForZoneChange(gordon);
             gordon.state = 'Stand';
-            const overwritten = sendOverwrittenMonsterToGrave(damagedContestant, 0);
-            damagedContestant.board[0] = gordon;
+            const overwritten = sendOverwrittenMonsterToGrave(damagedContestant, ovSlot);
+            damagedContestant.board[ovSlot] = gordon;
             damagedContestant.leader.hp = Math.min(6, damagedContestant.leader.hp + 1);
             showCardShowcaseBanner(gordon, 'AI ใช้สกิลกอร์ดอนจากนรก!', `🛡️ ลีดเดอร์เสีย HP -> อัญเชิญกอร์ดอน วางทับ "${overwritten.name}" & ฮีล 1 HP!`, '#2563eb', 1200);
             setLog(`🛡️ [AI กอร์ดอน - ในนรก] ลีดเดอร์สูญเสีย HP -> อัญเชิญ "อัศวินแห่งความจริง กอร์ดอน" วางทับ "${overwritten.name}" และฟื้นฟู 1 HP (เหลือ ${damagedContestant.leader.hp}/6)!`);
@@ -12288,13 +12462,50 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
   if (!isLocalDefender) {
     const atkPower = getEffectivePower(attackingMonster, attacker);
     const validAiBlockers = standBlockerSlots.filter(idx => defender.board[idx].id !== 'NM05');
-    let chosenSlot = validAiBlockers.find(idx => {
-      const b = defender.board[idx];
-      const interceptBonus = (Array.isArray(b.effects) && b.effects.some(e => e.trigger === 'ON_INTERCEPT')) ? 2 : 0;
-      return (getEffectivePower(b, defender) + interceptBonus) >= atkPower;
-    });
-    if (chosenSlot === undefined && defender.leader.hp <= 2 && validAiBlockers.length > 0) {
-      chosenSlot = validAiBlockers[0];
+    let chosenSlot;
+    if (isHardAI()) {
+      // 1. หาตัวที่ชนะการป้องกันหรือมีเกราะไม่ตาย (เช่น ไทรเซราทอปส์, เกราะอมตะ, เบลเซบับ, ลูซิเฟอร์ลดพลัง)
+      const hasDemonRealm = Array.isArray(defender.darkDimension) && defender.darkDimension.some(d => d && d.id === 'DMS03');
+      const hasMuten = defender.board.some(m => m && m.id === 'BT01_09');
+      const hasDanHengIL = defender.board.some(m => m && m.id === 'RD04');
+      let bestScore = -999;
+      validAiBlockers.forEach(idx => {
+        const b = defender.board[idx];
+        const interceptBonus = (Array.isArray(b.effects) && b.effects.some(e => e.trigger === 'ON_INTERCEPT')) ? 2 : 0;
+        const luciferBonus = (b.id === 'DMM01' && hasDemonRealm) ? 1 : 0;
+        const effDefPower = getEffectivePower(b, defender) + interceptBonus + luciferBonus;
+        const hasShield = b.indestructibleUntilNextTurn || b.protectedOnce || (b.oatShieldAvailable && !b.oatShieldUsedThisTurn) || (b.id === 'RP07' && defender.hand.length > attacker.hand.length);
+        let sc = -999;
+        if (effDefPower > atkPower) {
+          // ชนะและฆ่าตัวตีได้! เลือกตัวที่ใช้พลังคุ้มที่สุดหรือไทรเซราทอปส์ที่ลุกขึ้น Stand ฟรี
+          sc = 200 - effDefPower + (interceptBonus > 0 ? 50 : 0);
+        } else if (effDefPower === atkPower && hasShield) {
+          sc = 180;
+        } else if (hasShield && defender.leader.hp <= 4) {
+          sc = 150;
+        } else if (effDefPower === atkPower) {
+          // แลก 1-1: ถ้ายูนิตอีกฝ่ายเก่ง (พลัง >= 3) หรือเลือดลีดเดอร์เรา <= 4 ให้บล็อกแลกเลย
+          if (atkPower >= 3 || defender.leader.hp <= 4) {
+            sc = 120 - getEffectivePower(b, defender);
+          }
+        } else if (defender.leader.hp <= 2 || (defender.leader.hp <= 3 && validAiBlockers.length >= 2)) {
+          // เลือดน้อย ต้องเอาตัวเล็กที่สุดโดดบังชีวิตลีดเดอร์
+          sc = 60 - getEffectivePower(b, defender) * 10 + (b.id === 'KL10' || b.id === 'DM02' || b.id === 'NM04' ? 15 : 0);
+        }
+        if (sc > bestScore && sc > 0) {
+          bestScore = sc;
+          chosenSlot = idx;
+        }
+      });
+    } else {
+      chosenSlot = validAiBlockers.find(idx => {
+        const b = defender.board[idx];
+        const interceptBonus = (Array.isArray(b.effects) && b.effects.some(e => e.trigger === 'ON_INTERCEPT')) ? 2 : 0;
+        return (getEffectivePower(b, defender) + interceptBonus) >= atkPower;
+      });
+      if (chosenSlot === undefined && defender.leader.hp <= 2 && validAiBlockers.length > 0) {
+        chosenSlot = validAiBlockers[0];
+      }
     }
 
     if (chosenSlot !== undefined) {
@@ -12670,6 +12881,156 @@ const aiConfig = (function () {
   defaults.stepDelayMs = defaults.difficulty === 'EASY' ? 1300 : (defaults.difficulty === 'HARD' ? 1050 : 1150);
   return defaults;
 })();
+
+function isHardAI() {
+  return typeof aiConfig !== 'undefined' && aiConfig.difficulty === 'HARD';
+}
+
+// 🧠 ประเมินคุณค่าของการ์ดในการทิ้งจากมือสำหรับ AI ระดับ HARD (คะแนนยิ่งสูง ยิ่งควรเลือกทิ้งก่อน)
+function getAIDiscardScore(contestant, card, opts = {}) {
+  if (!card) return -999;
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  let score = 0;
+
+  // 1. การ์ดที่ได้ประโยชน์ทันทีเมื่อถูกทิ้งลงนรก
+  if (card.id === 'KL04' || card.id === 'KG01') score += 100; // ถูกทิ้งแล้วอัญเชิญลงสนามฟรี!
+  if (card.id === 'KG06') score += 95; // โคเอ็น: ถูกทิ้งแล้วทำลายยูนิตหรือตัดมืออีกฝ่าย
+  if (card.id === 'RD07') score += 90; // SUNDAY: ถูกทิ้งแล้วเก็บยูนิตจากนรก + อยู่ในนรกบัฟทีม +1
+  if (opts.isFromOnami && card.id === 'DM05') score += 110; // ซึรุรุถูกโอนามิทิ้ง -> บังคับอีกฝ่ายทิ้งมือ
+  if (card.id === 'KL13') {
+    // ONE-EYED TERROR: ถูกทิ้งทำดาเมจลีดเดอร์ทั้ง 2 ฝั่ง 1 หน่วย (คุ้มมากถ้าเราไม่ตายหรือปิดเกมได้)
+    if (opp && opp.leader && opp.leader.hp <= 1 && contestant.leader.hp > 1) score += 200;
+    else if (contestant.leader && contestant.leader.hp > 2) score += 75;
+    else score -= 80;
+  }
+
+  // 2. การ์ดที่มีสกิลสั่งใช้จากนรก หรือต้องสะสมในนรก
+  if (card.id === 'KL10' || card.id === 'KL02' || card.id === 'KL07' || card.id === 'KL08') score += 55;
+  if (card.id === 'BT01_01' || card.id === 'M04' || card.id === 'KG02' || card.id === 'KG04' || card.id === 'RP07' || card.id === 'RP10') score += 45;
+  if (card.id === 'BT02_06' || card.id === 'BT02_07') score += 40;
+  if (card.id === 'BT02_12' || card.id === 'BT02_13') score += 35; // วัตถุดิบ Uroboros ในนรก
+  if (contestant.leader && contestant.leader.id === 'L07' && hasCardTribe(card, 'สาวน้อยเวทมนตร์')) {
+    const alreadyInGrave = (contestant.graveyard || []).some(g => g && g.id === card.id);
+    if (!alreadyInGrave) score += 30; // สะสมชื่อสาวน้อยเวทมนตร์ต่างกัน 6 ใบในนรกเพื่อ Ultimate Madoka
+  }
+  if (opts.preferTribe && hasCardTribe(card, opts.preferTribe)) score += 65;
+
+  // 3. การ์ดที่ลงปกติไม่ได้และเงื่อนไขยังไม่ครบ หรือแลนด์สเปลที่ค้างมือ
+  if (card.type === 'LandSpell') score += 50;
+  if (card.cannotNormalSummon && card.id !== 'KL01' && card.id !== 'BT02_11' && card.id !== 'RP01' && !Array.isArray(card.hybridMaterials)) {
+    if (card.futureBaseId && !contestant.board.some(m => m && m.id === card.futureBaseId)) score += 30;
+  }
+
+  // 4. การ์ดซ้ำบนมือ หรือมอนสเตอร์พลังต่ำ
+  const copiesInHand = (contestant.hand || []).filter(c => c && c.id === card.id).length;
+  if (copiesInHand >= 2) score += 20;
+  if (card.type === 'Monster') {
+    score += Math.max(0, 15 - (card.power || 0) * 4);
+  } else if (card.type === 'ReactionSpell') {
+    score -= 25; // เก็บเวทรีแอคไว้ป้องกัน
+  } else {
+    score += 5;
+  }
+
+  // 5. ห้ามทิ้งคีย์การ์ดสำคัญที่พร้อมเล่น
+  if (card.id === 'MD11' || card.id === 'BT01_12') score -= 80;
+  if ((card.id === 'KL01' || card.id === 'BT02_11' || card.id === 'RP01') && copiesInHand === 1) score -= 50;
+
+  return score;
+}
+
+function pickBestAIDiscardIndex(contestant, opts = {}) {
+  if (!contestant || !Array.isArray(contestant.hand) || contestant.hand.length === 0) return -1;
+  if (!isHardAI()) return contestant.hand.length - 1;
+  let bestIdx = -1;
+  let bestScore = -Infinity;
+  contestant.hand.forEach((c, idx) => {
+    if (!c) return;
+    if (opts.excludeUid && c.uid === opts.excludeUid) return;
+    if (opts.excludeIndex !== undefined && idx === opts.excludeIndex) return;
+    const sc = getAIDiscardScore(contestant, c, opts);
+    if (sc > bestScore) {
+      bestScore = sc;
+      bestIdx = idx;
+    }
+  });
+  return bestIdx !== -1 ? bestIdx : 0;
+}
+
+function spliceBestAIDiscard(contestant, opts = {}) {
+  if (!contestant || !Array.isArray(contestant.hand) || contestant.hand.length === 0) return null;
+  const idx = pickBestAIDiscardIndex(contestant, opts);
+  if (idx === -1) return null;
+  return contestant.hand.splice(idx, 1)[0];
+}
+
+// 🧠 เลือกช่องที่จะวางทับบนสนาม AI เมื่อสนามเต็ม 3 ช่อง (เลือกตัวที่ Rest แล้ว หรือตัวที่พลังต่ำสุด/เป็นสายลับ)
+function pickBestAIOverwriteSlot(contestant) {
+  if (!contestant || !Array.isArray(contestant.board)) return 0;
+  const empty = contestant.board.findIndex(m => m === null);
+  if (empty !== -1) return empty;
+  if (!isHardAI()) return 0;
+
+  let bestSlot = 0;
+  let lowestKeepValue = Infinity;
+  contestant.board.forEach((m, idx) => {
+    if (!m) return;
+    let keepVal = getEffectivePower(m, contestant) * 10;
+    if (m.id === 'NM05' || m.isSpy) keepVal = -100;
+    if (m.state === 'Stand') keepVal += 15;
+    if (m.destroyAtEndOfTurn || m.returnFromDarkDimensionId) keepVal -= 12;
+    if (m.id === 'BT02_04' || m.id === 'MD09' || m.isUltimateMadoka) keepVal += 200;
+    if (keepVal < lowestKeepValue) {
+      lowestKeepValue = keepVal;
+      bestSlot = idx;
+    }
+  });
+  return bestSlot;
+}
+
+// 🧠 ประเมินความน่าอัญเชิญของ Monster บนมือในระดับ HARD
+function getAIMonsterSummonPriority(ai, player, card) {
+  if (!card || card.type !== 'Monster') return -999;
+  let score = (card.power || 0) * 10;
+  const enemyUnits = player.board.filter(m => m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player));
+
+  // ยูนิตทำลายบอร์ดเมื่อลงสนาม
+  if ((card.id === 'M01' || card.id === 'RD03' || card.id === 'MD02' || card.id === 'BT02_13') && enemyUnits.length > 0) {
+    score += 45;
+  }
+  // ยูนิตจั่วการ์ด / เรียกพวก / คอมโบสำคัญเมื่อลงสนาม
+  if (card.id === 'BT01_01' || card.id === 'RD01') score += 42; // จั่ว 2
+  if (card.id === 'BT02_12') score += 48; // Mastermind เรียก Nemesis
+  if (card.id === 'OM02') score += 44; // ไอแบงค์บ้าเกม เปิดท็อป 2 คอลฟรี
+  if (card.id === 'BT02_02' && (ai.graveyard || []).some(c => c && c.type === 'Monster' && isHanabiCard(c))) score += 43;
+  if (card.id === 'BT02_01' || card.id === 'BT02_03') score += 32;
+  if (card.id === 'KL05') score += 38; // THE BLIGHT ถม THE ลงนรก 2 ใบ
+  if (card.id === 'KL06') {
+    const oppGraveBonus = Math.floor(((player.graveyard || []).length) / 2);
+    score += oppGraveBonus * 10 + (player.hand.length > 0 ? 25 : 0);
+  }
+  if (card.id === 'DN05') {
+    const myGraveBonus = Math.floor(((ai.graveyard || []).length) / 3);
+    score += myGraveBonus * 10;
+  }
+  if (card.id === 'DMM02' || card.id === 'DMM05' || card.id === 'OM05') score += 28;
+  if (card.id === 'OM04') {
+    if (ai.board.some(m => m && (m.id === 'OM01' || m.id === 'OM02' || m.id === 'OM03'))) score += 35;
+  }
+  if (card.id === 'DM01' && (ai.graveyard.some(c => c.id === 'DM02') || ai.deck.some(c => c.id === 'DM02'))) score += 36;
+  if (card.id === 'MD01' && ai.hand.length >= 2) score += 34;
+  if (card.id === 'BT01_08' || card.id === 'BT01_09' || card.id === 'BT01_10' || card.id === 'RD04' || card.id === 'RD05' || card.id === 'RD06') score += 25;
+  if (card.id === 'NM04') score += 25;
+
+  // เก็บการ์ดที่มีสกิลป้องกันจากมือไว้ก่อนถ้าไม่จำเป็น
+  if (card.id === 'M03' || card.id === 'MD07') score -= 22;
+  // คิวเบย์ควรใช้สกิลค้นหาจากมือก่อน ไม่ควรลงสดถ้าในกองยังมีสาวน้อยเวทมนตร์
+  if (card.id === 'BT01_11') score -= 30;
+  // แอชชี่ล่า / อาคุมะ โฮมุระ เก็บไว้ใช้สกิลพิเศษ
+  if (card.id === 'MD08') score -= 15;
+
+  return score;
+}
 
 function saveAIConfigToStorage() {
   aiConfig.stepDelayMs = aiConfig.difficulty === 'EASY' ? 1300 : (aiConfig.difficulty === 'HARD' ? 1050 : 1150);
@@ -13239,6 +13600,36 @@ function performSingleAIMainAction() {
       }
     }
 
+    // 1.08 (ระดับ HARD) สั่งใช้งานในนรก: สองตัวป่วน (BT02_06) นำออกจากเกมเรียก ฮานาบิ/ฮิบานะ จากนรกลงสนาม
+    if (diff === 'HARD' && !ai.chaosDuoGraveUsedThisTurn && !isGraveyardSkillLockedByOpponent(ai) && ai.board.some(m => m === null) && Array.isArray(ai.graveyard)) {
+      const cdCard = ai.graveyard.find(c => c && c.id === 'BT02_06');
+      const hasTarget = ai.graveyard.some(c => c && c.type === 'Monster' && isHanabiOrHibanaCard(c));
+      if (cdCard && hasTarget) {
+        checkSparkconCancelBeforeAction(ai, cdCard, () => {
+          executeChaosDuoGraveSkill(ai, cdCard);
+        }, () => {
+          ai.chaosDuoGraveUsedThisTurn = true;
+        });
+        return true;
+      }
+    }
+
+    // 1.09 (ระดับ HARD) สั่งใช้งานในนรก: การประสานแห่งปีติสุข (BT02_07)
+    // ใช้เมื่อมี สปาร์กซี่คอน (BT02_04) บนสนาม (เพื่อทริกเกอร์ออโต้ทำลายการ์ดอีกฝ่าย 1 ใบ) หรือดึงตัวที่ Rest/ใช้สกิลไปแล้วขึ้นมือพร้อมรีไซเคิลเวทฟิวชั่นกลับกอง
+    if (diff === 'HARD' && !ai.harmonyGraveUsedThisTurn && !isGraveyardSkillLockedByOpponent(ai) && Array.isArray(ai.graveyard)) {
+      const hmCard = ai.graveyard.find(c => c && c.id === 'BT02_07');
+      const hasSparkcon = ai.board.some(m => m && m.id === 'BT02_04' && (m.sparkconBounceTriggerCountThisTurn || 0) < 2);
+      const hasUsedHanabi = ai.board.some(m => m && isHanabiOrHibanaCard(m) && (m.hanabiUsedThisTurn || m.state === 'Rest'));
+      if (hmCard && (hasSparkcon || hasUsedHanabi)) {
+        checkSparkconCancelBeforeAction(ai, hmCard, () => {
+          executeHarmonyGraveSkill(ai, hmCard);
+        }, () => {
+          ai.harmonyGraveUsedThisTurn = true;
+        });
+        return true;
+      }
+    }
+
     // 1.0 อัญเชิญไฮบริดไดโนจากมือ (DN06 / DN07)
     const emptySlotForHybrid = ai.board.findIndex(m => m === null);
     if (emptySlotForHybrid !== -1) {
@@ -13402,7 +13793,18 @@ function performSingleAIMainAction() {
     }
 
     let summonIdx = -1;
-    if (diff !== 'EASY') {
+    if (diff === 'HARD') {
+      let bestScore = -999;
+      ai.hand.forEach((c, idx) => {
+        if (c && c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy && c.id !== 'M04') {
+          const sc = getAIMonsterSummonPriority(ai, player, c);
+          if (sc > bestScore) {
+            bestScore = sc;
+            summonIdx = idx;
+          }
+        }
+      });
+    } else if (diff !== 'EASY') {
       summonIdx = ai.hand.findIndex(c =>
         c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy && c.id !== 'M04' && c.id !== 'M03'
       );
@@ -13512,11 +13914,30 @@ function performSingleAIMainAction() {
 
     // 3.0.4 TRAILBLAZER (RD01) สั่งใช้งานบนสนาม (1 ครั้ง/เทิร์น)
     if (m.id === 'RD01' && (!m.usedSkills || !m.usedSkills.trailblazerActivatedThisTurn) && Array.isArray(ai.graveyard) && ai.graveyard.length > 0) {
-      checkSparkconCancelBeforeAction(ai, m, () => {
-        handleTrailblazerBoardActivation(ai, slotIdx);
-        playSlotAnimation(false, slotIdx, 'fx-skill-glow');
-      });
-      return true;
+      // ระดับ HARD: ถ้ามี SUNDAY (RD07) อยู่ในนรกเพียงใบเดียว อย่าเพิ่งเอาการ์ดในนรกกลับเข้ากองจน SUNDAY หาย
+      const nonSundayGraveCount = (ai.graveyard || []).filter(c => c && c.id !== 'RD07').length;
+      if (diff !== 'HARD' || nonSundayGraveCount > 0 || ai.deck.length <= 3) {
+        checkSparkconCancelBeforeAction(ai, m, () => {
+          handleTrailblazerBoardActivation(ai, slotIdx);
+          playSlotAnimation(false, slotIdx, 'fx-skill-glow');
+        });
+        return true;
+      }
+    }
+
+    // 3.0.5 (ระดับ HARD) น้องฮานาบิจาง (BT02_01): สั่งใช้งานบนสนาม 1/เทิร์น นำตัวเองกลับขึ้นมือและเก็บ ฮิบานะ หรือ การประสานแห่งปีติสุข จากนรกขึ้นมือ
+    if (diff === 'HARD' && m.id === 'BT02_01' && !m.hanabiUsedThisTurn) {
+      const hasRecoverTarget = (ai.graveyard || []).some(c =>
+        c && ((c.name && (c.name.includes('ฮิบานะ') || c.name.includes('การประสานแห่ง'))) || c.id === 'BT02_07' || c.id === 'BT02_02' || c.id === 'BT02_05')
+      );
+      const hasSparkcon = ai.board.some(ally => ally && ally.id === 'BT02_04' && (ally.sparkconBounceTriggerCountThisTurn || 0) < 2);
+      if (hasRecoverTarget || hasSparkcon) {
+        checkSparkconCancelBeforeAction(ai, m, () => {
+          handleHanabiBoardActivation(ai, slotIdx);
+          playSlotAnimation(false, slotIdx, 'fx-skill-glow');
+        });
+        return true;
+      }
     }
 
     // 3.1 โทโดโรจิต (M02) เก็บบาคุจิต
@@ -13543,9 +13964,11 @@ function performSingleAIMainAction() {
     // 3.2 โทโดโรจิต (M02) โม่กองผู้เล่น
     if (diff === 'HARD' && m.id === 'M02' && !m.usedSkills.todoroMill && ai.hand.length >= 3 && player.deck.length > 0) {
       checkSparkconCancelBeforeAction(ai, m, () => {
-        const discarded = ai.hand.pop();
+        const discarded = spliceBestAIDiscard(ai) || ai.hand.pop();
+        if (!discarded) return;
         resetCardStateForZoneChange(discarded);
         ai.graveyard.push(discarded);
+        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(ai, discarded);
         const milled = player.deck.pop();
         resetCardStateForZoneChange(milled);
         player.graveyard.push(milled);
@@ -13575,7 +13998,18 @@ function performSingleAIMainAction() {
     // 3.4 ทหารพรานเหนือ (NM03)
     if (m.id === 'NM03' && !m.usedSkills.rangerTarget) {
       checkSparkconCancelBeforeAction(ai, m, () => {
-        const enemySlotIdx = player.board.findIndex(em => em && em.id !== 'NM05' && !em.immuneToEnemyEffectsUntilEndOfTurn);
+        let enemySlotIdx = -1;
+        if (diff === 'HARD') {
+          let maxP = -999;
+          player.board.forEach((em, idx) => {
+            if (em && em.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(em, player)) {
+              const p = getEffectivePower(em, player);
+              if (p > maxP) { maxP = p; enemySlotIdx = idx; }
+            }
+          });
+        } else {
+          enemySlotIdx = player.board.findIndex(em => em && em.id !== 'NM05' && !em.immuneToEnemyEffectsUntilEndOfTurn);
+        }
         if (enemySlotIdx !== -1) {
           const enemyTarget = player.board[enemySlotIdx];
           enemyTarget.permPowerMod -= 1;
@@ -13653,11 +14087,16 @@ function performSingleAIMainAction() {
 
     // 3.7 เอ็นเดจิต (M05) กดบัฟพลัง +2
     if (m.id === 'M05' && !m.usedSkills.endeBoost && canContestantAttack(ai, m).allowed) {
-      showCardShowcaseBanner(m, 'AI ใช้สกิลเอ็นเดจิต!', '🔥 เพิ่มพลังโจมตี +2 จนจบเทิร์น!', '#dc2626');
-      triggerEndeSkill(ai, slotIdx);
-      renderGame();
-      playSlotAnimation(false, slotIdx, 'fx-skill-glow');
-      return true;
+      const hasHawksOnBoard = ai.board.some(ally => ally && ally.id === 'M06');
+      const curPwr = getEffectivePower(m, ai);
+      const needBoostToKill = player.board.some(em => em && em.id !== 'NM05' && getEffectivePower(em, player) >= curPwr && getEffectivePower(em, player) < curPwr + 2);
+      if (diff !== 'HARD' || hasHawksOnBoard || needBoostToKill) {
+        showCardShowcaseBanner(m, 'AI ใช้สกิลเอ็นเดจิต!', '🔥 เพิ่มพลังโจมตี +2 จนจบเทิร์น!', '#dc2626');
+        triggerEndeSkill(ai, slotIdx);
+        renderGame();
+        playSlotAnimation(false, slotIdx, 'fx-skill-glow');
+        return true;
+      }
     }
 
     // 3.8 สกิล ACTIVATE_MAIN ของยูนิต (รองรับทั้งเด็คปีศาจ, เด็คโอ็ต และยูนิตทุกใบที่มีสกิลสั่งใช้)
@@ -13831,13 +14270,21 @@ function aiCastBestNormalSpell(ai, player, diff) {
 
   // 3. โอ็ยใครเหยียบตีน!!! (S01)
   const s01Idx = ai.hand.findIndex(c => c.id === 'S01');
-  const enemySlot = player.board.findIndex(m => m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player));
+  let enemySlot = -1;
+  let maxEnemyPwr = -999;
+  player.board.forEach((m, idx) => {
+    if (m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player)) {
+      const p = getEffectivePower(m, player);
+      if (p > maxEnemyPwr) { maxEnemyPwr = p; enemySlot = idx; }
+    }
+  });
   if (s01Idx !== -1 && ai.hand.length >= 2 && enemySlot !== -1) {
     return executeAISpellCast(ai, s01Idx, (spell) => {
-      const discarded = ai.hand.pop();
+      const discarded = spliceBestAIDiscard(ai, { excludeUid: spell.uid }) || ai.hand.pop();
       if (discarded) {
         resetCardStateForZoneChange(discarded);
         ai.graveyard.push(discarded);
+        if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(ai, discarded);
       }
       showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', `🦶 ทิ้ง "${discarded ? discarded.name : ''}" ทำลายยูนิตช่องที่ ${enemySlot + 1}!`, '#10b981');
       destroyBoardMonster(player, enemySlot, false, true);
@@ -13858,7 +14305,13 @@ function aiCastBestNormalSpell(ai, player, diff) {
       if (cCount > 0) ai.board.forEach(m => { if (m && isNueaCard(m)) m.tempPowerMod += cCount; });
       if (lCount > 0) ai.board.forEach(m => { if (m) m.indestructibleUntilNextTurn = true; });
       for (let k = 0; k < rCount; k++) {
-        const targetIdx = player.board.findIndex(m => m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player));
+        let targetIdx = -1, bestP = -999;
+        player.board.forEach((m, idx) => {
+          if (m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player)) {
+            const p = getEffectivePower(m, player);
+            if (p > bestP) { bestP = p; targetIdx = idx; }
+          }
+        });
         if (targetIdx !== -1) destroyBoardMonster(player, targetIdx, false, true);
       }
       showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', '💣 แสดงผลระเบิดปูพรมตามทหารบนสนาม!', '#10b981');
@@ -13871,7 +14324,13 @@ function aiCastBestNormalSpell(ai, player, diff) {
   const ns05Idx = ai.hand.findIndex(c => c.id === 'NS05');
   if (ns05Idx !== -1 && enemySlot !== -1 && !isMonsterImmuneToEnemyEffects(player.board[enemySlot], player)) {
     return executeAISpellCast(ai, ns05Idx, (spell) => {
-      const curEnemySlot = player.board.findIndex(m => m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player));
+      let curEnemySlot = -1, bestP = -999;
+      player.board.forEach((m, idx) => {
+        if (m !== null && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player) && !m.isUltimateMadoka && m.id !== 'MD09') {
+          const p = getEffectivePower(m, player) + (m.state === 'Stand' ? 2 : 0);
+          if (p > bestP) { bestP = p; curEnemySlot = idx; }
+        }
+      });
       if (curEnemySlot !== -1) {
         const bounced = player.board[curEnemySlot];
         player.board[curEnemySlot] = null;
@@ -13882,6 +14341,143 @@ function aiCastBestNormalSpell(ai, player, diff) {
       }
       renderGame();
     });
+  }
+
+  // 5.5 🎭 การประสานแห่งปีติสุข (BT02_07) - อัญเชิญฟิวชั่น สปาร์กซี่คอน (BT02_04)
+  const bt02_07Idx = ai.hand.findIndex(c => c && c.id === 'BT02_07');
+  if (bt02_07Idx !== -1) {
+    const isFusionTarget = c => c && (c.id === 'BT02_04' || isFusionMonster(c));
+    const hasFusionInPool = ai.hand.some(isFusionTarget) || ai.deck.some(isFusionTarget) || ai.graveyard.some(isFusionTarget);
+    if (hasFusionInPool) {
+      const hanabiMats = [];
+      const hibanaMats = [];
+      ai.hand.forEach((c, idx) => {
+        if (c && idx !== bt02_07Idx && c.type === 'Monster') {
+          if (isHanabiCard(c)) hanabiMats.push({ card: c, zone: 'hand' });
+          if (isHibanaCard(c)) hibanaMats.push({ card: c, zone: 'hand' });
+        }
+      });
+      ai.board.forEach((m, idx) => {
+        if (m && m.type === 'Monster') {
+          if (isHanabiCard(m)) hanabiMats.push({ card: m, zone: 'board', slot: idx });
+          if (isHibanaCard(m)) hibanaMats.push({ card: m, zone: 'board', slot: idx });
+        }
+      });
+      let chosenH = null, chosenB = null;
+      for (const h of hanabiMats) {
+        const b = hibanaMats.find(x => x.card.uid !== h.card.uid);
+        if (b) { chosenH = h; chosenB = b; break; }
+      }
+      if (chosenH && chosenB) {
+        return executeAISpellCast(ai, bt02_07Idx, (spell) => {
+          triggerHimekoSpellBuff(ai);
+          [chosenH, chosenB].forEach(mat => {
+            if (mat.zone === 'hand') {
+              const idx = ai.hand.findIndex(c => c && c.uid === mat.card.uid);
+              if (idx !== -1) {
+                const d = ai.hand.splice(idx, 1)[0];
+                resetCardStateForZoneChange(d);
+                ai.graveyard.push(d);
+              }
+            } else {
+              const m = ai.board[mat.slot];
+              if (m && m.uid === mat.card.uid) {
+                ai.board[mat.slot] = null;
+                resetCardStateForZoneChange(m);
+                ai.graveyard.push(m);
+              }
+            }
+          });
+          let summonedFusion = null;
+          let fIdx = ai.hand.findIndex(isFusionTarget);
+          if (fIdx !== -1) summonedFusion = ai.hand.splice(fIdx, 1)[0];
+          else {
+            fIdx = ai.deck.findIndex(isFusionTarget);
+            if (fIdx !== -1) {
+              summonedFusion = ai.deck.splice(fIdx, 1)[0];
+              ai.deck = shuffleDeck(ai.deck);
+            } else {
+              fIdx = ai.graveyard.findIndex(isFusionTarget);
+              if (fIdx !== -1) summonedFusion = ai.graveyard.splice(fIdx, 1)[0];
+            }
+          }
+          if (summonedFusion) {
+            resetCardStateForZoneChange(summonedFusion);
+            summonedFusion.state = 'Stand';
+            let targetSlot = ai.board.findIndex(s => s === null);
+            if (targetSlot === -1) {
+              targetSlot = pickBestAIOverwriteSlot(ai);
+              sendOverwrittenMonsterToGrave(ai, targetSlot);
+            }
+            ai.board[targetSlot] = summonedFusion;
+            showCardShowcaseBanner(summonedFusion, '🎭 AI อัญเชิญฟิวชั่น!', 'รวมร่าง "ฮานาบิ" + "ฮิบานะ" -> อัญเชิญ "สปาร์กซี่คอน"!', '#a855f7', 1500);
+            setLog(`🎭 [AI การประสานแห่งปีติสุข] ส่ง "${chosenH.card.name}" และ "${chosenB.card.name}" ลงนรก -> อัญเชิญฟิวชั่น "${summonedFusion.name}" ลงช่องที่ ${targetSlot + 1}!`);
+          }
+          renderGame();
+        });
+      }
+    }
+  }
+
+  // 5.6 💥 สองตัวป่วน (BT02_06) - ยก ฮานาบิ/ฮิบานะ ฝั่งเรา 1 ใบ และดีดการ์ดฝั่งตรงข้าม 1 ใบขึ้นมือ
+  const bt02_06Idx = ai.hand.findIndex(c => c && c.id === 'BT02_06');
+  if (bt02_06Idx !== -1) {
+    const ourAllies = ai.board.map((m, idx) => (m && isHanabiOrHibanaCard(m) && m.id !== 'BT02_04' ? { m, slot: idx } : null)).filter(Boolean);
+    const oppUnits = player.board.map((m, idx) => (m && m.id !== 'NM05' && !isMonsterImmuneToEnemyEffects(m, player) && !m.isUltimateMadoka && m.id !== 'MD09' ? { m, slot: idx } : null)).filter(Boolean);
+    if (ourAllies.length > 0 && oppUnits.length > 0) {
+      return executeAISpellCast(ai, bt02_06Idx, (spell) => {
+        triggerHimekoSpellBuff(ai);
+        const allyTarget = ourAllies.find(a => a.m.state === 'Rest' || a.m.hanabiUsedThisTurn) || ourAllies[0];
+        oppUnits.sort((a, b) => getEffectivePower(b.m, player) - getEffectivePower(a.m, player));
+        const oppTarget = oppUnits[0];
+        if (allyTarget && ai.board[allyTarget.slot]) {
+          const bAlly = ai.board[allyTarget.slot];
+          ai.board[allyTarget.slot] = null;
+          resetCardStateForZoneChange(bAlly);
+          ai.hand.push(bAlly);
+          notifyCardReturnedToHand(ai, bAlly);
+        }
+        if (oppTarget && player.board[oppTarget.slot]) {
+          const bOpp = player.board[oppTarget.slot];
+          player.board[oppTarget.slot] = null;
+          resetCardStateForZoneChange(bOpp);
+          player.hand.push(bOpp);
+          showCardShowcaseBanner(spell, 'AI ใช้เวทมนตร์ สองตัวป่วน!', `🌪️ ยก "${allyTarget.m.name}" & ดีด "${bOpp.name}" ของคุณกลับขึ้นมือ!`, '#a855f7');
+          setLog(`🌪️ [AI สองตัวป่วน] ยก "${allyTarget.m.name}" และดีด "${bOpp.name}" ของคุณกลับขึ้นมือ!`);
+        }
+        renderGame();
+      });
+    }
+  }
+
+  // 5.7 💣 ระเบิดฮานาบิ (BT02_08) - จ่าย 1 HP ยก ฮานาบิ/ฮิบานะ กลับมือ + โม่ 1 (ใช้เมื่อมี สปาร์กซี่คอน บนสนามเพื่อยิงทำลายฟรี หรือรีเซ็ตตัวที่ Rest)
+  const bt02_08Idx = ai.hand.findIndex(c => c && c.id === 'BT02_08');
+  if (bt02_08Idx !== -1 && ai.leader.hp >= 3) {
+    const hasSparkcon = ai.board.some(m => m && m.id === 'BT02_04' && (m.sparkconBounceTriggerCountThisTurn || 0) < 2);
+    const bounceCandidates = ai.board.map((m, idx) => (m && isHanabiOrHibanaCard(m) && m.id !== 'BT02_04' ? { m, slot: idx } : null)).filter(Boolean);
+    if (bounceCandidates.length > 0 && (hasSparkcon || bounceCandidates.some(a => a.m.hanabiUsedThisTurn))) {
+      return executeAISpellCast(ai, bt02_08Idx, (spell) => {
+        triggerHimekoSpellBuff(ai);
+        ai.leader.hp = Math.max(1, ai.leader.hp - 1);
+        if (typeof fxLeaderDamage === 'function') fxLeaderDamage(ai);
+        const pick = bounceCandidates.find(a => a.m.hanabiUsedThisTurn || a.m.state === 'Rest') || bounceCandidates[0];
+        if (pick && ai.board[pick.slot]) {
+          const bAlly = ai.board[pick.slot];
+          ai.board[pick.slot] = null;
+          resetCardStateForZoneChange(bAlly);
+          ai.hand.push(bAlly);
+          notifyCardReturnedToHand(ai, bAlly);
+          if (ai.deck.length > 0) {
+            const milled = ai.deck.pop();
+            resetCardStateForZoneChange(milled);
+            ai.graveyard.push(milled);
+          }
+          showCardShowcaseBanner(spell, 'AI ใช้เวทมนตร์ ระเบิดฮานาบิ!', `💣 จ่าย 1 HP ยก "${bAlly.name}" กลับขึ้นมือ และโม่กอง 1 ใบ!`, '#a855f7');
+          setLog(`💣 [AI ระเบิดฮานาบิ] จ่าย 1 HP นำ "${bAlly.name}" กลับขึ้นมือ และส่งใบบนสุดของกองลงนรก!`);
+        }
+        renderGame();
+      });
+    }
   }
 
   // 6. หมอสนามเหนือ (NS02) / หมอไพร่เหนือ (NS01)
@@ -14081,6 +14677,32 @@ function aiCastBestNormalSpell(ai, player, diff) {
     });
   }
 
+  // 15. (ระดับ HARD) จิตไนท์อาย รู้อนาคต (BT01_03) / หน่วยข่าวกรอง (NS04) / หนึ่งเดียวเพื่อทุกสิ่ง (S03) / ทุกสิ่งเพื่อหนึ่งเดียว (S04) และเวททั่วไปที่มี CAST_SPELL
+  for (let hIdx = 0; hIdx < ai.hand.length; hIdx++) {
+    const sp = ai.hand[hIdx];
+    if (!sp || sp.type !== 'NormalSpell') continue;
+    // S03 (Rest 1 ฮีล 1): ใช้เฉพาะตอนเลือดลีดเดอร์ลด หรือมี โทโคยาจิต (BT01_02) ที่ลุกฟรีได้
+    if (sp.id === 'S03') {
+      const hasTokoya = ai.board.some(m => m && m.id === 'BT01_02' && m.state === 'Stand' && !m.tokoyaRestUsedThisTurn);
+      if (ai.leader.hp >= ai.leader.maxHp && !hasTokoya) continue;
+      if (!hasTokoya && ai.leader.hp > 3) continue;
+    }
+    // S04 (Rest 2 มอบตียูนิตตายแล้วเบิร์นลีดเดอร์ 1): ใช้เฉพาะเมื่อมีตัวโจมตีตัวที่ 3 หรือมี โทโคยาจิต
+    if (sp.id === 'S04') {
+      const standCount = ai.board.filter(m => m && m.state === 'Stand' && m.id !== 'NM05').length;
+      const hasTokoya = ai.board.some(m => m && m.id === 'BT01_02' && m.state === 'Stand' && !m.tokoyaRestUsedThisTurn);
+      if (standCount < 3 && !hasTokoya) continue;
+      if (!player.board.some(m => m !== null)) continue;
+    }
+    const eff = (sp.effects || []).find(e => e.trigger === 'CAST_SPELL' || e.trigger === 'ON_CAST');
+    if (eff && EffectEngine.canActivateEffect(eff, { caster: ai, opponent: player, sourceCard: sp, spellHandIndex: hIdx, excludeHandIndex: hIdx, isAI: true }).ok) {
+      return executeAISpellCast(ai, hIdx, (usedSp) => {
+        showCardShowcaseBanner(usedSp, 'AI ใช้การ์ดเวทมนตร์!', `✨ ${usedSp.name}!`, '#38bdf8');
+        EffectEngine.activateSpecificEffect(eff, { caster: ai, opponent: player, sourceCard: usedSp, isAI: true });
+      });
+    }
+  }
+
   return false;
 }
 
@@ -14123,9 +14745,12 @@ function aiPlayBattlePhase(slotIndex) {
       const hasDebirun = ai.board.some(m => m && m.id === 'DM04');
       if (emiSlot !== -1 && hasDebirun && ai.hand.length >= 3) {
         for (let i = 0; i < 3; i++) {
-          const d = ai.hand.pop();
-          resetCardStateForZoneChange(d);
-          ai.graveyard.push(d);
+          const d = spliceBestAIDiscard(ai) || ai.hand.pop();
+          if (d) {
+            resetCardStateForZoneChange(d);
+            ai.graveyard.push(d);
+            if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(ai, d);
+          }
         }
         ai.board[emiSlot].state = 'Stand';
         ai.board[emiSlot].usedSkills.emiReattack = true;
@@ -14141,36 +14766,121 @@ function aiPlayBattlePhase(slotIndex) {
     return;
   }
 
+  // 🧠 ระดับ HARD: เลือกลำดับยูนิตที่จะโจมตีอย่างมีกลยุทธ์ แทนการไล่ช่อง 0 -> 1 -> 2 เสมอ
+  if (diff === 'HARD') {
+    const readySlots = [];
+    for (let s = 0; s < 3; s++) {
+      const m = ai.board[s];
+      if (m && m.id !== 'NM05' && canContestantAttack(ai, m).allowed) {
+        readySlots.push(s);
+      }
+    }
+    if (readySlots.length === 0) {
+      aiPlayBattlePhase(3);
+      return;
+    }
+    // จัดลำดับตัวตี:
+    // 1. ยูนิตที่มีสกิลทำลายยูนิตแล้วได้โบนัสก้อนโต/ลุกขึ้นตีซ้ำ (DN01 ทีเร็กซ์, DN06 อินโดมินัส, RD03 DAN HENG, KL05 THE BLIGHT, BT01_04, BT01_05, KG04) หรือยูนิตที่ลุกเองได้ (KG02, BT02_11)
+    // 2. ยูนิตที่มีสกิลโจมตีลีดเดอร์สำเร็จ (DN07 อินโดแรปเตอร์, KL03 THE GHOUL, KL09 THE NURSE, DMM07, MD03)
+    // 3. หากผู้เล่นมีตัวบล็อก Stand อยู่ ให้เอาตัวเล็ก/ตัวเคลียร์บอร์ดตีก่อนเพื่อเปิดทางให้ตัวใหญ่
+    readySlots.sort((slotA, slotB) => {
+      const mA = ai.board[slotA];
+      const mB = ai.board[slotB];
+      const scoreAttacker = (m) => {
+        let sc = 0;
+        const p = getEffectivePower(m, ai);
+        const canKillSomeone = player.board.some(em => em && em.id !== 'NM05' && p > getEffectivePower(em, player));
+        if (canKillSomeone && (m.id === 'DN01' || m.id === 'DN06' || m.id === 'RD03' || m.id === 'KL05' || m.id === 'BT01_04' || m.id === 'BT01_05' || m.id === 'KG04' || m.burnLeaderOnKill)) {
+          sc += 80;
+        }
+        if (m.id === 'KL03' && ai.hand.length > 0 && player.board.some(em => em !== null)) sc += 90; // THE GHOUL ตีพร้อมทิ้งมือระเบิดตัวบล็อกก่อน!
+        if (m.id === 'BT02_11' && !m.uroborosAttackedTwice && ai.hand.length < player.hand.length) sc += 75;
+        if (m.id === 'KG02' && ai.hand.length > 0) sc += 70;
+        if (m.id === 'MD05' && ai.graveyard.length > 0) sc += 50;
+        if (m.beelzebubBuffThisTurn) sc += 65;
+        return sc + p;
+      };
+      return scoreAttacker(mB) - scoreAttacker(mA);
+    });
+    slotIndex = readySlots[0];
+  }
+
   const monster = ai.board[slotIndex];
   const check = canContestantAttack(ai, monster);
   if (!check.allowed || (monster && monster.id === 'NM05')) {
-    aiPlayBattlePhase(slotIndex + 1);
+    aiPlayBattlePhase(diff === 'HARD' ? 0 : slotIndex + 1);
     return;
   }
 
+  const nextStepSlot = (diff === 'HARD') ? 0 : (slotIndex + 1);
   const aiPower = getEffectivePower(monster, ai);
   const playerHasTsururu = player.board.some(m => m !== null && m.id === 'DM05');
   const playerHasUnknown = player.board.some(m => m !== null && (m.id === 'KL10' || (m.name && m.name.includes('THE UNKNOWN'))));
+  const playerHasLucifer = Array.isArray(player.darkDimension) && player.darkDimension.some(d => d && d.id === 'DMS03');
 
-  const playerHasStandBlocker = player.board.some(m => m !== null && m.state === 'Stand');
-  if (!playerHasUnknown && diff === 'HARD' && player.leader.hp === 1 && !playerHasStandBlocker) {
-    executeAttack(ai, player, slotIndex, 'leader', null, () => {
-      setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 1150);
-    });
-    return;
+  // ตรวจสอบจำนวนตัวบล็อกที่ Stand อยู่ของผู้เล่น และจำนวนตัวตีที่พร้อมโจมตีของ AI
+  const playerStandBlockers = player.board.filter(m => m !== null && m.state === 'Stand' && m.id !== 'NM05');
+  const aiReadyAttackersCount = ai.board.filter(m => m !== null && m.id !== 'NM05' && canContestantAttack(ai, m).allowed).length;
+  const isNurseAttacker = (monster.id === 'KL09' || (monster.name && monster.name.includes('THE NURSE')));
+  const isUnblockableBank = (monster.id === 'OM02' && ai.hand.some(c => c && c.id === 'OS03') && ai.spellQuota.reactionUsed < 1);
+  const effectiveBlockerCount = isUnblockableBank ? 0 : (isNurseAttacker ? (playerStandBlockers.length >= 2 ? 1 : 0) : playerStandBlockers.length);
+
+  // 🎯 1. เช็ก Lethal (ปิดเกมตบหน้าลีดเดอร์ผู้เล่นจน HP = 0 ทันที!)
+  if (!playerHasUnknown && diff === 'HARD') {
+    if (effectiveBlockerCount === 0 && player.leader.hp <= 1) {
+      executeAttack(ai, player, slotIndex, 'leader', null, () => {
+        setTimeout(() => aiPlayBattlePhase(nextStepSlot), 1150);
+      });
+      return;
+    }
+    // ถ้าจำนวนตัวตีของเรามากกว่าจำนวนตัวบล็อกของผู้เล่น + เลือดผู้เล่น ให้รุมตบหน้าลีดเดอร์เพื่อบังคับบล็อกและปิดเกม!
+    if (aiReadyAttackersCount >= playerStandBlockers.length + player.leader.hp && (isUnblockableBank || isNurseAttacker || aiPower >= 2)) {
+      executeAttack(ai, player, slotIndex, 'leader', null, () => {
+        setTimeout(() => aiPlayBattlePhase(nextStepSlot), 1150);
+      });
+      return;
+    }
+    // ถ้าเป็น THE NURSE (เมื่อผู้เล่นมีตัว Stand แค่ 1 ใบ บล็อกไม่ได้) หรือ ไอแบงค์+เร็วขึ้นอีก หรือ อินโดแรปเตอร์ (ตบหน้าลีดเดอร์แล้วลุกฟรี)
+    if ((isNurseAttacker && playerStandBlockers.length < 2) || isUnblockableBank || (monster.id === 'DN07' && (!monster.usedSkills || !monster.usedSkills.indoraptor_on_hit_leader) && effectiveBlockerCount === 0)) {
+      executeAttack(ai, player, slotIndex, 'leader', null, () => {
+        setTimeout(() => aiPlayBattlePhase(nextStepSlot), 1150);
+      });
+      return;
+    }
   }
 
   let bestTargetSlot = -1;
-  let bestTargetPower = -1;
+  let bestTargetScore = -1;
 
   if (diff !== 'EASY') {
     player.board.forEach((m, idx) => {
       if (m && m.id !== 'NM05') {
         if (m.id === 'DM03' && playerHasTsururu) return;
-        const pPower = getEffectivePower(m, player);
-        if (aiPower > pPower && pPower > bestTargetPower) {
-          bestTargetPower = pPower;
-          bestTargetSlot = idx;
+        let pPower = getEffectivePower(m, player);
+        const effAiPwr = (m.id === 'DMM01' && playerHasLucifer) ? Math.max(0, aiPower - 1) : aiPower;
+
+        // ตรวจสอบว่า AI ชนะการต่อสู้นี้หรือไม่ (รวมสกิล เบลเซบับ บาปตะกละ ที่ชนะเมื่อพลังเท่ากัน)
+        const canWinCleanly = (effAiPwr > pPower) || (effAiPwr === pPower && monster.beelzebubBuffThisTurn && !m.beelzebubBuffThisTurn);
+        // ในระดับ HARD: หากตัวยืนของผู้เล่นเป็นภัยคุกคามสูง (พลัง >= 3 หรือเป็นคีย์การ์ดสำคัญ) และเรามีตัวตีเท่ากัน ให้ยอมแลก 1-1 ได้ถ้าคุ้ม
+        const isHighThreat = pPower >= 3 || ['BT01_08', 'BT01_09', 'BT01_10', 'BT02_04', 'BT02_09', 'BT02_10', 'KL10', 'RD04', 'RD05', 'RD06'].includes(m.id);
+        const canTradeWorthwhile = (diff === 'HARD' && effAiPwr === pPower && isHighThreat && !m.indestructibleUntilNextTurn && !m.protectedOnce && !(m.oatShieldAvailable && !m.oatShieldUsedThisTurn));
+
+        if (canWinCleanly || canTradeWorthwhile) {
+          let targetScore = pPower * 10;
+          if (canWinCleanly) targetScore += 50;
+          if (diff === 'HARD') {
+            if (m.state === 'Stand') targetScore += 12; // ตัดตัวบล็อกที่ Stand อยู่ของผู้เล่น
+            if (isHighThreat) targetScore += 25;
+            if (m.indestructibleUntilNextTurn || m.protectedOnce || (m.oatShieldAvailable && !m.oatShieldUsedThisTurn)) {
+              // ถ้าตีไปเขามีโล่กันตาย 1 ครั้ง ให้ลดความสำคัญลง ยกเว้นเรามี WELT (RD06) ยกเลิกอมตะ
+              const weHaveWelt = ai.board.some(ally => ally && ally.id === 'RD06');
+              if (!weHaveWelt) targetScore -= 45;
+            }
+          }
+          if (targetScore > bestTargetScore) {
+            bestTargetScore = targetScore;
+            bestTargetSlot = idx;
+          }
         }
       }
     });
@@ -14178,18 +14888,28 @@ function aiPlayBattlePhase(slotIndex) {
 
   if (bestTargetSlot !== -1) {
     executeAttack(ai, player, slotIndex, 'monster', bestTargetSlot, () => {
-      setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 1150);
+      setTimeout(() => aiPlayBattlePhase(nextStepSlot), 1150);
     });
   } else if (playerHasUnknown && player.board.some(m => m !== null)) {
-    const targetSlot = player.board.findIndex(m => m !== null);
+    // บังคับตีมอนสเตอร์เพราะผู้เล่นมี THE UNKNOWN: ในระดับ HARD ให้เลือกตีตัวที่พลังต่ำสุดหรือตีตัว THE UNKNOWN เองถ้าสู้ไหว
+    let targetSlot = player.board.findIndex(m => m !== null);
+    if (diff === 'HARD') {
+      let minP = 999;
+      player.board.forEach((m, idx) => {
+        if (m) {
+          const p = getEffectivePower(m, player);
+          if (p < minP) { minP = p; targetSlot = idx; }
+        }
+      });
+    }
     if (targetSlot !== -1) {
       executeAttack(ai, player, slotIndex, 'monster', targetSlot, () => {
-        setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 1150);
+        setTimeout(() => aiPlayBattlePhase(nextStepSlot), 1150);
       });
     }
   } else {
     executeAttack(ai, player, slotIndex, 'leader', null, () => {
-      setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 1150);
+      setTimeout(() => aiPlayBattlePhase(nextStepSlot), 1150);
     });
   }
 }
