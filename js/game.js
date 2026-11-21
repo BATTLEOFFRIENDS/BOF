@@ -12886,6 +12886,92 @@ function isHardAI() {
   return typeof aiConfig !== 'undefined' && aiConfig.difficulty === 'HARD';
 }
 
+// 🔥 เด็คจัดเต็มสำหรับ AI ระดับ HARD (20 ใบเป๊ะ ผสมการ์ดบูสเตอร์ BT01 & BT02 คอมโบเมต้าโหดสุดของแต่ละสาย)
+const HARD_AI_BT_DECK_LISTS = {
+  // L01 เด็คจิต + BT01 (โมโมจิต จั่ว 2 & ชุบตัวเอง, โทโคยาจิต ลุกฟรี, จิตไนท์อาย รีไซเคิลนรกจั่ว 2)
+  L01: [
+    'M01', 'M01', 'M02', 'M02', 'M03', 'M04', 'M05', 'M05', 'M06', 'M06',
+    'BT01_01', 'BT01_01', 'BT01_02', 'BT01_02', 'BT01_03',
+    'S01', 'S01', 'S02', 'S02', 'S03'
+  ],
+  // L02 เด็คขุนเหนือ
+  L02: DECK_LISTS.L02,
+  // L03 เด็ควันสิ้นโลก + BT01 (ผู้บัญชาการ เอล่า ใบ้บอร์ดอีกฝ่าย, มิวเท็น กันทำลายยกทีม + บัฟโอนามิ, ลาพิเน่ เรียกอนาคตฟรี)
+  L03: [
+    'DM01', 'DM01', 'DM02', 'DM02', 'DM03', 'DM04', 'DM05', 'DM06', 'DM07',
+    'BT01_07', 'BT01_08', 'BT01_08', 'BT01_09', 'BT01_09',
+    'DM09', 'DM12', 'DM13', 'DS01', 'DS01', 'DS02'
+  ],
+  // L04 เด็คไดโน
+  L04: DECK_LISTS.L04,
+  // L05 เด็คปีศาจ
+  L05: DECK_LISTS.L05,
+  // L06 เด็คโอ๊ต
+  L06: DECK_LISTS.L06,
+  // L07 เด็คมาโดกะ + BT01 (คิวเบย์ ทิ้งหาสาวน้อยเวทมนตร์ 2 ใบ, นักเรียนใหม่ โฮมุระ ทิ้งมือยิงบอร์ด, ความรักที่แท้จริง อมตะจากสกิลทั้งเกม)
+  L07: [
+    'MD01', 'MD01', 'MD02', 'MD02', 'MD03', 'MD04', 'MD05', 'MD06', 'MD07',
+    'MD08', 'MD09', 'BT01_10', 'BT01_10', 'BT01_11', 'BT01_11', 'BT01_12',
+    'MD10', 'MD11', 'MD12', 'MD12'
+  ],
+  // L08 เด็ครางดาว + BT02 (ฮานาบิ & ฮิบานะ & ฟิวชั่นบอส สปาร์กซี่คอน Power 4 ยกเลิกสกิล+ยิงบอร์ดรัวๆ)
+  L08: [
+    'BT02_01', 'BT02_01', 'BT02_02', 'BT02_02', 'BT02_03', 'BT02_03', 'BT02_04',
+    'BT02_05', 'BT02_05', 'BT02_06', 'BT02_06', 'BT02_07', 'BT02_07', 'BT02_08',
+    'RD01', 'RD03', 'RD05', 'RD07', 'RD08', 'RD10'
+  ],
+  // L09 เด็คคิลเลอร์ ENTITY + BT02 (THE KRASUE เบิร์น x2 + กันสกิล, THE LICH ล็อกสนาม/นรก, MASTERMIND + NEMESIS -> UROBOROS-NE, UNBODIED FLESH, BOOK OF VILE DARKNESS)
+  L09: [
+    'KL01', 'KL02', 'KL04', 'KL04', 'KL05', 'KL05', 'KL09', 'KL10',
+    'BT02_09', 'BT02_10', 'BT02_11', 'BT02_12', 'BT02_12', 'BT02_13', 'BT02_13',
+    'BT02_14', 'BT02_15', 'KL11', 'KL11', 'KL12'
+  ]
+};
+
+function getAIDeckListForLeader(leaderId, difficulty) {
+  if (difficulty === 'HARD' && HARD_AI_BT_DECK_LISTS[leaderId] && HARD_AI_BT_DECK_LISTS[leaderId].length === 20) {
+    return [...HARD_AI_BT_DECK_LISTS[leaderId]];
+  }
+  return getDefaultDeckForLeader(leaderId);
+}
+
+// 🧠 ระบบ Mulligan อัจฉริยะสำหรับ AI ระดับ HARD (เปลี่ยนการ์ดที่ค้างมือตอนเริ่มเกมออก เพื่อหาตัวเปิดเกมและคอมโบ BT)
+function performAIMulligan(ai) {
+  if (!ai || !Array.isArray(ai.hand) || !isHardAI()) return;
+  const indicesToMulligan = [];
+  const seenIds = new Set();
+
+  ai.hand.forEach((card, idx) => {
+    if (!card) return;
+    let shouldReplace = false;
+    // 1. การ์ดบอสที่ลงเทิร์นแรกไม่ได้ หรือควรอยู่ในกอง/นรกมากกว่า
+    if (card.id === 'BT02_04' || card.id === 'MD09' || card.id === 'KL01' || card.id === 'BT02_11' || card.id === 'RP01' || card.id === 'M04' || card.id === 'OM07') {
+      shouldReplace = true;
+    }
+    // 2. การ์ดอนาคตที่ยังไม่มีร่างต้นในมือ หรือ LandSpell ที่ควรเปิดจากกอง
+    else if (card.futureBaseId && !ai.hand.some(c => c && c.id === card.futureBaseId)) {
+      shouldReplace = true;
+    }
+    else if (card.type === 'LandSpell') {
+      shouldReplace = true;
+    }
+    // 3. การ์ดที่อยากให้ถูกโม่หรือเรียกจากกองมากกว่าค้างมือ (เช่น เบเบ้ MD06, THE NEMESIS ตอนมี MASTERMIND ในมือแล้ว)
+    else if (card.id === 'MD06' || (card.id === 'BT02_13' && ai.hand.some(c => c && c.id === 'BT02_12'))) {
+      shouldReplace = true;
+    }
+    // 4. เวทรีแอคหรือการ์ดซ้ำเกินไปในมือเริ่มต้น
+    else if (seenIds.has(card.id) && (card.type !== 'Monster' || card.cannotNormalSummon)) {
+      shouldReplace = true;
+    }
+    seenIds.add(card.id);
+    if (shouldReplace) indicesToMulligan.push(idx);
+  });
+
+  if (indicesToMulligan.length > 0) {
+    performMulligan(ai, indicesToMulligan);
+  }
+}
+
 // 🧠 ประเมินคุณค่าของการ์ดในการทิ้งจากมือสำหรับ AI ระดับ HARD (คะแนนยิ่งสูง ยิ่งควรเลือกทิ้งก่อน)
 function getAIDiscardScore(contestant, card, opts = {}) {
   if (!card) return -999;
@@ -15425,6 +15511,7 @@ const btnConfirmMulliganEl = document.getElementById('btn-confirm-mulligan');
 if (btnConfirmMulliganEl) {
   btnConfirmMulliganEl.addEventListener('click', () => {
     performMulligan(gameState.player, gameState.mulliganSelected);
+    if (typeof performAIMulligan === 'function') performAIMulligan(gameState.ai);
     applyStartOfGameLeaderEffects(gameState.player);
     applyStartOfGameLeaderEffects(gameState.ai);
     const mulliganModalEl = document.getElementById('mulligan-modal');
@@ -16709,7 +16796,7 @@ function initGame() {
   const chosenAiLeaderId = (aiConfig.deckChoice === 'RANDOM')
     ? allLeaderIds[Math.floor(Math.random() * allLeaderIds.length)]
     : aiConfig.deckChoice;
-  const chosenAiDeckList = getDefaultDeckForLeader(chosenAiLeaderId);
+  const chosenAiDeckList = getAIDeckListForLeader(chosenAiLeaderId, aiConfig.difficulty);
 
   gameState.player = createContestant('Player', true, 'P1', currentDeckConfig.leaderId, currentDeckConfig.mainDeck);
   gameState.ai = createContestant('AI', false, 'AI', chosenAiLeaderId, chosenAiDeckList);
@@ -16868,6 +16955,7 @@ function bindMultiplayerButtons() {
       document.getElementById('mulligan-modal').style.display = 'none';
 
       if (!pvpState.isMultiplayer) {
+        if (typeof performAIMulligan === 'function') performAIMulligan(gameState.ai);
         applyStartOfGameLeaderEffects(gameState.ai);
         if (gameState.activeTurn === 'ai') {
           startAIFirstTurn();
