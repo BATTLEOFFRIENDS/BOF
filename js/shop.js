@@ -1955,22 +1955,26 @@
     if (key === 'BT01') return card.id && card.id.startsWith('BT01');
     if (key === 'BT02') return card.id && card.id.startsWith('BT02');
     if (key === 'BT03') return card.id && card.id.startsWith('BT03');
+
+    const baseKey = deckOfCard(card).key;
+    if (baseKey === key) return true;
+
     if (key === 'JIT') {
-      return (card.id && (/^M\d+$/.test(card.id) || /^S\d+$/.test(card.id) || card.id === 'L01' || card.id.startsWith('BT03') || card.id === 'BT01_01' || card.id === 'BT01_02' || card.id === 'BT01_03')) || card.leaderLock === 'L01' || (card.image && card.image.includes('เด็คจิต'));
+      return (card.id && (card.id.startsWith('BT03') || card.id === 'BT01_01' || card.id === 'BT01_02' || card.id === 'BT01_03')) || card.leaderLock === 'L01';
     }
     if (key === 'KILLER') {
-      return (card.id && (card.id.startsWith('KL') || card.id === 'L09' || /^BT02_(09|1[0-5])$/.test(card.id))) || card.tribe === 'คิลเลอร์' || card.tribe === 'ENTITY' || card.leaderLock === 'L09' || (card.image && card.image.includes('Killer'));
+      return (card.id && /^BT02_(09|1[0-5])$/.test(card.id)) || card.tribe === 'คิลเลอร์' || card.leaderLock === 'L09';
     }
     if (key === 'RANGDAO') {
-      return (card.id && (card.id.startsWith('RD') || card.id === 'L08' || /^BT02_0[1-8]$/.test(card.id))) || card.tribe === 'รางดาว' || (card.image && card.image.includes('รางดาว'));
+      return (card.id && /^BT02_0[1-8]$/.test(card.id)) || card.tribe === 'รางดาว';
     }
     if (key === 'DOOM') {
-      return (card.id && (card.id.startsWith('DM') || card.id === 'L03' || card.id === 'BT01_07' || card.id === 'BT01_08' || card.id === 'BT01_09')) || (card.image && card.image.includes('วันสิ้นโลก'));
+      return card.id === 'BT01_07' || card.id === 'BT01_08' || card.id === 'BT01_09';
     }
     if (key === 'MADOKA') {
-      return (card.id && (card.id.startsWith('MD') || card.id === 'L07' || card.id === 'BT01_10' || card.id === 'BT01_11' || card.id === 'BT01_12')) || (card.image && card.image.includes('มาโดกะ'));
+      return card.id === 'BT01_10' || card.id === 'BT01_11' || card.id === 'BT01_12';
     }
-    return deckOfCard(card).key === key;
+    return false;
   };
 
   const maxKeepOf = card => (card.type === 'Leader' ? 1 : (card.maxCopies || 2));
