@@ -867,6 +867,20 @@
         overlay.click();
         assert(overlay.classList.contains('is-closing'), 'Clicking fusion overlay triggers clean skip/close');
       }
+
+      // Regression: AI HARD with BT02_04 on board + BT02_07 in grave (no Hanabi/Hibana on board) must not loop Harmony grave skill
+      assert(isHanabiOrHibanaCard(sparkcon) === false, 'BT02_04 Sparkcon is not a Hanabi/Hibana bounce target');
+      const prevDiff = aiConfig.difficulty;
+      aiConfig.difficulty = 'HARD';
+      gameState.ai.board = [createCardInstance(sparkcon, 'AI-SPK'), null, null];
+      gameState.ai.hand = [];
+      gameState.ai.deck = [];
+      gameState.ai.graveyard = [createCardInstance(CARD_DATABASE.find(c => c.id === 'BT02_07'), 'AI-HM')];
+      gameState.ai.harmonyGraveUsedThisTurn = false;
+      gameState.ai.leader = { id: 'L08', name: 'Test', hp: 6, maxHp: 6, abilityUsedThisTurn: true };
+      const didLoopAction = performSingleAIMainAction();
+      assert(didLoopAction === false, 'performSingleAIMainAction() returns false when AI has BT02_04 + BT02_07 in grave but no Hanabi/Hibana on board');
+      aiConfig.difficulty = prevDiff;
     });
 
     // ==========================================

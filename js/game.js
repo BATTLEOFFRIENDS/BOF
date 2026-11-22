@@ -14524,9 +14524,10 @@ function performSingleAIMainAction() {
     // ใช้เมื่อมี สปาร์กซี่คอน (BT02_04) บนสนาม (เพื่อทริกเกอร์ออโต้ทำลายการ์ดอีกฝ่าย 1 ใบ) หรือดึงตัวที่ Rest/ใช้สกิลไปแล้วขึ้นมือพร้อมรีไซเคิลเวทฟิวชั่นกลับกอง
     if (diff === 'HARD' && !ai.harmonyGraveUsedThisTurn && !isGraveyardSkillLockedByOpponent(ai) && Array.isArray(ai.graveyard)) {
       const hmCard = ai.graveyard.find(c => c && c.id === 'BT02_07');
+      const hasHanabiOrHibanaOnBoard = ai.board.some(m => m && isHanabiOrHibanaCard(m));
       const hasSparkcon = ai.board.some(m => m && m.id === 'BT02_04' && (m.sparkconBounceTriggerCountThisTurn || 0) < 2);
       const hasUsedHanabi = ai.board.some(m => m && isHanabiOrHibanaCard(m) && (m.hanabiUsedThisTurn || m.state === 'Rest'));
-      if (hmCard && (hasSparkcon || hasUsedHanabi)) {
+      if (hmCard && hasHanabiOrHibanaOnBoard && (hasSparkcon || hasUsedHanabi)) {
         checkSparkconCancelBeforeAction(ai, hmCard, () => {
           executeHarmonyGraveSkill(ai, hmCard);
         }, () => {
