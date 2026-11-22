@@ -14396,9 +14396,13 @@ function onAIMainPhaseDone() {
 
 // ⏳ สมองกล AI ช่วง Main Phase แบบทีละสเต็ป (ทำ 1 อย่าง -> แสดงเอฟเฟกต์ -> รอ 1.2 วินาที -> ทำอย่างถัดไป)
 let _aiMainPhaseBlockedCount = 0;
-function aiPlayMainPhase(onMainComplete) {
+function aiPlayMainPhase(onMainComplete, _stepCount = 0) {
   if (aiTurnAborted()) {
     _aiMainPhaseBlockedCount = 0;
+    return;
+  }
+  if (_stepCount >= 24) {
+    onMainComplete();
     return;
   }
   // ถ้ามีหน้าต่างคำถาม หรือกำลังรอผู้เล่นเลือกผลของสกิล (เช่น แมมมอน บาปความโลภ) ให้ AI หยุดรอจนกว่าจะเลือกเสร็จสิ้น
@@ -14411,7 +14415,7 @@ function aiPlayMainPhase(onMainComplete) {
       _aiMainPhaseBlockedCount = 0;
     }
     setTimeout(() => {
-      aiPlayMainPhase(onMainComplete);
+      aiPlayMainPhase(onMainComplete, _stepCount);
     }, 400);
     return;
   }
@@ -14425,7 +14429,7 @@ function aiPlayMainPhase(onMainComplete) {
   }
   if (didAction) {
     setTimeout(() => {
-      aiPlayMainPhase(onMainComplete);
+      aiPlayMainPhase(onMainComplete, _stepCount + 1);
     }, aiConfig.stepDelayMs);
   } else {
     onMainComplete();
@@ -14452,7 +14456,7 @@ function performSingleAIMainAction() {
     }
 
     // 1.0 สั่งใช้งานโมโมจิตจากนรก (BT01_01)
-    if (!ai.momoGraveUsedThisTurn && ai.hand.length >= 1 && Array.isArray(ai.graveyard)) {
+    if (!ai.momoGraveUsedThisTurn && !isGraveyardSkillLockedByOpponent(ai) && ai.hand.length >= 1 && Array.isArray(ai.graveyard)) {
       const momoGraveCard = ai.graveyard.find(c => c && c.id === 'BT01_01');
       if (momoGraveCard) {
         checkSparkconCancelBeforeAction(ai, momoGraveCard, () => {
@@ -14786,7 +14790,8 @@ function performSingleAIMainAction() {
     // 3.0 พเทอราโนดอน (DN04) โม่กองตัวเอง 2 ใบแล้วจั่ว 1 ใบ
     if (m.id === 'DN04' && !m.usedSkills.pteranodon_mill_draw && ai.deck.length >= 3) {
       const eff = (m.effects || []).find(e => e.id === 'pteranodon_mill_draw');
-      if (eff) {
+      if (eff && EffectEngine.canActivateEffect(eff, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true }).ok) {
+        m.usedSkills.pteranodon_mill_draw = true;
         showCardShowcaseBanner(m, 'AI ใช้สกิลพเทอราโนดอน!', '🦖 โม่กองการ์ด 2 ใบลงนรก แล้วจั่วการ์ด 1 ใบ!', '#16a34a');
         EffectEngine.activateSpecificEffect(eff, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true });
         playSlotAnimation(false, slotIdx, 'fx-skill-glow');
@@ -14812,7 +14817,7 @@ function performSingleAIMainAction() {
     }
 
     // 3.0.3 นักวางแผนน้อย มารอน (RP08) สั่งใช้งานบนสนาม (1 ครั้ง/เทิร์น)
-    if (m.id === 'RP08' && (!m.usedSkills || !m.usedSkills.marronActivatedThisTurn)) {
+    if (m.id === 'RP08' && (!m.usedSkills || !m.usedSkills.marronActivatedThisTurn) && Array.isArray(ai.graveyard) && ai.graveyard.length > 0) {
       checkSparkconCancelBeforeAction(ai, m, () => {
         handleMarronBoardActivation(ai, slotIdx);
         playSlotAnimation(false, slotIdx, 'fx-skill-glow');
@@ -15101,8 +15106,8 @@ function performSingleAIMainAction() {
     if ((ai.deck || []).some(isSpell) || (ai.graveyard || []).some(isSpell)) {
       if (handleRangdaoLeaderActivation(ai)) {
         playSlotAnimation(false, 'leader', 'fx-skill-glow');
+        return true;
       }
-      return true;
     }
   }
 

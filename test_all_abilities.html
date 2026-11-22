@@ -880,6 +880,24 @@
       gameState.ai.leader = { id: 'L08', name: 'Test', hp: 6, maxHp: 6, abilityUsedThisTurn: true };
       const didLoopAction = performSingleAIMainAction();
       assert(didLoopAction === false, 'performSingleAIMainAction() returns false when AI has BT02_04 + BT02_07 in grave but no Hanabi/Hibana on board');
+
+      // Regression: RP08 (Marron) on board with empty graveyard must not loop
+      const rp08 = CARD_DATABASE.find(c => c.id === 'RP08');
+      if (rp08) {
+        gameState.ai.board = [createCardInstance(rp08, 'AI-MARRON'), null, null];
+        gameState.ai.graveyard = [];
+        gameState.ai.hand = [];
+        assert(performSingleAIMainAction() === false, 'RP08 Marron does not loop when AI graveyard is empty');
+      }
+
+      // Regression: L08 Leader does not return true if handleRangdaoLeaderActivation returns false
+      gameState.ai.board = [null, null, null];
+      gameState.ai.deck = [createCardInstance(CARD_DATABASE.find(c => c.id === 'RD08'), 'AI-RD08')];
+      gameState.ai.leader = { id: 'L08', name: 'Test', hp: 6, maxHp: 6, abilityUsedThisTurn: false };
+      const prevPhase = gameState.phase;
+      gameState.phase = 'Battle Phase';
+      assert(performSingleAIMainAction() === false, 'L08 leader does not loop when activation returns false');
+      gameState.phase = prevPhase;
       aiConfig.difficulty = prevDiff;
     });
 
