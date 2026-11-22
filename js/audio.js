@@ -381,6 +381,73 @@
     }
   }
 
+  // 14. เสียงอัญเชิญฟิวชั่นสไตล์ Master Duel (Material Glow -> Vortex Swirl -> Reveal Chord -> Board Slam)
+  function playFusion(hasMaterials = true) {
+    if (!canPlay()) return;
+    initAudioContext();
+    const now = ctx.currentTime;
+    const offset = hasMaterials ? 1.02 : 0.04;
+
+    // วัตถุดิบเรืองแสง (Stage 1)
+    if (hasMaterials) {
+      [440, 554.37, 659.25].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.07);
+        g.gain.setValueAtTime(0.11, now + i * 0.07);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(now + i * 0.07);
+        osc.stop(now + 0.68);
+      });
+    }
+
+    // วังวนไฟหมุนเร่งเสียงขึ้น (Stage 2)
+    const swirlOsc = ctx.createOscillator();
+    const swirlGain = ctx.createGain();
+    swirlOsc.type = 'triangle';
+    swirlOsc.frequency.setValueAtTime(170, now + offset);
+    swirlOsc.frequency.exponentialRampToValueAtTime(1120, now + offset + 1.24);
+    swirlGain.gain.setValueAtTime(0.001, now + offset);
+    swirlGain.gain.linearRampToValueAtTime(0.24, now + offset + 0.92);
+    swirlGain.gain.exponentialRampToValueAtTime(0.001, now + offset + 1.28);
+    swirlOsc.connect(swirlGain);
+    swirlGain.connect(masterGain);
+    swirlOsc.start(now + offset);
+    swirlOsc.stop(now + offset + 1.3);
+
+    // คอร์ดเปิดตัวการ์ดฟิวชั่น (Stage 3)
+    const revT = now + offset + 1.28;
+    [261.63, 329.63, 392.0, 523.25, 659.25].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = i % 2 === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, revT + i * 0.02);
+      gain.gain.setValueAtTime(0.15, revT + i * 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, revT + 1.1);
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start(revT + i * 0.02);
+      osc.stop(revT + 1.12);
+    });
+
+    // เสียงตบลงกระดาน + วงแหวนม่วง (Stage 4)
+    const slamT = now + offset + 2.9;
+    const slamOsc = ctx.createOscillator();
+    const slamGain = ctx.createGain();
+    slamOsc.type = 'sawtooth';
+    slamOsc.frequency.setValueAtTime(160, slamT);
+    slamOsc.frequency.exponentialRampToValueAtTime(42, slamT + 0.24);
+    slamGain.gain.setValueAtTime(0.28, slamT);
+    slamGain.gain.exponentialRampToValueAtTime(0.001, slamT + 0.28);
+    slamOsc.connect(slamGain);
+    slamGain.connect(masterGain);
+    slamOsc.start(slamT);
+    slamOsc.stop(slamT + 0.3);
+  }
+
   function updateSoundUI() {
     const toggles = document.querySelectorAll('.bof-sound-toggle-btn');
     toggles.forEach(btn => {
@@ -413,7 +480,8 @@
     playDefeat,
     playCoinFlip,
     playCoinLand,
-    playDeckShuffle
+    playDeckShuffle,
+    playFusion
   };
 
   // ตรวจจับคลิกที่ปุ่มใดๆ เพื่อเล่นเสียงคลิกนุ่มๆ

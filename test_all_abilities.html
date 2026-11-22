@@ -41,6 +41,7 @@
   <script src="js/cards/bt03.js"></script>
   <script src="js/cards/schema.js"></script>
   <script src="js/bof-icons.js"></script>
+  <script src="js/summon-fx.js"></script>
   <script src="js/game.js"></script>
   <script src="js/combo-replays-data.js"></script>
 
@@ -849,6 +850,23 @@
       const rightPower = getEffectivePower(rightMonster, testOwnerMephisto);
       assert(leftPower === 4, `Left monster power buffed +2 by Mephisto (2 -> ${leftPower})`);
       assert(rightPower === 3, `Right monster power buffed +2 by Mephisto (1 -> ${rightPower})`);
+
+      // Fusion Cut-In FX check (Master Duel style)
+      assert(window.SummonFx && typeof window.SummonFx.playFusion === 'function', 'SummonFx.playFusion is defined');
+      const sparkcon = CARD_DATABASE.find(c => c.id === 'BT02_04');
+      const mat1 = CARD_DATABASE.find(c => c.id === 'BT02_01');
+      const mat2 = CARD_DATABASE.find(c => c.id === 'BT02_02');
+      window.SummonFx.playFusion({ fusionCard: sparkcon, materials: [mat1, mat2] });
+      const overlay = document.querySelector('.sfx-fusion-overlay');
+      assert(!!overlay, 'Fusion overlay mounted in DOM');
+      if (overlay) {
+        assert(overlay.querySelectorAll('.sfx-fusion-mat-card').length === 2, 'Stage 1 shows 2 purple-glowing material cards');
+        assert(!!overlay.querySelector('.sfx-fusion-vortex'), 'Stage 2 orange-white fusion vortex present');
+        assert(!!overlay.querySelector('.sfx-fusion-reveal-card'), 'Stage 3 fusion reveal card present');
+        assert(!!overlay.querySelector('.sfx-fusion-aura'), 'Stage 3 purple fusion aura present');
+        overlay.click();
+        assert(overlay.classList.contains('is-closing'), 'Clicking fusion overlay triggers clean skip/close');
+      }
     });
 
     // ==========================================

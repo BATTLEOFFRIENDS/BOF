@@ -3300,8 +3300,16 @@ function executeHarmonyFusionSpell(player, spell, handIndex) {
               emptySlot = 0;
             }
             player.board[emptySlot] = summonedFusion;
+            summonedFusion._fusionFxPlayed = true;
 
-            if (typeof showCardShowcaseBanner === 'function') {
+            if (window.SummonFx && typeof SummonFx.playFusion === 'function') {
+              SummonFx.playFusion({
+                fusionCard: summonedFusion,
+                materials: [matH.card, matB.card],
+                side: 'player',
+                slotIndex: emptySlot
+              });
+            } else if (typeof showCardShowcaseBanner === 'function') {
               showCardShowcaseBanner(summonedFusion, '🎭 อัญเชิญฟิวชั่นสำเร็จ!', 'รวมร่าง "ฮานาบิ" + "ฮิบานะ" -> อัญเชิญ "สปาร์กซี่คอน"!', '#a855f7', 1500);
             }
             setLog(`🎭 [การประสานแห่งปีติสุข] ส่ง "${matH.card.name}" และ "${matB.card.name}" ลงนรก -> อัญเชิญฟิวชั่น "${summonedFusion.name}" ลงช่องที่ ${emptySlot + 1} สำเร็จ!`);
@@ -15323,7 +15331,17 @@ function aiCastBestNormalSpell(ai, player, diff) {
               sendOverwrittenMonsterToGrave(ai, targetSlot);
             }
             ai.board[targetSlot] = summonedFusion;
-            showCardShowcaseBanner(summonedFusion, '🎭 AI อัญเชิญฟิวชั่น!', 'รวมร่าง "ฮานาบิ" + "ฮิบานะ" -> อัญเชิญ "สปาร์กซี่คอน"!', '#a855f7', 1500);
+            summonedFusion._fusionFxPlayed = true;
+            if (window.SummonFx && typeof SummonFx.playFusion === 'function') {
+              SummonFx.playFusion({
+                fusionCard: summonedFusion,
+                materials: [chosenH.card, chosenB.card],
+                side: 'ai',
+                slotIndex: targetSlot
+              });
+            } else {
+              showCardShowcaseBanner(summonedFusion, '🎭 AI อัญเชิญฟิวชั่น!', 'รวมร่าง "ฮานาบิ" + "ฮิบานะ" -> อัญเชิญ "สปาร์กซี่คอน"!', '#a855f7', 1500);
+            }
             setLog(`🎭 [AI การประสานแห่งปีติสุข] ส่ง "${chosenH.card.name}" และ "${chosenB.card.name}" ลงนรก -> อัญเชิญฟิวชั่น "${summonedFusion.name}" ลงช่องที่ ${targetSlot + 1}!`);
           }
           renderGame();
@@ -16001,8 +16019,14 @@ function renderBoardSlots(containerId, contestant, isPlayerBoard) {
         cardEl.classList.add('selected-attacker');
       }
       slotEl.appendChild(cardEl);
-      // การ์ดใบใหม่ในช่องนี้ (ลงด้วยวิธีไหนก็ตาม) → เอฟเฟคโฮโลแตกตามระดับ
-      if (monster.uid !== prevUid && window.SummonFx) SummonFx.play(slotEl, cardEl);
+      // การ์ดใบใหม่ในช่องนี้ (ลงด้วยวิธีไหนก็ตาม) → เอฟเฟคโฮโลแตกตามระดับ (และคัตอินฟิวชั่นสำหรับตัวฟิวชั่น)
+      if (monster.uid !== prevUid && window.SummonFx) {
+        SummonFx.play(slotEl, cardEl);
+        if (isFusionMonster(monster) && !monster._fusionFxPlayed && typeof SummonFx.playFusion === 'function') {
+          SummonFx.playFusion({ fusionCard: monster, targetSlotEl: slotEl });
+        }
+        delete monster._fusionFxPlayed;
+      }
       previousBoardUids[sideKey][idx] = monster.uid;
 
       if (isPlayerBoard) {

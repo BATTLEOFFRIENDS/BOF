@@ -160,5 +160,332 @@
     };
   };
 
+  // วาดวังวนฟิวชั่นสไตล์ยูกิโอ (Polymerization / Master Duel): เกลียวพลังงานส้ม-น้ำเงินม้วนเข้าหลุมดำกลางจอ
+  function startPolymerizationVortex(canvas, durationMs) {
+    const ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+    if (!ctx) return () => {};
+    const size = 520, cx = size / 2, cy = size / 2, maxR = 238;
+    canvas.width = size;
+    canvas.height = size;
+
+    const sparks = Array.from({ length: 56 }, (_, i) => ({
+      angle: (i / 56) * Math.PI * 2 + rnd(-0.2, 0.2),
+      r: rnd(38, maxR),
+      speed: rnd(1.8, 3.6),
+      size: rnd(1.6, 4.2),
+      isOrange: i % 2 === 0,
+    }));
+
+    let rafId = 0;
+    const t0 = performance.now();
+
+    function drawArm(spin, offsetAngle, colors, widthScale, turns) {
+      const steps = 68;
+      colors.forEach(([stroke, width, alpha]) => {
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const u = i / steps;
+          const r = maxR * Math.pow(1 - u, 1.18) + 20;
+          const a = offsetAngle + spin + u * Math.PI * turns;
+          const x = cx + Math.cos(a) * r;
+          const y = cy + Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = width * widthScale;
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = alpha;
+        ctx.stroke();
+      });
+    }
+
+    function frame(now) {
+      const elapsed = now - t0;
+      const p = Math.min(1, elapsed / durationMs);
+      // เร่งความเร็วหมุนขึ้นเรื่อยๆ ก่อนระเบิด
+      const spin = (elapsed * 0.0048) + p * p * 6.5;
+
+      ctx.clearRect(0, 0, size, size);
+
+      // 1. วงเงาจักรวาลรอบหลุมดำ
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      const bg = ctx.createRadialGradient(cx, cy, 18, cx, cy, maxR);
+      bg.addColorStop(0, 'rgba(0, 0, 0, 0.96)');
+      bg.addColorStop(0.32, 'rgba(8, 6, 22, 0.84)');
+      bg.addColorStop(0.68, 'rgba(12, 16, 40, 0.35)');
+      bg.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. เกลียวพลังงานส้มเพลิง + น้ำเงินไฟฟ้า ม้วนเป็นเกลียวจริงเข้าสู่หลุมดำ
+      ctx.globalCompositeOperation = 'lighter';
+      const orangeArm = [
+        ['rgba(255, 88, 0, 0.55)', 28, 0.55],
+        ['rgba(255, 145, 30, 0.85)', 14, 0.85],
+        ['rgba(255, 240, 200, 0.95)', 4.5, 0.95],
+      ];
+      const blueArm = [
+        ['rgba(0, 102, 255, 0.55)', 28, 0.55],
+        ['rgba(56, 189, 248, 0.85)', 14, 0.85],
+        ['rgba(224, 247, 255, 0.95)', 4.5, 0.95],
+      ];
+
+      // เกลียวหลัก 2 แขน (ส้ม vs น้ำเงิน) + เกลียวรองบางๆ ให้ดูหนาแน่นเหมือนโพลีเมอไรเซชั่น
+      drawArm(spin, 0, orangeArm, 1.0, 4.4);
+      drawArm(spin, Math.PI, blueArm, 1.0, 4.4);
+      drawArm(spin * 1.18, 0.55, orangeArm, 0.45, 5.2);
+      drawArm(spin * 1.18, Math.PI + 0.55, blueArm, 0.45, 5.2);
+
+      // 3. ประกายพลังงานถูกดูดม้วนเข้าศูนย์กลาง
+      sparks.forEach(s => {
+        s.r -= s.speed * (1.2 + (1 - s.r / maxR) * 2.2);
+        s.angle += 0.065 + (1 - s.r / maxR) * 0.14;
+        if (s.r < 22) { s.r = maxR; s.angle = rnd(0, Math.PI * 2); }
+        const x = cx + Math.cos(s.angle) * s.r;
+        const y = cy + Math.sin(s.angle) * s.r;
+        const tailA = s.angle - 0.18;
+        const tx = cx + Math.cos(tailA) * (s.r + 8);
+        const ty = cy + Math.sin(tailA) * (s.r + 8);
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = s.isOrange ? '#ffb347' : '#60d5ff';
+        ctx.lineWidth = s.size;
+        ctx.globalAlpha = Math.min(1, (s.r / maxR) * 1.3);
+        ctx.stroke();
+      });
+
+      // 4. ใจกลางหลุมดำ (Event Horizon + ขอบแสงส้ม/น้ำเงิน)
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      const holeR = 32 * (1 - p * 0.25);
+      const rim = ctx.createRadialGradient(cx, cy, holeR * 0.72, cx, cy, holeR * 1.65);
+      rim.addColorStop(0, '#000000');
+      rim.addColorStop(0.55, '#000000');
+      rim.addColorStop(0.76, p > 0.82 ? '#ffffff' : 'rgba(255, 165, 60, 0.95)');
+      rim.addColorStop(0.9, 'rgba(56, 189, 248, 0.75)');
+      rim.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = rim;
+      ctx.beginPath();
+      ctx.arc(cx, cy, holeR * 1.65, 0, Math.PI * 2);
+      ctx.fill();
+
+      // แสงวาบก่อนระเบิดท้ายช่วง
+      if (p > 0.82) {
+        const k = (p - 0.82) / 0.18;
+        ctx.globalCompositeOperation = 'lighter';
+        const flare = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR * (0.4 + k * 0.7));
+        flare.addColorStop(0, `rgba(255, 255, 255, ${k})`);
+        flare.addColorStop(0.45, `rgba(216, 180, 254, ${k * 0.75})`);
+        flare.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = flare;
+        ctx.beginPath();
+        ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (elapsed < durationMs + 300) {
+        rafId = requestAnimationFrame(frame);
+      }
+    }
+
+    rafId = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(rafId);
+  }
+
+  // เอฟเฟคอัญเชิญฟิวชั่นสไตล์ Master Duel (วัตถุดิบลอยกรอบม่วง -> หลุมดำเกลียวส้ม-น้ำเงินแบบยูกิโอ -> การ์ดฟิวชั่นเด้งกลางจอ -> พุ่งตบลงช่องจริง + วงแหวนม่วง)
+  SummonFx.playFusion = function (opts) {
+    if (!opts || !opts.fusionCard) return;
+    const fusionCard = opts.fusionCard;
+    const materials = Array.isArray(opts.materials) ? opts.materials.filter(Boolean) : [];
+    const onComplete = typeof opts.onComplete === 'function' ? opts.onComplete : null;
+    const artUrl = fusionCard.image || '';
+    const hasMats = materials.length > 0;
+
+    const findTargetSlot = () => {
+      if (opts.targetSlotEl && opts.targetSlotEl.isConnected) return opts.targetSlotEl;
+      if (opts.side && typeof opts.slotIndex === 'number') {
+        const boardId = opts.side === 'player' ? 'player-board' : 'ai-board';
+        const slots = document.querySelectorAll(`#${boardId} .card-slot`);
+        if (slots[opts.slotIndex]) return slots[opts.slotIndex];
+      }
+      if (fusionCard.uid) {
+        const el = document.querySelector(`.card[data-uid="${fusionCard.uid}"]`);
+        if (el) return el.closest('.card-slot') || el;
+      }
+      return null;
+    };
+
+    const existing = document.querySelector('.sfx-fusion-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'sfx-fusion-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-label', `อัญเชิญฟิวชั่น ${fusionCard.name || ''}`);
+
+    const timers = [];
+    const after = (ms, fn) => timers.push(setTimeout(fn, ms));
+    let stopVortex = null;
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      timers.forEach(clearTimeout);
+      if (stopVortex) { stopVortex(); stopVortex = null; }
+      overlay.classList.add('is-closing');
+      setTimeout(() => {
+        overlay.remove();
+        if (onComplete) onComplete();
+      }, 280);
+    };
+    overlay.addEventListener('click', close);
+
+    // Stage 1: การ์ดวัตถุดิบลอยกรอบออร่าม่วงบนกระดานมืด
+    let matsWrap = null;
+    const matNodes = [];
+    if (hasMats && !reducedMotion()) {
+      matsWrap = document.createElement('div');
+      matsWrap.className = 'sfx-fusion-mats';
+      materials.forEach((mat, i) => {
+        const box = document.createElement('div');
+        box.className = 'sfx-fusion-mat-card';
+        box.style.animationDelay = `${i * 70}ms`;
+        const img = document.createElement('img');
+        img.src = mat.image || '';
+        img.alt = mat.name || '';
+        box.appendChild(img);
+        matsWrap.appendChild(box);
+        matNodes.push(box);
+      });
+      overlay.appendChild(matsWrap);
+    }
+
+    // Stage 2: หลุมดำเกลียวพลังงานส้ม-น้ำเงินแบบยูกิโอ (Polymerization Canvas Vortex)
+    const vortex = document.createElement('div');
+    vortex.className = 'sfx-fusion-vortex';
+    const vortexCanvas = document.createElement('canvas');
+    vortexCanvas.className = 'sfx-fusion-canvas';
+    vortex.appendChild(vortexCanvas);
+    overlay.appendChild(vortex);
+
+    const flash = document.createElement('div');
+    flash.className = 'sfx-fusion-flash';
+    overlay.appendChild(flash);
+
+    // Stage 3 & 4: การ์ดฟิวชั่นเด้งเปิดตัวกลางจอพร้อมออร่าม่วง
+    const revealWrap = document.createElement('div');
+    revealWrap.className = 'sfx-fusion-reveal-wrap';
+    const aura = document.createElement('div');
+    aura.className = 'sfx-fusion-aura';
+    const cardFinal = document.createElement('div');
+    cardFinal.className = 'sfx-fusion-reveal-card';
+    const finalImg = document.createElement('img');
+    finalImg.src = artUrl;
+    finalImg.alt = fusionCard.name || '';
+    cardFinal.appendChild(finalImg);
+    revealWrap.appendChild(aura);
+    revealWrap.appendChild(cardFinal);
+    overlay.appendChild(revealWrap);
+
+    const caption = document.createElement('div');
+    caption.className = 'sfx-fusion-caption';
+    const tag = document.createElement('div');
+    tag.className = 'sfx-fusion-tag';
+    tag.textContent = 'FUSION SUMMON';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'sfx-fusion-name';
+    nameEl.textContent = fusionCard.name || 'ฟิวชั่นมอนสเตอร์';
+    caption.appendChild(tag);
+    caption.appendChild(nameEl);
+    overlay.appendChild(caption);
+
+    const skipHint = document.createElement('div');
+    skipHint.className = 'sfx-fusion-skip';
+    skipHint.textContent = 'แตะเพื่อข้าม';
+    overlay.appendChild(skipHint);
+
+    document.body.appendChild(overlay);
+
+    if (reducedMotion()) {
+      revealWrap.classList.add('is-shown');
+      caption.classList.add('is-shown');
+      if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playSsr === 'function') window.BOF_AUDIO.playSsr();
+      after(1300, close);
+      return;
+    }
+
+    if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playFusion === 'function') {
+      window.BOF_AUDIO.playFusion(hasMats);
+    }
+
+    let t = 0;
+    if (matsWrap) {
+      after(640, () => {
+        const cx = window.innerWidth / 2;
+        matNodes.forEach((node, idx) => {
+          const r = node.getBoundingClientRect();
+          const dx = cx - (r.left + r.width / 2);
+          node.style.setProperty('--merge-x', `${Math.round(dx)}px`);
+          node.style.setProperty('--merge-rot', idx % 2 === 0 ? '160deg' : '-160deg');
+        });
+        matsWrap.classList.add('is-merging');
+      });
+      t = 1020;
+    }
+
+    // Stage 2: หลุมดำเกลียวพลังงานส้ม-น้ำเงินแบบยูกิโอ
+    after(t, () => {
+      if (matsWrap) matsWrap.style.display = 'none';
+      vortex.classList.add('is-active');
+      stopVortex = startPolymerizationVortex(vortexCanvas, 1280);
+    });
+
+    // Stage 3: ระเบิดแสง + การ์ดฟิวชั่นเด้งเปิดตัวใหญ่กลางจอ
+    after(t + 1280, () => {
+      vortex.classList.add('is-burst');
+      after(280, () => { if (stopVortex) { stopVortex(); stopVortex = null; } });
+      flash.classList.add('is-active');
+      revealWrap.classList.add('is-shown');
+      caption.classList.add('is-shown');
+      shake(4);
+    });
+
+    // Stage 4: พุ่งตบลงช่องจริงบนกระดาน + วงแหวนสีม่วงกระแทก
+    after(t + 2650, () => {
+      caption.classList.remove('is-shown');
+      overlay.classList.add('is-landing');
+      const slotEl = findTargetSlot();
+      const targetRect = slotEl ? slotEl.getBoundingClientRect() : null;
+      const curRect = revealWrap.getBoundingClientRect();
+      const destX = targetRect ? (targetRect.left + targetRect.width / 2) : window.innerWidth / 2;
+      const destY = targetRect ? (targetRect.top + targetRect.height / 2) : window.innerHeight / 2;
+      const scale = targetRect && curRect.width > 0 ? Math.max(0.32, targetRect.width / curRect.width) : 0.48;
+      const dx = destX - window.innerWidth / 2;
+      const dy = destY - window.innerHeight / 2;
+
+      revealWrap.animate([
+        { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${scale})`, opacity: 1 }
+      ], { duration: 260, easing: 'cubic-bezier(.55, .05, .68, .53)', fill: 'forwards' });
+
+      after(250, () => {
+        const ring = document.createElement('div');
+        ring.className = 'sfx-fusion-ring';
+        const ringSize = Math.max(110, (targetRect ? targetRect.width : 110) * 1.45);
+        ring.style.cssText = `left:${destX}px;top:${destY}px;width:${ringSize}px;height:${ringSize}px;`;
+        document.body.appendChild(ring);
+        setTimeout(() => ring.remove(), 620);
+        shake(6);
+      });
+    });
+
+    after(t + 3180, close);
+  };
+
   window.SummonFx = SummonFx;
 })();
