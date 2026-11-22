@@ -88,6 +88,7 @@
       if (state.deck === 'ALL') return true;
       if (state.deck === 'BT01') return c.id && c.id.startsWith('BT01');
       if (state.deck === 'BT02') return c.id && c.id.startsWith('BT02');
+      if (state.deck === 'BT03') return c.id && c.id.startsWith('BT03');
       if (state.deck === 'JIT') return D.deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
       if (state.deck === 'DOOM') return D.deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
       if (state.deck === 'MADOKA') return D.deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
@@ -105,6 +106,7 @@
         if (f.key === 'ALL') return true;
         if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
         if (f.key === 'BT02') return c.id && c.id.startsWith('BT02');
+        if (f.key === 'BT03') return c.id && c.id.startsWith('BT03');
         if (f.key === 'JIT') return D.deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
         if (f.key === 'DOOM') return D.deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
         if (f.key === 'MADOKA') return D.deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';

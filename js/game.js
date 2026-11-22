@@ -343,6 +343,8 @@ function generateStepText(step) {
       return 'สแตร์นยูนิทนี้';
     case 'BOUNCE_UNIT':
       return `เลือกยูนิตอีกฝ่าย ${step.count || 1} ใบ กลับขึ้นมือเจ้าของ`;
+    case 'SEND_DECK_TO_GRAVE':
+      return `นำ${step.filterType === 'MONSTER' ? 'ยูนิท' : 'การ์ด'}จากกองลงนรก ${step.count || 1} ใบ`;
     default:
       return '';
   }
@@ -580,11 +582,31 @@ function getEffectivePower(card, ownerContestant) {
           total += count * (eff.amountPerUnit || 1);
         } else if (cond.type === 'PER_GRAVE_COUNT') {
           const divisor = Math.max(1, cond.divisor || 3);
-          const graveLen = Array.isArray(owner.graveyard) ? owner.graveyard.length : 0;
+          const graveItems = Array.isArray(owner.graveyard) ? owner.graveyard : [];
+          const graveLen = cond.nameKeyword
+            ? graveItems.filter(c => c && hasCardName(c, cond.nameKeyword)).length
+            : graveItems.length;
           const stacks = Math.floor(graveLen / divisor);
           total += stacks * (eff.amountPerUnit || 1);
         }
       });
+    }
+
+    // โอจิจิต (BT03_02): เมื่อยูนิทนี้อยู่บนสนาม ยูนิทที่มีชื่อ “จิต” พลังโจมตีเพิ่ม 1
+    if (!isSilencedByEla && owner && Array.isArray(owner.board)) {
+      if (owner.board.some(m => m !== null && m.id === 'BT03_02') && hasCardName(card, 'จิต')) {
+        total += 1;
+      }
+    }
+
+    // อาซุยจิต (BT03_03): เมื่อมีจำนวนการ์ดบนมือน้อยกว่าฝ่ายตรงข้าม ยูนิทนี้เพิ่มพลังโจมตี 1 หน่วย
+    if (!isSilencedByEla && card.id === 'BT03_03' && oppContestant && owner.hand.length < oppContestant.hand.length) {
+      total += 1;
+    }
+
+    // เดจิต 5% (BT03_04): ถ้าเรามีการ์ดบนมือน้อยกว่าฝั่งตรงข้าม ยูนิทนี้พลังโจมตีลดลง 3 หน่วย
+    if (!isSilencedByEla && card.id === 'BT03_04' && oppContestant && owner.hand.length < oppContestant.hand.length) {
+      total -= 3;
     }
 
     // 2. บล็อก CONTINUOUS_BOARD_AURA จาก Leader (เช่น ขุนเหนือ L02)
@@ -878,6 +900,18 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'effect_immune', monster };
   }
 
+  // ออลจิต (M03) & ออลฟอจิต (M04) & อาซุยจิต (BT03_03): ไม่ถูกทำลายจากความสามารถของการ์ด
+  if ((monster.id === 'M03' || monster.id === 'M04' || monster.id === 'BT03_03') && !isFromBattle && !oppHasWelt) {
+    setLog(`🛡️ [ต่อเนื่อง - ${monster.name}] ไม่ถูกทำลายจากความสามารถของการ์ด!`);
+    return { destroyed: false, reason: 'effect_immune', monster };
+  }
+
+  // เดจิต 5% (BT03_04): ถ้าเรามีการ์ดบนมือน้อยกว่าฝั่งตรงข้าม ไม่ถูกทำลายจากความสามารถการ์ด
+  if (monster.id === 'BT03_04' && !isFromBattle && !oppHasWelt && opp && boardOwner.hand.length < opp.hand.length) {
+    setLog(`🛡️ [ต่อเนื่อง - เดจิต 5%] มือเราน้อยกว่าอีกฝ่าย -> ไม่ถูกทำลายจากความสามารถการ์ด!`);
+    return { destroyed: false, reason: 'effect_immune', monster };
+  }
+
   // 🛡️ ราชาอัศวิน อัลเฟรด (RP02): เมื่อมี "บลาสเตอร์ เบลด" บนสนามเรา ไม่ถูกทำลายจากความสามารถ
   if (monster.id === 'RP02' && !isFromBattle && !oppHasWelt) {
     const hasBlasterBlade = Array.isArray(boardOwner.board) && boardOwner.board.some(m => m && (m.id === 'RP03' || (m.name && m.name.includes('บลาสเตอร์ เบลด'))));
@@ -992,6 +1026,25 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
 
   // ตรวจสอบสกิลจากบนมือของ "แอชชี่ล่า" (DM07): ถ้ายูนิตฝ่ายเราถูกทำลายครบ 2 ใบขึ้นไปในเทิร์นนี้
   checkAshilaHandTrigger(boardOwner);
+
+  // ⚡ คิริชิจิต (BT03_01): ออโต้ / 1 เทิร์น : เมื่อยูนิทนี้ถูกทำลาย อัญเชิญยูนิทนี้ลงสนาม
+  if (monster.id === 'BT03_01' && !monster.kirishiReviveUsedThisTurn) {
+    const emptySlot = boardOwner.board.findIndex(m => m === null);
+    if (emptySlot !== -1) {
+      const gIdx = targetGraveContestant.graveyard.findIndex(c => c.uid === monster.uid);
+      if (gIdx !== -1) {
+        const revived = targetGraveContestant.graveyard.splice(gIdx, 1)[0];
+        revived.kirishiReviveUsedThisTurn = true;
+        revived.state = 'Stand';
+        boardOwner.board[emptySlot] = revived;
+        setLog(`⚡ [ออโต้/1 เทิร์น - คิริชิจิต] ถูกทำลาย -> อัญเชิญกลับลงสนามสำเร็จ!`);
+        showCardShowcaseBanner(revived, 'ออโต้: คิริชิจิต!', '⚡ ถูกทำลาย -> อัญเชิญกลับลงสนาม!', '#ef4444', 1200);
+        EffectEngine.triggerCardEffects(revived, 'ON_SUMMON', {
+          caster: boardOwner, opponent: otherContestant, sourceCard: revived, sourceSlot: emptySlot, isAI: boardOwner !== gameState.player
+        });
+      }
+    }
+  }
 
   return { destroyed: true, monster };
 }
@@ -2208,8 +2261,8 @@ function checkTokoyaRestByEffect(unit, owner) {
 function checkTokoyaStandByEffect(unit, owner) {
   if (unit && unit.id === 'BT01_02' && !unit.tokoyaStandUsedThisTurn) {
     unit.tokoyaStandUsedThisTurn = true;
-    unit.tempPowerMod = (unit.tempPowerMod || 0) + 1;
-    setLog(`⚡ [ออโต้/1 เทิร์น - โทโคยาจิต] สแตร์นด้วยความสามารถการ์ด -> พลังโจมตีเพิ่ม +1 หน่วย จนจบเทิร์น! (พลังรวม ${getEffectivePower(unit, owner)})`);
+    unit.tempPowerMod = (unit.tempPowerMod || 0) + 2;
+    setLog(`⚡ [ออโต้/1 เทิร์น - โทโคยาจิต] สแตร์นด้วยความสามารถการ์ด -> พลังโจมตีเพิ่ม +2 หน่วย จนจบเทิร์น! (พลังรวม ${getEffectivePower(unit, owner)})`);
   }
 }
 
@@ -5461,6 +5514,57 @@ const EffectEngine = {
         return;
       }
 
+      // --- บล็อกที่ 11.6: นำการ์ดจากกองการ์ดลงนรก (SEND_DECK_TO_GRAVE เช่น โอ้ยใครเกาะหลัง!!! BT03_06) ---
+      case 'SEND_DECK_TO_GRAVE': {
+        const eligible = this.filterCards(caster.deck, step);
+        if (eligible.length === 0) {
+          next();
+          return;
+        }
+
+        if (isAI) {
+          const card = eligible[0];
+          const dIdx = caster.deck.findIndex(c => c && c.uid === card.uid);
+          if (dIdx !== -1) {
+            const milled = caster.deck.splice(dIdx, 1)[0];
+            resetCardStateForZoneChange(milled);
+            caster.graveyard.push(milled);
+            caster.deck = shuffleDeck(caster.deck);
+            setLog(`🎴 ${cardTitle} นำ "${milled.name}" จากกองลงนรก และสับกองเรียบร้อย!`);
+          }
+          next();
+          return;
+        }
+
+        const uniqueMap = new Map();
+        eligible.forEach(c => { if (!uniqueMap.has(c.id)) uniqueMap.set(c.id, c); });
+        const options = Array.from(uniqueMap.values()).map(targetCard => ({
+          label: `ส่ง "${targetCard.name}" (Power ${targetCard.power || 0}) ลงนรก`,
+          color: '#ef4444',
+          card: targetCard,
+          cardId: targetCard.id,
+          onSelect: () => {
+            const dIdx = caster.deck.findIndex(c => c.id === targetCard.id);
+            if (dIdx !== -1) {
+              const milled = caster.deck.splice(dIdx, 1)[0];
+              resetCardStateForZoneChange(milled);
+              caster.graveyard.push(milled);
+              caster.deck = shuffleDeck(caster.deck);
+              setLog(`🎴 ${cardTitle} นำ "${milled.name}" จากกองลงนรก และสับกองเรียบร้อย!`);
+              renderGame();
+            }
+            next();
+          }
+        }));
+
+        showChoiceModal(
+          `🎴 ${cardTitle}`,
+          `เลือกการ์ด${step.filterType === 'MONSTER' ? 'ยูนิท' : ''} 1 ใบจากกองการ์ดเพื่อส่งลงนรก:`,
+          options
+        );
+        return;
+      }
+
       // --- บล็อกที่ 12: ระเบิดปูพรม (CARPET_BOMB_COMPOSITE) ---
       case 'CARPET_BOMB_COMPOSITE': {
         const conscriptCount = caster.board.filter(m => m !== null && m.id === 'NM04').length;
@@ -6479,9 +6583,9 @@ function initiatePlayerSpell(handIndex) {
     return;
   }
 
-  // 📖 THE BOOK OF VILE DARKNESS (BT02_14)
-  if (spell.id === 'BT02_14') {
-    setLog('ℹ️ "THE BOOK OF VILE DARKNESS" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อยูนิทหรือลีดเดอร์ถูกโจมตี)');
+  // 📖 THE BOOK OF VILE DARKNESS (BT02_14) & ถีบสวน (BT03_05)
+  if (spell.id === 'BT02_14' || spell.id === 'BT03_05') {
+    setLog(`ℹ️ "${spell.name}" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อยูนิทหรือลีดเดอร์ถูกโจมตี)`);
     return;
   }
 
@@ -7019,6 +7123,73 @@ function executeHawksSearch(contestant, slotIndex, sourceZone) {
   if (sourceZone === 'deck') contestant.deck = shuffleDeck(contestant.deck);
   setLog(`🦅 [${contestant.name}] "ฮออ์กส์ฟีม" ลดพลัง -2 นำ "เอ็นเดจิต" ขึ้นมือเรียบร้อย!`);
   renderGame();
+}
+
+function triggerDejitLeaderStartTurn(contestant, onComplete = null) {
+  if (!contestant.leader || contestant.leader.id !== 'L01') {
+    if (onComplete) onComplete();
+    return;
+  }
+  const graveMonsters = (contestant.graveyard || []).filter(c => c && c.type === 'Monster');
+  if (graveMonsters.length === 0) {
+    if (onComplete) onComplete();
+    return;
+  }
+
+  if (contestant !== gameState.player) {
+    let bestMonster = graveMonsters[0];
+    let maxP = -1;
+    graveMonsters.forEach(m => {
+      const p = m.power || 0;
+      if (p > maxP) { maxP = p; bestMonster = m; }
+    });
+    const gIdx = contestant.graveyard.indexOf(bestMonster);
+    if (gIdx !== -1) {
+      const card = contestant.graveyard.splice(gIdx, 1)[0];
+      resetCardStateForZoneChange(card);
+      contestant.hand.push(card);
+      setLog(`👑 [AI มายฮีโร่ เดจิต] นำ "${card.name}" 1 ใบจากนรกขึ้นมือ!`);
+    }
+    renderGame();
+    if (onComplete) onComplete();
+    return;
+  }
+
+  const uniqueMonsters = new Map();
+  graveMonsters.forEach(m => { if (!uniqueMonsters.has(m.id)) uniqueMonsters.set(m.id, m); });
+
+  const choices = Array.from(uniqueMonsters.values()).map(m => ({
+    label: `นำยูนิท "${m.name}" (Power ${m.power || 0}) ขึ้นมือ`,
+    color: '#22c55e',
+    card: m,
+    cardId: m.id,
+    onSelect: () => {
+      const gIdx = contestant.graveyard.findIndex(c => c && c.id === m.id);
+      if (gIdx !== -1) {
+        const card = contestant.graveyard.splice(gIdx, 1)[0];
+        resetCardStateForZoneChange(card);
+        contestant.hand.push(card);
+        setLog(`👑 [มายฮีโร่ เดจิต] นำ "${card.name}" 1 ใบจากนรกขึ้นมือสำเร็จ!`);
+        renderGame();
+      }
+      if (onComplete) onComplete();
+    }
+  }));
+
+  choices.push({
+    label: 'ไม่นำขึ้นมือ (ข้าม)',
+    color: '#475569',
+    onSelect: () => {
+      renderGame();
+      if (onComplete) onComplete();
+    }
+  });
+
+  showChoiceModal(
+    '👑 ออโต้เมื่อเข้าเทิร์น: มายฮีโร่ เดจิต',
+    'คุณสามารถหยิบการ์ดยูนิท 1 ใบจากนรกขึ้นมือได้:',
+    choices
+  );
 }
 
 function triggerKhunNueaStartTurn(contestant, onComplete = null) {
@@ -8023,6 +8194,29 @@ function checkDiscardTriggers(contestant, card) {
     }
   }
 
+  // 🐸 อาซุยจิต (BT03_03): เมื่อถูกทิ้งสามารถอัญเชิญการ์ดใบนี้ลงสนาม
+  if (card.id === 'BT03_03') {
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    if (emptySlot !== -1) {
+      const graveIdx = contestant.graveyard.findIndex(c => c.uid === card.uid);
+      if (graveIdx !== -1) {
+        const summoned = contestant.graveyard.splice(graveIdx, 1)[0];
+        resetCardStateForZoneChange(summoned);
+        summoned.state = 'Stand';
+        contestant.board[emptySlot] = summoned;
+        setLog(`🐸 [ออโต้ - อาซุยจิต] ถูกทิ้ง -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`);
+        if (typeof notifyUnitCalledFromGrave === 'function') {
+          notifyUnitCalledFromGrave(summoned, contestant);
+        }
+        showCardShowcaseBanner(summoned, 'ออโต้: อาซุยจิต!', '🐸 ถูกทิ้ง -> อัญเชิญลงสนามทันที!', '#10b981', 1200);
+        EffectEngine.triggerCardEffects(summoned, 'ON_SUMMON', {
+          caster: contestant, opponent: other, sourceCard: summoned, sourceSlot: emptySlot, isAI: contestant !== gameState.player
+        });
+        renderGame();
+      }
+    }
+  }
+
   // KG06 (ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"): เมื่อถูกทิ้ง ทำลายการ์ดบนสนาม 1 ใบ หรือ ทิ้งการ์ดบนมืออีกฝ่าย 1 ใบ
   if (card.id === 'KG06') {
     if (contestant !== gameState.player) {
@@ -8930,10 +9124,18 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
       m.slasherDrawBurnUsedThisTurn = false;
       m.ghoulDestroyUsedThisTurn = false;
       m.isSilencedUntilEndOfTurn = false;
+      m.kirishiReviveUsedThisTurn = false;
       // ล้างบัฟ "จนจบเทิร์นอีกฝั่ง" ของฝ่ายตรงข้ามเมื่อจบเทิร์นอีกฝั่งแล้วเข้าเทิร์นเรา
       m.untilEnemyEndPowerMod = 0;
     }
   });
+
+  if (contestant.leader && contestant.leader.id === 'L01') {
+    triggerDejitLeaderStartTurn(contestant, () => {
+      triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
+    });
+    return;
+  }
 
   if (contestant.leader && contestant.leader.id === 'L02') {
     triggerKhunNueaStartTurn(contestant, () => {
@@ -10780,9 +10982,14 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (defender.hand.length >= 2)
     && (defender.spellQuota.reactionUsed < 1);
 
-  const bt02_14InHandIdx = defender.hand.findIndex(c => c && c.id === 'BT02_14');
+  const bt02_14InHandIdx = defender.hand.findIndex(c => c && (c.id === 'BT02_14' || c.id === 'BT03_05'));
   const canUseBookOfVile = (bt02_14InHandIdx !== -1)
     && (defender.spellQuota.reactionUsed < 1);
+
+  const canUseOjiJit = !isGraveyardSkillLockedByOpponent(defender)
+    && !defender.bt03_02UsedThisGame
+    && defender.graveyard.some(c => c && c.id === 'BT03_02')
+    && defender.board.some(m => m === null);
 
   const kl11InHandIdx = defender.hand.findIndex(c => c && c.id === 'KL11');
   const canUseDivineLight = (kl11InHandIdx !== -1)
@@ -10831,8 +11038,29 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
       }
     }
 
+    if (canUseOjiJit && (targetType === 'leader' || attackingMonster.power >= 2)) {
+      defender.bt03_02UsedThisGame = true;
+      const gIdx = defender.graveyard.findIndex(c => c && c.id === 'BT03_02');
+      if (gIdx !== -1) {
+        const ojiCard = defender.graveyard.splice(gIdx, 1)[0];
+        resetCardStateForZoneChange(ojiCard);
+        ojiCard.state = 'Stand';
+        const emptySlot = defender.board.findIndex(m => m === null);
+        if (emptySlot !== -1) defender.board[emptySlot] = ojiCard;
+        showCardShowcaseBanner(ojiCard, 'AI สั่งใช้งาน โอจิจิต!', `⚡ ทำลาย "${attackingMonster.name}" และอัญเชิญลงสนาม!`, '#eab308', 1300);
+        setLog(`⚡ [AI - โอจิจิต] สั่งใช้งานจากนรก (1 เกม)! ทำลาย "${attackingMonster.name}", ยกเลิกการโจมตี และอัญเชิญ "โอจิจิต" ลงสนามสำเร็จ!`);
+        destroyBoardMonster(attacker, attackerSlot, false, true);
+        if (typeof notifyUnitCalledFromGrave === 'function') {
+          notifyUnitCalledFromGrave(ojiCard, defender);
+        }
+        renderGame();
+        if (onCompleteCallback) onCompleteCallback();
+        return;
+      }
+    }
+
     if (canUseBookOfVile && (targetType === 'leader' || attackingMonster.power >= 2)) {
-      const curIdx = defender.hand.findIndex(c => c && c.id === 'BT02_14');
+      const curIdx = defender.hand.findIndex(c => c && (c.id === 'BT02_14' || c.id === 'BT03_05'));
       if (curIdx !== -1) {
         const spellCard = defender.hand.splice(curIdx, 1)[0];
         defender.spellQuota.reactionUsed += 1;
@@ -10840,13 +11068,13 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         defender.graveyard.push(spellCard);
 
         checkSparkconCancelBeforeAction(defender, spellCard, () => {
-          showCardShowcaseBanner(spellCard, 'AI ร่าย THE BOOK OF VILE DARKNESS!', '📖 เปลี่ยนเป้าหมายการโจมตีไปที่ฝ่ายตรงข้าม!', '#dc2626', 1300);
+          showCardShowcaseBanner(spellCard, `AI ร่าย ${spellCard.name}!`, '📖 เปลี่ยนเป้าหมายการโจมตีไปที่ฝ่ายตรงข้าม!', '#dc2626', 1300);
 
           const retargetSlot = attacker.board.findIndex((m, s) => m && s !== attackerSlot);
           if (retargetSlot !== -1) {
             const retargetMonster = attacker.board[retargetSlot];
             compareAndDestroyMonsters(attacker, attackerSlot, attacker, retargetSlot, (msg) => {
-              setLog(`📖 [AI - THE BOOK OF VILE DARKNESS] เปลี่ยนเป้าหมายโจมตีไปที่ "${retargetMonster.name}"! -> ${msg}`);
+              setLog(`📖 [AI - ${spellCard.name}] เปลี่ยนเป้าหมายโจมตีไปที่ "${retargetMonster.name}"! -> ${msg}`);
               renderGame();
               if (onCompleteCallback) onCompleteCallback();
             });
@@ -10858,7 +11086,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
             checkDiscardTriggers(defender, discarded);
             attacker.leader.hp = Math.max(0, attacker.leader.hp - 1);
             fxLeaderDamage(attacker);
-            setLog(`📖 [AI - THE BOOK OF VILE DARKNESS] ทิ้ง "${discarded.name}" 1 ใบ -> เปลี่ยนเป้าหมายโจมตีใส่ Leader ของ ${attacker.name} โดยตรง (เหลือ ${attacker.leader.hp}/6)!`);
+            setLog(`📖 [AI - ${spellCard.name}] ทิ้ง "${discarded.name}" 1 ใบ -> เปลี่ยนเป้าหมายโจมตีใส่ Leader ของ ${attacker.name} โดยตรง (เหลือ ${attacker.leader.hp}/6)!`);
             if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(attacker);
             checkGameOver();
             renderGame();
@@ -11728,12 +11956,14 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     }
 
     if (canUseBookOfVile) {
+      const curCard = defender.hand.find(c => c && (c.id === 'BT02_14' || c.id === 'BT03_05'));
+      const spellName = curCard ? curCard.name : 'THE BOOK OF VILE DARKNESS';
       options.push({
-        cardId: 'BT02_14',
-        label: '📖 ร่าย "THE BOOK OF VILE DARKNESS": เปลี่ยนเป้าหมายการโจมตีไปที่ยูนิทหรือลีดเดอร์ของฝ่ายตรงข้าม!',
+        cardId: curCard ? curCard.id : 'BT02_14',
+        label: `📖 ร่าย "${spellName}": เปลี่ยนเป้าหมายการโจมตีไปที่ยูนิทหรือลีดเดอร์ของฝ่ายตรงข้าม!`,
         color: '#dc2626',
         onSelect: () => {
-          const curIdx = defender.hand.findIndex(c => c && c.id === 'BT02_14');
+          const curIdx = defender.hand.findIndex(c => c && (c.id === 'BT02_14' || c.id === 'BT03_05'));
           if (curIdx === -1) {
             continueNormalAttackFlow();
             return;
@@ -11743,7 +11973,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           resetCardStateForZoneChange(spellCard);
           defender.graveyard.push(spellCard);
           if (typeof showCardShowcaseBanner === 'function') {
-            showCardShowcaseBanner(spellCard, 'ร่ายเวทมนตร์ THE BOOK OF VILE DARKNESS!', '📖 เปลี่ยนเป้าหมายการโจมตีไปที่ฝ่ายตรงข้าม!', '#dc2626', 1300);
+            showCardShowcaseBanner(spellCard, `ร่ายเวทมนตร์ ${spellCard.name}!`, '📖 เปลี่ยนเป้าหมายการโจมตีไปที่ฝ่ายตรงข้าม!', '#dc2626', 1300);
           }
 
           const retargetChoices = [];
@@ -11756,7 +11986,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
                 cardId: m.id,
                 onSelect: () => {
                   compareAndDestroyMonsters(attacker, attackerSlot, attacker, s, (msg) => {
-                    setLog(`📖 [THE BOOK OF VILE DARKNESS] เปลี่ยนเป้าหมายโจมตีไปที่ "${m.name}"! -> ${msg}`);
+                    setLog(`📖 [${spellCard.name}] เปลี่ยนเป้าหมายโจมตีไปที่ "${m.name}"! -> ${msg}`);
                     renderGame();
                     if (onCompleteCallback) onCompleteCallback();
                   });
@@ -11780,7 +12010,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
                     defender.graveyard.push(discarded);
                     attacker.leader.hp = Math.max(0, attacker.leader.hp - 1);
                     fxLeaderDamage(attacker);
-                    setLog(`📖 [THE BOOK OF VILE DARKNESS] ทิ้ง "${discarded.name}" 1 ใบ -> เปลี่ยนเป้าหมายโจมตีใส่ Leader ของ ${attacker.name} โดยตรง (เหลือ ${attacker.leader.hp}/6)!`);
+                    setLog(`📖 [${spellCard.name}] ทิ้ง "${discarded.name}" 1 ใบ -> เปลี่ยนเป้าหมายโจมตีใส่ Leader ของ ${attacker.name} โดยตรง (เหลือ ${attacker.leader.hp}/6)!`);
                     if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(attacker);
                     checkGameOver();
                     renderGame();
@@ -11792,30 +12022,61 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
                   label: '❌ ยกเลิก (กลับไปเลือกเป้าหมายใหม่)',
                   color: '#475569',
                   onSelect: () => {
-                    showChoiceModal('📖 THE BOOK OF VILE DARKNESS: เลือกเป้าหมายใหม่', 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
+                    showChoiceModal(`📖 ${spellCard.name}: เลือกเป้าหมายใหม่`, 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
                   }
                 });
 
-                showChoiceModal('📖 THE BOOK OF VILE DARKNESS: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ด 1 ใบที่จะทิ้งลงนรก:', discardChoices);
+                showChoiceModal(`📖 ${spellCard.name}: เลือกการ์ดที่จะทิ้ง`, 'เลือกการ์ด 1 ใบที่จะทิ้งลงนรก:', discardChoices);
               }
             });
           }
 
           retargetChoices.push({
-            label: '❌ ยกเลิก (ไม่ร่าย THE BOOK OF VILE DARKNESS)',
+            label: `❌ ยกเลิก (ไม่ร่าย ${spellCard.name})`,
             color: '#475569',
             onSelect: () => {
               const gIdx = defender.graveyard.lastIndexOf(spellCard);
               if (gIdx !== -1) defender.graveyard.splice(gIdx, 1);
               defender.hand.splice(curIdx, 0, spellCard);
               defender.spellQuota.reactionUsed = Math.max(0, defender.spellQuota.reactionUsed - 1);
-              setLog('📖 [THE BOOK OF VILE DARKNESS] ยกเลิกการร่ายเวทมนตร์ -> คืนการ์ดกลับขึ้นมือ');
+              setLog(`📖 [${spellCard.name}] ยกเลิกการร่ายเวทมนตร์ -> คืนการ์ดกลับขึ้นมือ`);
               renderGame();
               continueNormalAttackFlow();
             }
           });
 
-          showChoiceModal('📖 THE BOOK OF VILE DARKNESS: เลือกเป้าหมายใหม่', 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
+          showChoiceModal(`📖 ${spellCard.name}: เลือกเป้าหมายใหม่`, 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
+        }
+      });
+    }
+
+    if (canUseOjiJit) {
+      options.push({
+        cardId: 'BT03_02',
+        label: `⚡ สั่งใช้งานจากนรก: "โอจิจิต" (1 เกม): ทำลาย "${attackingMonster.name}", ยกเลิกการโจมตี และอัญเชิญโอจิจิตลงสนาม!`,
+        color: '#eab308',
+        onSelect: () => {
+          defender.bt03_02UsedThisGame = true;
+          const gIdx = defender.graveyard.findIndex(c => c && c.id === 'BT03_02');
+          if (gIdx === -1) {
+            continueNormalAttackFlow();
+            return;
+          }
+          const ojiCard = defender.graveyard.splice(gIdx, 1)[0];
+          resetCardStateForZoneChange(ojiCard);
+          ojiCard.state = 'Stand';
+          const emptySlot = defender.board.findIndex(m => m === null);
+          if (emptySlot !== -1) {
+            defender.board[emptySlot] = ojiCard;
+          }
+          showCardShowcaseBanner(ojiCard, 'สั่งใช้งานจากนรก: โอจิจิต!', `⚡ ทำลาย "${attackingMonster.name}" และอัญเชิญลงสนาม!`, '#eab308', 1300);
+          setLog(`⚡ [${defender.name}] สั่งใช้งาน "โอจิจิต" จากนรก (1 เกม)! ทำลาย "${attackingMonster.name}", ยกเลิกการโจมตี และอัญเชิญ "โอจิจิต" ลงสนามสำเร็จ!`);
+          destroyBoardMonster(attacker, attackerSlot, false, true);
+          if (typeof notifyUnitCalledFromGrave === 'function') {
+            notifyUnitCalledFromGrave(ojiCard, defender);
+          }
+          renderGame();
+          if (onCompleteCallback) onCompleteCallback();
         }
       });
     }
@@ -15638,6 +15899,15 @@ function getCardLeaderLock(card) {
       leaderName: 'ENTITY',
       badgeText: '🔒 เฉพาะ ENTITY',
       alertMsg: `การ์ด "${card.name}" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "ENTITY" เท่านั้น!`
+    };
+  }
+  // เด็คจิต (L01): ล็อกใช้ได้เฉพาะลีดเดอร์ มายฮีโร่ เดจิต
+  if (card.leaderLock === 'L01' || /^BT03_/.test(id)) {
+    return {
+      leaderId: 'L01',
+      leaderName: 'มายฮีโร่ เดจิต',
+      badgeText: '🔒 เฉพาะ มายฮีโร่ เดจิต',
+      alertMsg: `การ์ด "${card.name}" สามารถใส่ได้เฉพาะในเด็คของลีดเดอร์ "มายฮีโร่ เดจิต" เท่านั้น!`
     };
   }
   return null;

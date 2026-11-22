@@ -67,7 +67,7 @@ const CARD_SCHEMA = {
       desc: 'ส่งยูนิตบนสนาม count ใบกลับขึ้นมือเจ้าของ',
     },
     GRANT_STATUS: {
-      required: ['status'], optional: ['target', 'count'],
+      required: ['status'], optional: ['target', 'count', 'amount'],
       enums: { target: ['ALLY', 'ALL_ALLIES'], status: ['INDESTRUCTIBLE', 'BURN_ON_KILL'] },
       desc: 'มอบสถานะพิเศษให้ยูนิตฝั่งเรา (INDESTRUCTIBLE ไม่ถูกทำลาย / BURN_ON_KILL ฆ่าแล้วทำดาเมจลีดเดอร์)',
     },
@@ -171,6 +171,11 @@ const CARD_SCHEMA = {
       enums: {},
       desc: 'สงครามความบ้า: หาไอโอ๊ตบ้าการ์ตูน และ ไอแบงค์บ้าเกม จากกองหรือนรกอย่างละไม่เกิน 1 ใบขึ้นมือ',
     },
+    SEND_DECK_TO_GRAVE: {
+      required: [], optional: ['filterType', 'count', 'cardId', 'filterName', 'filterTribe'],
+      enums: { filterType: ['SPELL', 'MONSTER'] },
+      desc: 'เลือกการ์ดที่ตรงเงื่อนไขจากกองการ์ด count ใบ ส่งลงนรก แล้วสับกอง',
+    },
   },
   conditions: {
     MIN_TRIBE_COUNT: { required: ['tribe', 'count'], optional: [] },
@@ -178,7 +183,7 @@ const CARD_SCHEMA = {
     ALLY_ON_BOARD: { required: ['cardId'], optional: [] },
     PER_OTHER_ALLY_TRIBE: { required: ['tribe'], optional: [] },
     PER_OTHER_ALLY_NAME: { required: ['nameKeyword'], optional: [] },
-    PER_GRAVE_COUNT: { required: ['divisor'], optional: [] },
+    PER_GRAVE_COUNT: { required: ['divisor'], optional: ['nameKeyword'] },
   },
   cardTypes: ['Leader', 'Monster', 'NormalSpell', 'ReactionSpell', 'LandSpell'],
   rarities: ['N', 'R', 'SR', 'SSR'],

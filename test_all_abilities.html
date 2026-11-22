@@ -38,6 +38,7 @@
   <script src="js/cards/killer.js"></script>
   <script src="js/cards/bt01.js"></script>
   <script src="js/cards/bt02.js"></script>
+  <script src="js/cards/bt03.js"></script>
   <script src="js/cards/schema.js"></script>
   <script src="js/bof-icons.js"></script>
   <script src="js/game.js"></script>
@@ -740,6 +741,36 @@
         // calling stopAll should execute cleanly without error
         window.BOFComboReplay.stopAll();
       }
+    });
+
+    testGroup('BOOSTER PACK BT03: Verification', () => {
+      const expected = [
+        { id: 'BT03_01', type: 'Monster', rarity: 'N', maxCopies: 2, power: 3 },
+        { id: 'BT03_02', type: 'Monster', rarity: 'R', maxCopies: 2, power: 2 },
+        { id: 'BT03_03', type: 'Monster', rarity: 'N', maxCopies: 2, power: 3 },
+        { id: 'BT03_04', type: 'Monster', rarity: 'SR', maxCopies: 2, power: 4 },
+        { id: 'BT03_05', type: 'ReactionSpell', rarity: 'SR', maxCopies: 2 },
+        { id: 'BT03_06', type: 'NormalSpell', rarity: 'N', maxCopies: 2 }
+      ];
+
+      expected.forEach(exp => {
+        const card = CARD_DATABASE.find(c => c.id === exp.id);
+        assert(!!card, `${exp.id} exists in CARD_DATABASE`);
+        if (card) {
+          assert(card.type === exp.type, `${exp.id} type is ${exp.type}`);
+          assert(card.rarity === exp.rarity, `${exp.id} rarity is ${exp.rarity}`);
+          assert(card.maxCopies === exp.maxCopies, `${exp.id} maxCopies is ${exp.maxCopies}`);
+          assert(card.leaderLock === 'L01', `${exp.id} leaderLock is 'L01'`);
+          if (exp.power !== undefined) {
+            assert(card.power === exp.power, `${exp.id} base power is ${exp.power}`);
+          }
+        }
+      });
+
+      // Leader lock function check
+      const bt03Card = CARD_DATABASE.find(c => c.id === 'BT03_01');
+      const lockObj = getCardLeaderLock(bt03Card);
+      assert(lockObj && lockObj.leaderId === 'L01', 'getCardLeaderLock(BT03_01) returns leaderId L01');
     });
 
     // ==========================================

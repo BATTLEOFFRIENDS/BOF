@@ -126,6 +126,18 @@
       rates: { N: 50, R: 40, SR: 10 },
       price: PACK_PRICE,
       tenPrice: TEN_PACK_PRICE
+    },
+    {
+      id: 'pack_bt03',
+      name: 'ซองบูสเตอร์03',
+      sub: 'ชุดเสริมบูสเตอร์ 03 (ลุ้น SR เดจิต 5% & ถีบสวน)',
+      color: '#22c55e',
+      image: 'images/BT/BT03/4.png',
+      backImage: 'images/BT/BT03/5.png',
+      prefix: 'images/BT/BT03/',
+      rates: { N: 50, R: 35, SR: 15 },
+      price: PACK_PRICE,
+      tenPrice: TEN_PACK_PRICE
     }
   ];
 
@@ -1111,7 +1123,7 @@
   }
 
   /* ---------------- ฉากเปิดซอง: ลากฉีกซองฟอยล์ (js/pack-open.js) ---------------- */
-  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_bt01: ['BT01', 'BOOSTER 01'], pack_bt02: ['BT02', 'BOOSTER 02'] };
+  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_bt01: ['BT01', 'BOOSTER 01'], pack_bt02: ['BT02', 'BOOSTER 02'], pack_bt03: ['BT03', 'BOOSTER 03'] };
   function playPackOpeningAnimation(pack, packCount, highestRarity, onComplete) {
     const stage = document.getElementById('bof-pack-anim-stage');
     const done = () => { if (onComplete) onComplete(); };
@@ -1910,6 +1922,7 @@
     { key: 'ALL', label: 'ทั้งหมด', c: '#f3c969' },
     { key: 'BT01', label: 'BT01', dir: 'BT01', c: '#f97316' },
     { key: 'BT02', label: 'BT02', dir: 'BT02', c: '#a855f7' },
+    { key: 'BT03', label: 'BT03', dir: 'BT03', c: '#22c55e' },
     { key: 'JIT', label: 'จิต', dir: 'เด็คจิต', c: '#3ee08f' },
     { key: 'NUEA', label: 'ขุนเหนือ', dir: 'เด็คเหนือ', c: '#f0a347' },
     { key: 'DOOM', label: 'สิ้นโลก', dir: 'วันสิ้นโลก', c: '#5fd0ff' },
@@ -1930,6 +1943,7 @@
   const deckOfCard = card => {
     if (card.id && card.id.startsWith('BT01')) return DECK_FILTERS.find(d => d.key === 'BT01') || DECK_FILTERS[0];
     if (card.id && card.id.startsWith('BT02')) return DECK_FILTERS.find(d => d.key === 'BT02') || DECK_FILTERS[0];
+    if (card.id && card.id.startsWith('BT03')) return DECK_FILTERS.find(d => d.key === 'BT03') || DECK_FILTERS[0];
     if (card.tribe === 'ฮีโร่') return DECK_FILTERS.find(d => d.key === 'JIT') || DECK_FILTERS[0];
     if (card.tribe === 'รางดาว' || (card.id && card.id.startsWith('RD')) || card.id === 'L08') return DECK_FILTERS.find(d => d.key === 'RANGDAO') || DECK_FILTERS[0];
     if (card.tribe === 'ENTITY' || (card.id && card.id.startsWith('KL')) || card.id === 'L09') return DECK_FILTERS.find(d => d.key === 'KILLER') || DECK_FILTERS[0];
@@ -1970,6 +1984,8 @@
           if (k !== 'BT01' && !(c.id && c.id.startsWith('BT01'))) return false;
         } else if (craftFilterTribe === 'BT02') {
           if (k !== 'BT02' && !(c.id && c.id.startsWith('BT02'))) return false;
+        } else if (craftFilterTribe === 'BT03') {
+          if (k !== 'BT03' && !(c.id && c.id.startsWith('BT03'))) return false;
         } else if (craftFilterTribe === 'JIT') {
           if (k !== 'JIT' && c.id !== 'BT01_01' && c.id !== 'BT01_02' && c.id !== 'BT01_03') return false;
         } else if (craftFilterTribe === 'DOOM') {
@@ -1991,6 +2007,7 @@
         if (f.key === 'ALL') return true;
         if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
         if (f.key === 'BT02') return c.id && c.id.startsWith('BT02');
+        if (f.key === 'BT03') return c.id && c.id.startsWith('BT03');
         if (f.key === 'JIT') return deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
         if (f.key === 'DOOM') return deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
         if (f.key === 'MADOKA') return deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';

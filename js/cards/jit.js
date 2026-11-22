@@ -7,15 +7,16 @@ CARD_DATABASE.push(
     tribe: 'ฮีโร่',
     rarity: 'R', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
+    leaderLock: 'L01',
     image: 'images/เด็คจิต/2.png',
     ability: 'BAKU_SKILL',
-    desc: 'ต่อเนื่อง: ถ้ามีโทโดโรจิตบนสนามเรา พลัง +1\nออโต้: เมื่อลงสนาม เลือกทำลายยูนิทอีกฝ่าย 1 ใบ',
+    desc: 'ต่อเนื่อง : ถ้าบนสนามเรามี “โทโดโรจิต” ยูนิทนี้พลังโจมตี เพิ่ม 2 หน่วย\nออโต้ : เมื่อลงสนามทำลายการ์ดยูนิท 1ใบบนสนามฝั่งตรงข้าม\n*การ์ดใบนี้อยู่ในเด็คของลีดเดอร์ “มายฮีโร่ เดจิต” ได้เท่านั้น',
     effects: [
       {
         id: 'baku_continuous',
         trigger: 'CONTINUOUS_POWER',
         condition: { type: 'ALLY_ON_BOARD', cardId: 'M02' },
-        amount: 1
+        amount: 2
       },
       {
         id: 'baku_on_summon',
@@ -32,10 +33,11 @@ CARD_DATABASE.push(
     type: 'Monster',
     tribe: 'ฮีโร่',
     rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
-    power: 1,
+    power: 3,
+    leaderLock: 'L01',
     image: 'images/เด็คจิต/3.png',
     ability: 'TODORO_SKILL',
-    desc: 'สั่งใช้งาน1/เทิร์น: ทิ้งมือ 1 ใบ โม่กองอีกฝ่าย 1 ใบ\nสั่งใช้งาน2/เทิร์น: นำบาคุจิตจากนรกขึ้นมือ 1 ใบ',
+    desc: 'สั่งใช้งาน / 1 เทิร์น : ทิ้งมือ 1 ใบ ฝั่งตรงข้ามนำการ์ดใบบนสุดของกองลงนรก\nสั่งใช้งาน / 1 เทิร์น : นำ “บาคุจิต” จากนรกขึ้นมือ 1 ใบ\n*การ์ดใบนี้อยู่ในเด็คของลีดเดอร์ “มายฮีโร่ เดจิต” ได้เท่านั้น',
     effects: [
       {
         id: 'todoroMill',
@@ -63,7 +65,15 @@ CARD_DATABASE.push(
     power: 2,
     image: 'images/เด็คจิต/4.png',
     ability: 'ALL_JIT_HAND_INTERCEPT',
-    desc: 'เมื่อลีดเดอร์ถูกโจมตี: อัญเชิญใบนี้จากมือลงสนาม และเปลี่ยนเป้าหมายโจมตีมาที่ใบนี้แทน'
+    desc: 'สั่งใช้งานจากบนมือ : เมื่อลีดเดอร์ถูกโจมตี สามารถอัญเชิญการ์ดใบนี้ลงสนาม แล้วเปลี่ยนการโจมตีนั้นมาที่ใบนี้แทน\nต่อเนื่อง : ยูนิทนี้ไม่ถูกทำลายจากความสามารถของการ์ด\nต่อเนื่อง : ยูนิทนี้พลังโจมตีเพิ่ม 1 ตามจำนวนการ์ดที่มีชื่อ “จิต” ทุก 2 ใบในนรกของเรา',
+    effects: [
+      {
+        id: 'all_jit_power_buff',
+        trigger: 'CONTINUOUS_POWER',
+        condition: { type: 'PER_GRAVE_COUNT', divisor: 2, nameKeyword: 'จิต' },
+        amountPerUnit: 1
+      }
+    ]
   },
   {
     id: 'M04',
@@ -71,11 +81,11 @@ CARD_DATABASE.push(
     type: 'Monster',
     tribe: 'ฮีโร่',
     rarity: 'SR', // ระดับความหายาก: N / R / SR / SSR
-    power: 3,
+    power: 4,
     image: 'images/เด็คจิต/5.png',
     ability: 'ALL_FOR_JIT_GRAVE',
     cannotNormalSummon: true,
-    desc: 'ห้ามอัญเชิญปกติ | จากนรก/1 เกม (เมื่อลีดเดอร์ถูกตีและ HP<=2): อัญเชิญใบนี้และทำลายยูนิททุกใบบนสนาม'
+    desc: 'ห้ามอัญเชิญปกติ | สั่งใช้งานจากนรก / 1 เกม : เมื่อลีดเดอร์ถูกโจมตี สามารถอัญเชิญการ์ดใบนี้ลงสนาม และทำลายการ์ดทุกใบบนสนามของทุกฝ่าย\nต่อเนื่อง : ยูนิทนี้ไม่ถูกทำลายจากความสามารถของการ์ด\n*ความสามารถของการ์ดใบนี้ใช้ได้ต่อเมื่อ HP ของลีดเดอร์ เหลือ 2 หน่วย\nการ์ใบนี้ไม่สามารถอันเชิญแบบปกติได้'
   },
   {
     id: 'M05',
@@ -84,9 +94,10 @@ CARD_DATABASE.push(
     tribe: 'ฮีโร่',
     rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
+    leaderLock: 'L01',
     image: 'images/เด็คจิต/6.png',
     ability: 'ENDE_SKILL',
-    desc: 'สั่งใช้งาน: พลังโจมตียูนิทนี้ +2 และเมื่อจบเทิร์น ทำลายการ์ดใบนี้',
+    desc: 'สั่งใช้งาน : เพิ่มพลังโจมตียูนิทนี้ 2 หน่วย หลังจากจบเทิร์นทำลายการ์ดใบนี้\nออโต้ : เมื่อยูนิทนี้ถูกทำลาย จั่วการ์ด 2 ใบ\n*การ์ดใบนี้อยู่ในเด็คของลีดเดอร์ “มายฮีโร่ เดจิต” ได้เท่านั้น',
     effects: [
       {
         id: 'endeBoost',
@@ -98,6 +109,13 @@ CARD_DATABASE.push(
           { block: 'MARK_END_TURN_DESTROY', target: 'SELF_UNIT' },
           { block: 'TRIGGER_ALLY_PASSIVE', allyId: 'M06', amount: 2 }
         ]
+      },
+      {
+        id: 'ende_on_destroy',
+        trigger: 'ON_DESTROY',
+        steps: [
+          { block: 'DRAW', side: 'SELF', count: 2 }
+        ]
       }
     ]
   },
@@ -108,9 +126,10 @@ CARD_DATABASE.push(
     tribe: 'ฮีโร่',
     rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
+    leaderLock: 'L01',
     image: 'images/เด็คจิต/7.png',
     ability: 'HAWKS_SKILL',
-    desc: 'สั่งใช้งาน: ลดพลังใบนี้ -2 นำเอ็นเดจิตจากกอง/นรกขึ้นมือ\nออโต้: เมื่อเอ็นเดจิตใช้สกิล ใบนี้พลัง +2',
+    desc: 'สั่งใช้งาน : ลดพลังโจมตีของยูนิทนี้ลด 2 หน่วย นำ"เอ็นเดจิต" จากกองหรือนรกขึ้นมือ ถ้ามาจากกองสลับกอง\nออโต้ : เมื่อ "เอ็นเดจิต"ใช้งานความสามารถ ยูนิทนี้พลังโจมตีเพิ่ม 2 หน่วย\n*การ์ดใบนี้อยู่ในเด็คของลีดเดอร์ “มายฮีโร่ เดจิต” ได้เท่านั้น',
     effects: [
       {
         id: 'hawksSearch',
@@ -126,12 +145,12 @@ CARD_DATABASE.push(
   },
   {
     id: 'S01',
-    name: 'โอ็ยใครเหยียบตีน!!!',
+    name: 'โอ้ยใครเหยียบตีน!!!',
     type: 'NormalSpell',
     rarity: 'SR', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_DISCARD_DESTROY',
     image: 'images/เด็คจิต/8.png',
-    desc: 'ทิ้งการ์ดบนมือ 1 ใบ เลือกทำลายยูนิทฝั่งตรงข้าม 1 ใบ',
+    desc: 'ทิ้งการ์ดบนมือ 1ใบทำลายยูนิทฝั่งตรงข้าม 1ใบ',
     effects: [
       {
         id: 'spell_s01',
@@ -168,14 +187,14 @@ CARD_DATABASE.push(
     rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_REST_1_HEAL_1',
     image: 'images/เด็คจิต/10.png',
-    desc: 'Rest ยูนิทที่ Stand อยู่ฝั่งเรา 1 ใบ แล้วเพิ่มพลังชีวิตลีดเดอร์เรา +1',
+    desc: 'เลสยูนิทที่สแตนอยู่ฝั่งเรา 1ใบ แล้วเพิ่มพลังชีวิต 2 หน่วย',
     effects: [
       {
         id: 'spell_s03',
         trigger: 'CAST_SPELL',
         costs: [{ type: 'REST_ALLY', count: 1 }],
         steps: [
-          { block: 'HEAL_LEADER', side: 'SELF', amount: 1 }
+          { block: 'HEAL_LEADER', side: 'SELF', amount: 2 }
         ]
       }
     ]
@@ -187,14 +206,14 @@ CARD_DATABASE.push(
     rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_REST_2_GRANT_BURN',
     image: 'images/เด็คจิต/11.png',
-    desc: 'Rest ยูนิทฝั่งเรา 2 ใบ เลือกยูนิทเรา 1 ใบได้รับออโต้: เมื่อตีทำลายยูนิทสำเร็จ ทำดาเมจลีดเดอร์อีกฝ่าย 1',
+    desc: 'เลสยูนิทฝั่งเรา 2ใบ แล้วเลือกยูนิทฝั่งเรา 1ใบได้รับความสามารถ ออโต้ : เมื่อยูนิทนี้ทำลายยูนิทจากการโจมตีสำเร็จ ทำความเสียหายใส่ลีดเดอร์ฝั่งตรงข้าม 2 หน่วย',
     effects: [
       {
         id: 'spell_s04',
         trigger: 'CAST_SPELL',
         costs: [{ type: 'REST_ALLY', count: 2 }],
         steps: [
-          { block: 'GRANT_STATUS', target: 'ALLY', count: 1, status: 'BURN_ON_KILL' }
+          { block: 'GRANT_STATUS', target: 'ALLY', count: 1, status: 'BURN_ON_KILL', amount: 2 }
         ]
       }
     ]

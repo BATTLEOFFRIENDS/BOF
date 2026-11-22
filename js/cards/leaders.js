@@ -8,14 +8,14 @@ CARD_DATABASE.push(
     maxHp: 6,
     image: 'images/เด็คจิต/1.png',
     ability: 'LEADER_DEJIT_BUFF',
-    desc: 'สั่งใช้งาน/1 เทิร์น: เลือกยูนิทฝั่งเรา 1 ตัว เพิ่มพลังโจมตี +1 จนจบเทิร์น',
+    desc: 'สั่งใช้งาน / 1 เทิร์น : เลือกยูนิทฝั่งเรา 1 ตัว เพิ่มพลังโจมตียูนิทนั้น 2 หน่วยจนจบเทิร์น\nออโต้ : เมื่อเข้าเทิร์น สามารถหยิบยูนิทจากนรกเราได้ 1 ใบ',
     effects: [
       {
         id: 'leader_l01_buff',
         trigger: 'ACTIVATE_LEADER',
         oncePerTurn: true,
         steps: [
-          { block: 'ADD_POWER', target: 'ALLY', count: 1, amount: 1, duration: 'TURN' }
+          { block: 'ADD_POWER', target: 'ALLY', count: 1, amount: 2, duration: 'TURN' }
         ]
       }
     ]
