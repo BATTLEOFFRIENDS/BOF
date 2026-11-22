@@ -758,7 +758,7 @@
         assert(!!card, `${exp.id} exists in CARD_DATABASE`);
         if (card) {
           assert(card.type === exp.type, `${exp.id} type is ${exp.type}`);
-          assert(card.tribe === 'จิต', `${exp.id} tribe is 'จิต'`);
+          assert(card.tribe === 'ฮีโร่', `${exp.id} tribe is 'ฮีโร่'`);
           assert(card.rarity === exp.rarity, `${exp.id} rarity is ${exp.rarity}`);
           assert(card.maxCopies === exp.maxCopies, `${exp.id} maxCopies is ${exp.maxCopies}`);
           assert(card.leaderLock === 'L01', `${exp.id} leaderLock is 'L01'`);
@@ -768,13 +768,22 @@
         }
       });
 
+      // Tribe check for BT01 cards 1-3
+      ['BT01_01', 'BT01_02', 'BT01_03'].forEach(cid => {
+        const c = CARD_DATABASE.find(card => card.id === cid);
+        assert(!!c, `${cid} exists in CARD_DATABASE`);
+        if (c) {
+          assert(c.tribe === 'ฮีโร่', `${cid} tribe is 'ฮีโร่'`);
+        }
+      });
+
       // Tribe check for BT02 cards 9-15
       const bt02KillerIds = ['BT02_09', 'BT02_10', 'BT02_11', 'BT02_12', 'BT02_13', 'BT02_14', 'BT02_15'];
       bt02KillerIds.forEach(cid => {
         const c = CARD_DATABASE.find(card => card.id === cid);
         assert(!!c, `${cid} exists in CARD_DATABASE`);
         if (c) {
-          assert(c.tribe === 'คิลเลอร์', `${cid} tribe is 'คิลเลอร์'`);
+          assert(c.tribe === 'คิลเลอร์', `${cid} tribe is 'คิลเลอร์' (not 'คิวเลอร์')`);
           assert(hasCardTribe(c, 'คิลเลอร์'), `hasCardTribe(${cid}, 'คิลเลอร์') is true`);
           assert(hasCardTribe(c, 'ENTITY'), `hasCardTribe(${cid}, 'ENTITY') is true`);
         }

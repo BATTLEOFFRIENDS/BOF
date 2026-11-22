@@ -38,6 +38,7 @@ CARD_DATABASE.push(
     id: 'BT01_03',
     name: 'จิตไนท์อาย รู้อนาคต',
     type: 'NormalSpell',
+    tribe: 'ฮีโร่',
     rarity: 'N',
     maxCopies: 2,
     image: 'images/BT/BT01/3.png',
