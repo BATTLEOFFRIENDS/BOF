@@ -609,8 +609,8 @@
       const { p, a } = initMockGame();
       const vile = CARD_DATABASE.find(c => c.id === 'BT02_14');
       const flesh = CARD_DATABASE.find(c => c.id === 'BT02_15');
-      assert(vile && vile.type === 'ReactionSpell' && vile.tribe === 'ENTITY', 'BT02_14 is ENTITY ReactionSpell');
-      assert(flesh && flesh.type === 'ReactionSpell' && flesh.tribe === 'ENTITY', 'BT02_15 is ENTITY ReactionSpell');
+      assert(vile && vile.type === 'ReactionSpell' && (vile.tribe === 'คิลเลอร์' || vile.tribe === 'ENTITY'), 'BT02_14 is Killer/ENTITY ReactionSpell');
+      assert(flesh && flesh.type === 'ReactionSpell' && (flesh.tribe === 'คิลเลอร์' || flesh.tribe === 'ENTITY'), 'BT02_15 is Killer/ENTITY ReactionSpell');
     });
 
     testGroup('ENTITY vs KAGERO: THE XENOMORPH (KL07) not confused with The X (KG04)', () => {
@@ -758,12 +758,25 @@
         assert(!!card, `${exp.id} exists in CARD_DATABASE`);
         if (card) {
           assert(card.type === exp.type, `${exp.id} type is ${exp.type}`);
+          assert(card.tribe === 'จิต', `${exp.id} tribe is 'จิต'`);
           assert(card.rarity === exp.rarity, `${exp.id} rarity is ${exp.rarity}`);
           assert(card.maxCopies === exp.maxCopies, `${exp.id} maxCopies is ${exp.maxCopies}`);
           assert(card.leaderLock === 'L01', `${exp.id} leaderLock is 'L01'`);
           if (exp.power !== undefined) {
             assert(card.power === exp.power, `${exp.id} base power is ${exp.power}`);
           }
+        }
+      });
+
+      // Tribe check for BT02 cards 9-15
+      const bt02KillerIds = ['BT02_09', 'BT02_10', 'BT02_11', 'BT02_12', 'BT02_13', 'BT02_14', 'BT02_15'];
+      bt02KillerIds.forEach(cid => {
+        const c = CARD_DATABASE.find(card => card.id === cid);
+        assert(!!c, `${cid} exists in CARD_DATABASE`);
+        if (c) {
+          assert(c.tribe === 'คิลเลอร์', `${cid} tribe is 'คิลเลอร์'`);
+          assert(hasCardTribe(c, 'คิลเลอร์'), `hasCardTribe(${cid}, 'คิลเลอร์') is true`);
+          assert(hasCardTribe(c, 'ENTITY'), `hasCardTribe(${cid}, 'ENTITY') is true`);
         }
       });
 

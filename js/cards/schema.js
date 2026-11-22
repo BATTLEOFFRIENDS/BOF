@@ -187,7 +187,7 @@ const CARD_SCHEMA = {
   },
   cardTypes: ['Leader', 'Monster', 'NormalSpell', 'ReactionSpell', 'LandSpell'],
   rarities: ['N', 'R', 'SR', 'SSR'],
-  tribes: ['ฮีโร่', 'ไทย', 'วันสิ้นโลก', 'ไดโน', 'ปีศาจ', 'บ้า', 'สาวน้อยเวทมนตร์', 'รางดาว', 'ENTITY'],
+  tribes: ['ฮีโร่', 'จิต', 'ไทย', 'วันสิ้นโลก', 'ไดโน', 'ปีศาจ', 'บ้า', 'สาวน้อยเวทมนตร์', 'รางดาว', 'ENTITY', 'คิลเลอร์', 'คิวเลอร์'],
 };
 
 // ระยะแก้ไข (Levenshtein) ≤ 2 ที่ใกล้ที่สุด ไม่งั้น null

@@ -4,7 +4,7 @@ CARD_DATABASE.push(
     id: 'BT03_01',
     name: 'คิริชิจิต',
     type: 'Monster',
-    tribe: 'ฮีโร่',
+    tribe: 'จิต',
     rarity: 'N',
     maxCopies: 2,
     power: 3,
@@ -26,7 +26,7 @@ CARD_DATABASE.push(
     id: 'BT03_02',
     name: 'โอจิจิต',
     type: 'Monster',
-    tribe: 'ฮีโร่',
+    tribe: 'จิต',
     rarity: 'R',
     maxCopies: 2,
     power: 2,
@@ -39,7 +39,7 @@ CARD_DATABASE.push(
     id: 'BT03_03',
     name: 'อาซุยจิต',
     type: 'Monster',
-    tribe: 'ฮีโร่',
+    tribe: 'จิต',
     rarity: 'N',
     maxCopies: 2,
     power: 3,
@@ -52,7 +52,7 @@ CARD_DATABASE.push(
     id: 'BT03_04',
     name: 'เดจิต 5%',
     type: 'Monster',
-    tribe: 'ฮีโร่',
+    tribe: 'จิต',
     rarity: 'SR',
     maxCopies: 2,
     power: 4,
@@ -74,6 +74,7 @@ CARD_DATABASE.push(
     id: 'BT03_05',
     name: 'ถีบสวน',
     type: 'ReactionSpell',
+    tribe: 'จิต',
     rarity: 'SR',
     maxCopies: 2,
     leaderLock: 'L01',
@@ -85,21 +86,12 @@ CARD_DATABASE.push(
     id: 'BT03_06',
     name: 'โอ้ยใครเกาะหลัง!!!',
     type: 'NormalSpell',
+    tribe: 'จิต',
     rarity: 'N',
     maxCopies: 2,
     leaderLock: 'L01',
     image: 'images/BT/BT03/6.png',
     ability: 'WHO_CLINGS_BACK',
-    desc: 'นำยูนิทจากกองลงนรก 1ใบ จั่วการ์ด 2ใบ\n*การ์ดใบนี้อยู่ในเด็คของลีดเดอร์ “มายฮีโร่ เดจิต” ได้เท่านั้น',
-    effects: [
-      {
-        id: 'bt03_06_cast',
-        trigger: 'CAST_SPELL',
-        steps: [
-          { block: 'SEND_DECK_TO_GRAVE', filterType: 'MONSTER', count: 1 },
-          { block: 'DRAW', side: 'SELF', count: 2 }
-        ]
-      }
-    ]
+    desc: 'นำยูนิทจากกองลงนรก 1ใบ จั่วการ์ด 2ใบ\n*การ์ดใบนี้อยู่ในเด็คของลีดเดอร์ “มายฮีโร่ เดจิต” ได้เท่านั้น'
   }
 );

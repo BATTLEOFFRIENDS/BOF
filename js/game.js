@@ -38,17 +38,18 @@ function hasCardName(card, nameKeyword) { return !!(card && card.name && card.na
 function hasCardTribe(card, tribeName) {
   if (!card || !tribeName) return false;
   const tnLower = String(tribeName).toLowerCase().trim();
+  const isKillerTribe = t => t === 'entity' || t === 'คิลเลอร์' || t === 'คิวเลอร์';
   if (tnLower === 'รางดาว' && card.id && /^BT02_0[1-8]$/.test(card.id)) return true;
-  if ((tnLower === 'entity' || tnLower === 'คิลเลอร์') && card.id && (/^BT02_(09|1[0-5])$/.test(card.id) || /^KL/i.test(card.id))) return true;
+  if (isKillerTribe(tnLower) && card.id && (/^BT02_(09|1[0-5])$/.test(card.id) || /^KL/i.test(card.id))) return true;
   if (Array.isArray(card.tribe)) {
     return card.tribe.some(t => {
       const tl = String(t).toLowerCase().trim();
-      return tl === tnLower || (tnLower === 'คิลเลอร์' && tl === 'entity') || (tnLower === 'entity' && tl === 'คิลเลอร์');
+      return tl === tnLower || (isKillerTribe(tnLower) && isKillerTribe(tl));
     });
   }
   const ctl = String(card.tribe || '').toLowerCase().trim();
   if (ctl === tnLower) return true;
-  if ((tnLower === 'คิลเลอร์' && ctl === 'entity') || (tnLower === 'entity' && ctl === 'คิลเลอร์')) return true;
+  if (isKillerTribe(tnLower) && isKillerTribe(ctl)) return true;
   return false;
 }
 function isUnknownProtectingAbilities(contestant) {
@@ -6733,14 +6734,16 @@ function initiatePlayerSpell(handIndex) {
     return;
   }
 
-  // 🦎 ลิซาร์ดโซลเจอร์ คอนโร (KG08): นำ Monster จากกองลงนรก 1 ใบ จั่ว 2 ใบ
-  if (spell.id === 'KG08') {
+  // 👻 โอ้ยใครเกาะหลัง!!! (BT03_06) & 🦎 ลิซาร์ดโซลเจอร์ คอนโร (KG08): นำ Monster จากกองลงนรก 1 ใบ จั่ว 2 ใบ
+  if (spell.id === 'KG08' || spell.id === 'BT03_06') {
     const monstersInDeck = player.deck.filter(c => c && c.type === 'Monster');
     if (monstersInDeck.length === 0) {
       setLog('❌ ไม่มี Monster ในกองการ์ดให้ส่งลงนรก!');
       return;
     }
-    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "ลิซาร์ดโซลเจอร์ คอนโร"', () => {
+    const spellName = spell.id === 'BT03_06' ? 'โอ้ยใครเกาะหลัง!!!' : 'ลิซาร์ดโซลเจอร์ คอนโร';
+    const tag = spell.id === 'BT03_06' ? '👻 [โอ้ยใครเกาะหลัง!!!]' : '🦎 [คอนโร]';
+    askCardUseConfirmation(spell, `ใช้งานการ์ดเวทมนตร์ "${spellName}"`, () => {
       gameState.selectedHandIndex = null;
       const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
       if (curIdx !== -1) {
@@ -6760,12 +6763,12 @@ function initiatePlayerSpell(handIndex) {
             player.graveyard.push(sent);
             player.deck = shuffleDeck(player.deck);
             drawCards(player, 2);
-            setLog(`🦎 [คอนโร] นำ "${sent.name}" จากกองลงนรก และจั่วการ์ด 2 ใบ!`);
+            setLog(`${tag} นำ "${sent.name}" จากกองลงนรก และจั่วการ์ด 2 ใบ!`);
             renderGame();
           }
         }
       }));
-      showChoiceModal('🦎 ลิซาร์ดโซลเจอร์ คอนโร: เลือกยูนิทจากกอง', 'เลือกยูนิท 1 ใบเพื่อส่งลงนรก:', choices);
+      showChoiceModal(`${tag}: เลือกยูนิทจากกอง`, 'เลือกยูนิท 1 ใบเพื่อส่งลงนรก:', choices);
     });
     return;
   }
