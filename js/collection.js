@@ -84,17 +84,8 @@
     box.style.setProperty('--accent', accent);
 
     // สรุปการสะสม (ตามสายเด็คที่เลือก)
-    const inDeck = CARD_DATABASE.filter(c => {
-      if (state.deck === 'ALL') return true;
-      if (state.deck === 'BT01') return c.id && c.id.startsWith('BT01');
-      if (state.deck === 'BT02') return c.id && c.id.startsWith('BT02');
-      if (state.deck === 'BT03') return c.id && c.id.startsWith('BT03');
-      if (state.deck === 'JIT') return D.deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
-      if (state.deck === 'DOOM') return D.deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
-      if (state.deck === 'MADOKA') return D.deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
-      if (state.deck === 'RANGDAO') return D.deckOfCard(c).key === 'RANGDAO' || c.tribe === 'รางดาว' || (c.id && c.id.startsWith('RD'));
-      return D.deckOfCard(c).key === state.deck;
-    });
+    const matchesFilter = (c, key) => (D.cardMatchesDeckFilter ? D.cardMatchesDeckFilter(c, key) : (key === 'ALL' || D.deckOfCard(c).key === key));
+    const inDeck = CARD_DATABASE.filter(c => matchesFilter(c, state.deck));
     const have = inDeck.filter(c => Number(own[c.id] || 0) > 0).length;
     root.querySelector('.col-ring-fg').style.strokeDasharray = `${Math.round((have / Math.max(1, inDeck.length)) * 100)} 100`;
     root.querySelector('.col-ring-n').textContent = have;
@@ -102,17 +93,7 @@
 
     const deckCounts = {};
     D.DECK_FILTERS.forEach(f => {
-      deckCounts[f.key] = CARD_DATABASE.filter(c => {
-        if (f.key === 'ALL') return true;
-        if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
-        if (f.key === 'BT02') return c.id && c.id.startsWith('BT02');
-        if (f.key === 'BT03') return c.id && c.id.startsWith('BT03');
-        if (f.key === 'JIT') return D.deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
-        if (f.key === 'DOOM') return D.deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
-        if (f.key === 'MADOKA') return D.deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
-        if (f.key === 'RANGDAO') return D.deckOfCard(c).key === 'RANGDAO' || c.tribe === 'รางดาว' || (c.id && c.id.startsWith('RD'));
-        return D.deckOfCard(c).key === f.key;
-      }).length;
+      deckCounts[f.key] = CARD_DATABASE.filter(c => matchesFilter(c, f.key)).length;
     });
     root.querySelector('[data-g="deck"]').innerHTML = chips(D.DECK_FILTERS, state.deck, 'data-deck', deckCounts);
     root.querySelector('[data-g="rarity"]').innerHTML = chips(D.RARITY_FILTERS, state.rarity, 'data-rar');

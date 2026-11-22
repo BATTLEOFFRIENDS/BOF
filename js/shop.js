@@ -1946,16 +1946,40 @@
     if (card.id && card.id.startsWith('BT03')) return DECK_FILTERS.find(d => d.key === 'BT03') || DECK_FILTERS[0];
     if (card.tribe === 'ฮีโร่') return DECK_FILTERS.find(d => d.key === 'JIT') || DECK_FILTERS[0];
     if (card.tribe === 'รางดาว' || (card.id && card.id.startsWith('RD')) || card.id === 'L08') return DECK_FILTERS.find(d => d.key === 'RANGDAO') || DECK_FILTERS[0];
-    if (card.tribe === 'ENTITY' || (card.id && card.id.startsWith('KL')) || card.id === 'L09') return DECK_FILTERS.find(d => d.key === 'KILLER') || DECK_FILTERS[0];
+    if (card.tribe === 'ENTITY' || card.tribe === 'คิลเลอร์' || (card.id && card.id.startsWith('KL')) || card.id === 'L09') return DECK_FILTERS.find(d => d.key === 'KILLER') || DECK_FILTERS[0];
     return DECK_FILTERS.find(d => d.dir && String(card.image || '').includes(`/${d.dir}/`)) || DECK_FILTERS[0];
   };
+
+  const cardMatchesDeckFilter = (card, key) => {
+    if (!card || !key || key === 'ALL') return true;
+    if (key === 'BT01') return card.id && card.id.startsWith('BT01');
+    if (key === 'BT02') return card.id && card.id.startsWith('BT02');
+    if (key === 'BT03') return card.id && card.id.startsWith('BT03');
+    if (key === 'JIT') {
+      return (card.id && (/^M\d+$/.test(card.id) || /^S\d+$/.test(card.id) || card.id === 'L01' || card.id.startsWith('BT03') || card.id === 'BT01_01' || card.id === 'BT01_02' || card.id === 'BT01_03')) || card.leaderLock === 'L01' || (card.image && card.image.includes('เด็คจิต'));
+    }
+    if (key === 'KILLER') {
+      return (card.id && (card.id.startsWith('KL') || card.id === 'L09' || /^BT02_(09|1[0-5])$/.test(card.id))) || card.tribe === 'คิลเลอร์' || card.tribe === 'ENTITY' || card.leaderLock === 'L09' || (card.image && card.image.includes('Killer'));
+    }
+    if (key === 'RANGDAO') {
+      return (card.id && (card.id.startsWith('RD') || card.id === 'L08' || /^BT02_0[1-8]$/.test(card.id))) || card.tribe === 'รางดาว' || (card.image && card.image.includes('รางดาว'));
+    }
+    if (key === 'DOOM') {
+      return (card.id && (card.id.startsWith('DM') || card.id === 'L03' || card.id === 'BT01_07' || card.id === 'BT01_08' || card.id === 'BT01_09')) || (card.image && card.image.includes('วันสิ้นโลก'));
+    }
+    if (key === 'MADOKA') {
+      return (card.id && (card.id.startsWith('MD') || card.id === 'L07' || card.id === 'BT01_10' || card.id === 'BT01_11' || card.id === 'BT01_12')) || (card.image && card.image.includes('มาโดกะ'));
+    }
+    return deckOfCard(card).key === key;
+  };
+
   const maxKeepOf = card => (card.type === 'Leader' ? 1 : (card.maxCopies || 2));
   const chipsHTML = (list, active, attr, counts) => list.map(f => `
     <button type="button" class="fx-chip" role="radio" aria-checked="${f.key === active}" ${attr}="${f.key}" style="--chip-c:${f.c}">
       <span>${f.label}</span>${counts ? `<small>${counts[f.key] || 0}</small>` : ''}
     </button>`).join('');
   window.BOFDecks = {
-    DECK_FILTERS, RARITY_FILTERS, deckOfCard, maxKeepOf,
+    DECK_FILTERS, RARITY_FILTERS, deckOfCard, cardMatchesDeckFilter, maxKeepOf,
     thumbOf: img => {
       const s = String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
       return s.includes('รางดาว') ? `${s}?v=20261120a` : s;
@@ -1978,42 +2002,13 @@
 
     const allCards = CARD_DATABASE.filter(c => {
       if (craftFilterRarity !== 'ALL' && c.rarity !== craftFilterRarity) return false;
-      if (craftFilterTribe !== 'ALL') {
-        const k = deckOfCard(c).key;
-        if (craftFilterTribe === 'BT01') {
-          if (k !== 'BT01' && !(c.id && c.id.startsWith('BT01'))) return false;
-        } else if (craftFilterTribe === 'BT02') {
-          if (k !== 'BT02' && !(c.id && c.id.startsWith('BT02'))) return false;
-        } else if (craftFilterTribe === 'BT03') {
-          if (k !== 'BT03' && !(c.id && c.id.startsWith('BT03'))) return false;
-        } else if (craftFilterTribe === 'JIT') {
-          if (k !== 'JIT' && c.id !== 'BT01_01' && c.id !== 'BT01_02' && c.id !== 'BT01_03') return false;
-        } else if (craftFilterTribe === 'DOOM') {
-          if (k !== 'DOOM' && c.id !== 'BT01_07' && c.id !== 'BT01_08' && c.id !== 'BT01_09') return false;
-        } else if (craftFilterTribe === 'MADOKA') {
-          if (k !== 'MADOKA' && c.id !== 'BT01_10' && c.id !== 'BT01_11' && c.id !== 'BT01_12') return false;
-        } else if (craftFilterTribe === 'RANGDAO') {
-          if (k !== 'RANGDAO' && c.tribe !== 'รางดาว' && !(c.id && c.id.startsWith('RD'))) return false;
-        } else if (k !== craftFilterTribe) {
-          return false;
-        }
-      }
+      if (craftFilterTribe !== 'ALL' && !cardMatchesDeckFilter(c, craftFilterTribe)) return false;
       return true;
     });
     const accent = (DECK_FILTERS.find(d => d.key === craftFilterTribe) || DECK_FILTERS[0]).c;
     const deckCounts = {};
     DECK_FILTERS.forEach(f => {
-      deckCounts[f.key] = CARD_DATABASE.filter(c => {
-        if (f.key === 'ALL') return true;
-        if (f.key === 'BT01') return c.id && c.id.startsWith('BT01');
-        if (f.key === 'BT02') return c.id && c.id.startsWith('BT02');
-        if (f.key === 'BT03') return c.id && c.id.startsWith('BT03');
-        if (f.key === 'JIT') return deckOfCard(c).key === 'JIT' || c.id === 'BT01_01' || c.id === 'BT01_02' || c.id === 'BT01_03';
-        if (f.key === 'DOOM') return deckOfCard(c).key === 'DOOM' || c.id === 'BT01_07' || c.id === 'BT01_08' || c.id === 'BT01_09';
-        if (f.key === 'MADOKA') return deckOfCard(c).key === 'MADOKA' || c.id === 'BT01_10' || c.id === 'BT01_11' || c.id === 'BT01_12';
-        if (f.key === 'RANGDAO') return deckOfCard(c).key === 'RANGDAO' || c.tribe === 'รางดาว' || (c.id && c.id.startsWith('RD'));
-        return deckOfCard(c).key === f.key;
-      }).length;
+      deckCounts[f.key] = CARD_DATABASE.filter(c => cardMatchesDeckFilter(c, f.key)).length;
     });
 
     container.style.setProperty('--accent', accent); // อยู่บนกล่องที่ไม่ถูกวาดใหม่ สีจึงไล่เปลี่ยนได้
