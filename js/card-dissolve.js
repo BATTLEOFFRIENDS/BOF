@@ -33,7 +33,8 @@
     const id = String((card && (card.futureBaseId || card.id)) || '');
     if (/^KL/.test(id) || /^BT02_(09|1[0-5])$/.test(id)) return 'killer';
     if (/^RD/.test(id) || /^BT02_0[1-8]$/.test(id)) return 'rangdao';
-    if (/^BT03/.test(id)) return 'jit';
+    if (/^BT03_0[1-6]$/.test(id)) return 'jit';
+    if (/^BT03_(0[7-9]|1[0-1])$/.test(id)) return 'demon';
     if (/^MD/.test(id)) return 'madoka';
     if (/^DM[MS]/.test(id)) return 'demon';
     if (/^DN/.test(id)) return 'dino';

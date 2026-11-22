@@ -1947,6 +1947,7 @@
     if (card.tribe === 'ฮีโร่') return DECK_FILTERS.find(d => d.key === 'JIT') || DECK_FILTERS[0];
     if (card.tribe === 'รางดาว' || (card.id && card.id.startsWith('RD')) || card.id === 'L08') return DECK_FILTERS.find(d => d.key === 'RANGDAO') || DECK_FILTERS[0];
     if (card.tribe === 'ENTITY' || card.tribe === 'คิลเลอร์' || (card.id && card.id.startsWith('KL')) || card.id === 'L09') return DECK_FILTERS.find(d => d.key === 'KILLER') || DECK_FILTERS[0];
+    if (card.tribe === 'ปีศาจ' || (card.id && /^DM[MS]/.test(card.id)) || card.id === 'L05') return DECK_FILTERS.find(d => d.key === 'DEMON') || DECK_FILTERS[0];
     return DECK_FILTERS.find(d => d.dir && String(card.image || '').includes(`/${d.dir}/`)) || DECK_FILTERS[0];
   };
 
@@ -1960,7 +1961,7 @@
     if (baseKey === key) return true;
 
     if (key === 'JIT') {
-      return (card.id && (card.id.startsWith('BT03') || card.id === 'BT01_01' || card.id === 'BT01_02' || card.id === 'BT01_03')) || card.leaderLock === 'L01';
+      return (card.id && (/^BT03_0[1-6]$/.test(card.id) || card.id === 'BT01_01' || card.id === 'BT01_02' || card.id === 'BT01_03')) || card.leaderLock === 'L01';
     }
     if (key === 'KILLER') {
       return (card.id && /^BT02_(09|1[0-5])$/.test(card.id)) || card.tribe === 'คิลเลอร์' || card.leaderLock === 'L09';
@@ -1973,6 +1974,9 @@
     }
     if (key === 'MADOKA') {
       return card.id === 'BT01_10' || card.id === 'BT01_11' || card.id === 'BT01_12';
+    }
+    if (key === 'DEMON') {
+      return (card.id && /^BT03_(0[7-9]|1[0-1])$/.test(card.id)) || card.tribe === 'ปีศาจ';
     }
     return false;
   };

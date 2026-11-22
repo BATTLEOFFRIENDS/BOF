@@ -610,6 +610,23 @@ function getEffectivePower(card, ownerContestant) {
       total -= 3;
     }
 
+    // ลิลิธ ผู้พิทักษ์พันธสัญญา (BT03_08): พลังโจมตีเพิ่ม 1 หน่วยตามจำนวนการ์ดในมิติมืดฝั่งเรา ทุกๆ 2 ใบ
+    if (!isSilencedByEla && (card.id === 'BT03_08' || (card.name && card.name.includes('ลิลิธ')))) {
+      const ddLen = Array.isArray(owner.darkDimension) ? owner.darkDimension.length : 0;
+      total += Math.floor(ddLen / 2);
+    }
+
+    // เมฟิสโต (BT03_10): เมื่อยูนิทอยู่ช่อง 2 ของสนามเรา ยูนิทในช่อง 1 และ 3 พลังโจมตีเพิ่ม 2 หน่วย
+    if (!isSilencedByEla && owner && Array.isArray(owner.board)) {
+      const midMonster = owner.board[1];
+      if (midMonster && (midMonster.id === 'BT03_10' || (midMonster.name && midMonster.name.includes('เมฟิสโต')))) {
+        const slotIdx = owner.board.findIndex(m => m && (m.uid === card.uid || m === card));
+        if (slotIdx === 0 || slotIdx === 2) {
+          total += 2;
+        }
+      }
+    }
+
     // 2. บล็อก CONTINUOUS_BOARD_AURA จาก Leader (เช่น ขุนเหนือ L02)
     if (owner && owner.leader && Array.isArray(owner.leader.effects)) {
       owner.leader.effects.filter(e => e.trigger === 'CONTINUOUS_BOARD_AURA').forEach(aura => {
@@ -977,6 +994,25 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'madoka_protect', monster };
   }
 
+  // อซาเซล ผู้ถูกเนรเทศ (BT03_07): ออโต้ / 1 เทิร์น : หากยูนิทเผ่า “ปีศาจ” ฝั่งเราจะถูกทำลายจากการต่อสู้
+  if (isFromBattle && hasCardTribe(monster, 'ปีศาจ') && boardOwner.board.some(m => m && m.id === 'BT03_07') && !boardOwner.azazelBattleSaveUsedThisTurn && Array.isArray(boardOwner.deck) && boardOwner.deck.length > 0) {
+    boardOwner.azazelBattleSaveUsedThisTurn = true;
+    const millCount = Math.min(2, boardOwner.deck.length);
+    if (!Array.isArray(boardOwner.darkDimension)) boardOwner.darkDimension = [];
+    for (let i = 0; i < millCount; i++) {
+      const topCard = boardOwner.deck.pop();
+      if (topCard) {
+        resetCardStateForZoneChange(topCard);
+        boardOwner.darkDimension.push(topCard);
+      }
+    }
+    setLog(`⚡ [ออโต้/1 เทิร์น - อซาเซล] นำการ์ดบนสุดของกอง ${millCount} ใบเข้ามิติมืด เพื่อปกป้อง "${monster.name}" จากการต่อสู้!`);
+    if (typeof showCardShowcaseBanner === 'function') {
+      showCardShowcaseBanner(monster, '🛡️ อซาเซล ผู้ถูกเนรเทศ!', `ส่งการ์ดเข้ามิติมืด ${millCount} ใบ ปกป้อง "${monster.name}" ไม่ออกจากสนาม!`, '#8b5cf6', 1100);
+    }
+    return { destroyed: false, reason: 'azazel_battle_save', monster };
+  }
+
   // ดราโกนิค โอเวอร์ลอร์ด the rebirth (KG03): อีกฝ่ายต้องทิ้งการ์ด 2 ใบ ถ้าไม่ทำหรือไม่พอ ไม่ถูกทำลาย
   if (monster.id === 'KG03') {
     const oppContestant = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
@@ -1002,7 +1038,21 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   const wasRevivedThisTurn = !!monster.revivedThisTurn;
   resetCardStateForZoneChange(monster);
   monster.revivedThisTurn = wasRevivedThisTurn;
-  targetGraveContestant.graveyard.push(monster);
+
+  // ลิลิธ ผู้พิทักษ์พันธสัญญา (BT03_08): ยูนิทที่ถูกทำลายจากการต่อสู้โดยลิลิธ เข้ามิติมืดแทนการลงนรก
+  const killer = gameState._battleKillerCard;
+  if (isFromBattle && killer && (killer.id === 'BT03_08' || (killer.name && killer.name.includes('ลิลิธ')))) {
+    if (!Array.isArray(targetGraveContestant.darkDimension)) targetGraveContestant.darkDimension = [];
+    targetGraveContestant.darkDimension.push(monster);
+    setLog(`🌌 [ต่อเนื่อง - ลิลิธ] ยูนิท "${monster.name}" ถูกทำลายโดย "ลิลิธ" -> นำเข้ามิติมืดแทนการลงนรก!`);
+  } else {
+    targetGraveContestant.graveyard.push(monster);
+  }
+
+  // 😈 แอสตารอธ ทูตแห่งขุมนรก (BT03_09): ออโต้ : เมื่อยูนิทนี้ถูกทำลาย เลือกการ์ดในนรกของทั้งสองฝั่งรวมกันไม่เกิน 2 ใบนำเข้ามิติมืดของแต่ละฝั่ง
+  if (monster.id === 'BT03_09') {
+    triggerAstarothDestroySkill(boardOwner);
+  }
 
 
   // รันบล็อกความสามารถเมื่อถูกทำลาย (ON_DESTROY)
@@ -1963,6 +2013,16 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
           askCardUseConfirmation(card, 'สั่งใช้งาน เอโพน่า จากนรก เพื่อส่งไปมิติมืดและจั่ว 2 ใบ', () => {
             executeEponaGraveSkill(ownerContestant, card);
           });
+        };
+      }
+      if (card.id === 'BT03_11' && ownerContestant === gameState.player && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player' && !ownerContestant.bt03_11GraveUsedThisTurn && ownerContestant.graveyard.length > 0) {
+        cardEl.style.cursor = 'pointer';
+        cardEl.style.boxShadow = '0 0 16px #8b5cf6';
+        cardEl.title = '⛓️ คลิกเพื่อสั่งใช้งานจากนรก: เลือกการ์ดในนรก 1 ใบเข้ามิติมืด จากนั้นอีกฝ่ายจั่ว 1 ใบ!';
+        cardEl.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'none';
+          executeBt03_11GraveSkill(ownerContestant, card);
         };
       }
       listEl.appendChild(cardEl);
@@ -3903,6 +3963,368 @@ function triggerExecutionerSummonSkill(contestant, monster, onDone = null) {
   setLog(`🔺 [THE EXECUTIONER] เมื่อลงสนาม -> ส่งการ์ดใบบนสุดของกอง ${opp.name} "${milled.name}" ลงนรก!`);
   renderGame();
   if (onDone) onDone();
+}
+
+// ==================== BT03 การ์ดเผ่าปีศาจ (07-11) ====================
+
+// 😈 อซาเซล ผู้ถูกเนรเทศ (BT03_07): เมื่อลงสนาม มิติมืดรวม >= 6 -> เด้งยูนิทอีกฝ่าย 1 ใบขึ้นมือ แล้วอีกฝ่ายส่งมือ 1 ใบเข้ามิติมืด
+function triggerAzazelSummonSkill(caster, onDone = null) {
+  const opp = (caster === gameState.player) ? gameState.ai : gameState.player;
+  const cDark = Array.isArray(caster.darkDimension) ? caster.darkDimension.length : 0;
+  const oDark = Array.isArray(opp.darkDimension) ? opp.darkDimension.length : 0;
+  if (cDark + oDark < 6) {
+    if (onDone) onDone();
+    return;
+  }
+
+  const validTargets = [];
+  opp.board.forEach((m, idx) => {
+    if (m !== null && !isMonsterImmuneToEnemyEffects(m, opp)) {
+      validTargets.push({ monster: m, slot: idx });
+    }
+  });
+
+  const handleOppHandToDark = () => {
+    if (!opp.hand || opp.hand.length === 0) {
+      if (onDone) onDone();
+      return;
+    }
+    if (opp === gameState.player) {
+      const handChoices = opp.hand.map(c => ({
+        label: `นำ "${c.name}" เข้าสู่มิติมืด`,
+        color: '#8b5cf6',
+        onSelect: () => {
+          const actualIdx = opp.hand.findIndex(x => x.uid === c.uid);
+          if (actualIdx !== -1) {
+            const picked = opp.hand.splice(actualIdx, 1)[0];
+            resetCardStateForZoneChange(picked);
+            if (!opp.darkDimension) opp.darkDimension = [];
+            opp.darkDimension.push(picked);
+            setLog(`🌌 [อซาเซล ผู้ถูกเนรเทศ] คุณนำ "${picked.name}" บนมือเข้าสู่มิติมืด!`);
+            renderGame();
+            if (onDone) onDone();
+          }
+        }
+      }));
+      showChoiceModal(
+        '🌌 ออโต้: อซาเซล ผู้ถูกเนรเทศ',
+        'ผลของอซาเซล: เลือกการ์ดบนมือคุณ 1 ใบ เพื่อนำเข้าสู่มิติมืด:',
+        handChoices
+      );
+    } else {
+      const picked = (typeof isHardAI === 'function' && isHardAI())
+        ? (spliceBestAIDiscard(opp) || opp.hand.pop())
+        : opp.hand.pop();
+      if (picked) {
+        resetCardStateForZoneChange(picked);
+        if (!opp.darkDimension) opp.darkDimension = [];
+        opp.darkDimension.push(picked);
+        setLog(`🌌 [AI อซาเซล ผู้ถูกเนรเทศ] AI นำ "${picked.name}" บนมือเข้าสู่มิติมืด!`);
+      }
+      renderGame();
+      if (onDone) onDone();
+    }
+  };
+
+  showCardShowcaseBanner({ name: 'อซาเซล ผู้ถูกเนรเทศ', image: 'images/BT/BT03/7.png' }, 'ออโต้: อซาเซล!', 'มิติมืดรวม >= 6 ใบ! บังคับเด้งยูนิทและส่งมือเข้ามิติมืด!', '#8b5cf6', 1300);
+
+  if (validTargets.length === 0) {
+    handleOppHandToDark();
+    return;
+  }
+
+  if (caster === gameState.player) {
+    const choices = validTargets.map(t => ({
+      label: `นำ "${t.monster.name}" (ช่อง ${t.slot + 1}) กลับขึ้นมือ`,
+      color: '#0284c7',
+      onSelect: () => {
+        const targetMonster = opp.board[t.slot];
+        if (targetMonster) {
+          opp.board[t.slot] = null;
+          resetCardStateForZoneChange(targetMonster);
+          opp.hand.push(targetMonster);
+          setLog(`🌌 [อซาเซล ผู้ถูกเนรเทศ] นำ "${targetMonster.name}" ฝั่งตรงข้ามกลับขึ้นมือ!`);
+          handleOppHandToDark();
+        }
+      }
+    }));
+    choices.push({
+      label: 'ไม่เลือกการ์ดกลับขึ้นมือ',
+      color: '#64748b',
+      onSelect: () => handleOppHandToDark()
+    });
+    showChoiceModal(
+      '🌌 ออโต้: อซาเซล ผู้ถูกเนรเทศ',
+      'มิติมืดทั้งสองฝั่งรวมกัน >= 6 ใบ! เลือกการ์ดบนสนามฝั่งตรงข้าม 1 ใบกลับขึ้นมือ (จากนั้นอีกฝ่ายต้องส่งมือ 1 ใบเข้ามิติมืด):',
+      choices
+    );
+  } else {
+    validTargets.sort((a, b) => getEffectivePower(b.monster, opp) - getEffectivePower(a.monster, opp));
+    const target = validTargets[0];
+    opp.board[target.slot] = null;
+    resetCardStateForZoneChange(target.monster);
+    opp.hand.push(target.monster);
+    setLog(`🌌 [AI อซาเซล ผู้ถูกเนรเทศ] นำ "${target.monster.name}" ของคุณกลับขึ้นมือ!`);
+    handleOppHandToDark();
+  }
+}
+
+// 😈 ลิลิธ ผู้พิทักษ์พันธสัญญา (BT03_08): สั่งใช้งาน / 1 เทิร์น : นำการ์ดจากนรกฝั่งเราไม่เกิน 1 ใบเข้ามิติมืด
+function handleLilithBoardActivation(caster, slotIndex) {
+  const monster = caster.board[slotIndex];
+  if (!monster) return;
+  if (monster.usedSkills && monster.usedSkills.lilithUsedThisTurn) {
+    setLog('⚠️ "ลิลิธ" ใช้สกิลในเทิร์นนี้ไปแล้ว (ใช้ได้ 1 ครั้ง/เทิร์น)!');
+    return;
+  }
+  const myGrave = Array.isArray(caster.graveyard) ? caster.graveyard : [];
+  if (myGrave.length === 0) {
+    setLog('⚠️ ไม่มีนรกให้เลือกการ์ดนำเข้ามิติมืด!');
+    return;
+  }
+  const isAI = (caster !== gameState.player);
+  if (isAI) {
+    const picked = myGrave.pop();
+    resetCardStateForZoneChange(picked);
+    if (!caster.darkDimension) caster.darkDimension = [];
+    caster.darkDimension.push(picked);
+    if (!monster.usedSkills) monster.usedSkills = {};
+    monster.usedSkills.lilithUsedThisTurn = true;
+    showCardShowcaseBanner(monster, 'AI สั่งใช้งาน ลิลิธ!', `🌌 นำ "${picked.name}" จากนรกเข้ามิติมืด!`, '#8b5cf6', 1200);
+    setLog(`🌌 [AI ลิลิธ] นำ "${picked.name}" จากนรกเข้ามิติมืด!`);
+    renderGame();
+    return;
+  }
+
+  const choices = myGrave.map(c => ({
+    label: `นำ "${c.name}" เข้าสู่มิติมืด`,
+    color: '#8b5cf6',
+    onSelect: () => {
+      const idx = myGrave.findIndex(x => x.uid === c.uid);
+      if (idx !== -1) {
+        const picked = myGrave.splice(idx, 1)[0];
+        resetCardStateForZoneChange(picked);
+        if (!caster.darkDimension) caster.darkDimension = [];
+        caster.darkDimension.push(picked);
+        if (!monster.usedSkills) monster.usedSkills = {};
+        monster.usedSkills.lilithUsedThisTurn = true;
+        setLog(`🌌 [ลิลิธ] นำ "${picked.name}" จากนรกเข้าสู่มิติมืดสำเร็จ!`);
+        renderGame();
+      }
+    }
+  }));
+  showChoiceModal('🌌 สั่งใช้งาน: ลิลิธ ผู้พิทักษ์พันธสัญญา', 'เลือกการ์ดจากนรกของคุณ 1 ใบ เพื่อนำเข้าสู่มิติมืด:', choices, { previewCards: myGrave });
+}
+
+// 😈 แอสตารอธ ทูตแห่งขุมนรก (BT03_09): สั่งใช้งาน / 1 เทิร์น : เลือกการ์ดจากกองหรือนรกไม่เกิน 1 ใบเข้ามิติมืด แล้วจั่ว 1 ใบ
+function handleAstarothBoardActivation(caster, slotIndex) {
+  const monster = caster.board[slotIndex];
+  if (!monster) return;
+  if (monster.usedSkills && monster.usedSkills.astarothUsedThisTurn) {
+    setLog('⚠️ "แอสตารอธ" ใช้สกิลในเทิร์นนี้ไปแล้ว (ใช้ได้ 1 ครั้ง/เทิร์น)!');
+    return;
+  }
+  const myGrave = Array.isArray(caster.graveyard) ? caster.graveyard : [];
+  const myDeck = Array.isArray(caster.deck) ? caster.deck : [];
+  if (myGrave.length === 0 && myDeck.length === 0) {
+    setLog('⚠️ ไม่มีกองการ์ดหรือนรกให้เลือก!');
+    return;
+  }
+  const isAI = (caster !== gameState.player);
+  if (isAI) {
+    if (myDeck.length > 0) {
+      const picked = myDeck.pop();
+      resetCardStateForZoneChange(picked);
+      if (!caster.darkDimension) caster.darkDimension = [];
+      caster.darkDimension.push(picked);
+    } else if (myGrave.length > 0) {
+      const picked = myGrave.pop();
+      resetCardStateForZoneChange(picked);
+      if (!caster.darkDimension) caster.darkDimension = [];
+      caster.darkDimension.push(picked);
+    }
+    if (!monster.usedSkills) monster.usedSkills = {};
+    monster.usedSkills.astarothUsedThisTurn = true;
+    drawCards(caster, 1);
+    showCardShowcaseBanner(monster, 'AI สั่งใช้งาน แอสตารอธ!', '🌌 นำการ์ดเข้ามิติมืด และจั่ว 1 ใบ!', '#8b5cf6', 1200);
+    setLog(`🌌 [AI แอสตารอธ] นำการ์ดเข้ามิติมืด 1 ใบ และจั่ว 1 ใบ!`);
+    renderGame();
+    return;
+  }
+
+  const zoneChoices = [];
+  if (myDeck.length > 0) {
+    zoneChoices.push({
+      label: '📚 เลือกการ์ดจาก "กองการ์ด" เข้าสู่มิติมืด',
+      color: '#0284c7',
+      onSelect: () => {
+        const deckChoices = myDeck.map(c => ({
+          label: `นำ "${c.name}" เข้าสู่มิติมืด`,
+          color: '#8b5cf6',
+          onSelect: () => {
+            const idx = myDeck.findIndex(x => x.uid === c.uid);
+            if (idx !== -1) {
+              const picked = myDeck.splice(idx, 1)[0];
+              resetCardStateForZoneChange(picked);
+              if (!caster.darkDimension) caster.darkDimension = [];
+              caster.darkDimension.push(picked);
+              caster.deck = shuffleDeck(caster.deck);
+              if (!monster.usedSkills) monster.usedSkills = {};
+              monster.usedSkills.astarothUsedThisTurn = true;
+              drawCards(caster, 1);
+              setLog(`🌌 [แอสตารอธ] นำ "${picked.name}" จากกองเข้ามิติมืด และจั่วการ์ด 1 ใบ!`);
+              renderGame();
+            }
+          }
+        }));
+        showChoiceModal('🌌 แอสตารอธ: เลือกจากกองการ์ด', 'เลือกการ์ดจากกองการ์ด 1 ใบนำเข้าสู่มิติมืด:', deckChoices, { previewCards: myDeck });
+      }
+    });
+  }
+  if (myGrave.length > 0) {
+    zoneChoices.push({
+      label: '💀 เลือกการ์ดจาก "นรก" เข้าสู่มิติมืด',
+      color: '#dc2626',
+      onSelect: () => {
+        const graveChoices = myGrave.map(c => ({
+          label: `นำ "${c.name}" เข้าสู่มิติมืด`,
+          color: '#8b5cf6',
+          onSelect: () => {
+            const idx = myGrave.findIndex(x => x.uid === c.uid);
+            if (idx !== -1) {
+              const picked = myGrave.splice(idx, 1)[0];
+              resetCardStateForZoneChange(picked);
+              if (!caster.darkDimension) caster.darkDimension = [];
+              caster.darkDimension.push(picked);
+              if (!monster.usedSkills) monster.usedSkills = {};
+              monster.usedSkills.astarothUsedThisTurn = true;
+              drawCards(caster, 1);
+              setLog(`🌌 [แอสตารอธ] นำ "${picked.name}" จากนรกเข้ามิติมืด และจั่วการ์ด 1 ใบ!`);
+              renderGame();
+            }
+          }
+        }));
+        showChoiceModal('🌌 แอสตารอธ: เลือกจากนรก', 'เลือกการ์ดจากนรก 1 ใบนำเข้าสู่มิติมืด:', graveChoices, { previewCards: myGrave });
+      }
+    });
+  }
+  showChoiceModal('🌌 สั่งใช้งาน: แอสตารอธ ทูตแห่งขุมนรก', 'เลือกโซนที่ต้องการนำการ์ดเข้าสู่มิติมืด (จากนั้นจะจั่วการ์ด 1 ใบ):', zoneChoices);
+}
+
+// 😈 แอสตารอธ ทูตแห่งขุมนรก (BT03_09): ออโต้ : เมื่อถูกทำลาย เลือกการ์ดในนรกทั้งสองฝั่งรวมกันไม่เกิน 2 ใบนำเข้ามิติมืดของแต่ละฝั่ง
+function triggerAstarothDestroySkill(caster) {
+  const opp = (caster === gameState.player) ? gameState.ai : gameState.player;
+  const isAI = (caster !== gameState.player);
+  const myGrave = Array.isArray(caster.graveyard) ? caster.graveyard : [];
+  const oppGrave = Array.isArray(opp.graveyard) ? opp.graveyard : [];
+
+  if (myGrave.length === 0 && oppGrave.length === 0) return;
+
+  if (isAI) {
+    let sentCount = 0;
+    while (myGrave.length > 0 && sentCount < 2) {
+      const picked = myGrave.pop();
+      resetCardStateForZoneChange(picked);
+      if (!caster.darkDimension) caster.darkDimension = [];
+      caster.darkDimension.push(picked);
+      sentCount++;
+    }
+    while (oppGrave.length > 0 && sentCount < 2) {
+      const picked = oppGrave.pop();
+      resetCardStateForZoneChange(picked);
+      if (!opp.darkDimension) opp.darkDimension = [];
+      opp.darkDimension.push(picked);
+      sentCount++;
+    }
+    setLog(`🌌 [AI แอสตารอธ] เมื่อถูกทำลาย -> ส่งการ์ดจากนรกเข้ามิติมืดรวม ${sentCount} ใบ!`);
+    renderGame();
+    return;
+  }
+
+  let chosenCount = 0;
+  const pickNextCard = () => {
+    if (chosenCount >= 2 || (myGrave.length === 0 && oppGrave.length === 0)) {
+      renderGame();
+      return;
+    }
+    const choices = [];
+    myGrave.forEach(c => {
+      choices.push({
+        label: `[นรกเรา] นำ "${c.name}" เข้ามิติมืดเรา`,
+        color: '#8b5cf6',
+        onSelect: () => {
+          const idx = myGrave.findIndex(x => x.uid === c.uid);
+          if (idx !== -1) {
+            const picked = myGrave.splice(idx, 1)[0];
+            resetCardStateForZoneChange(picked);
+            if (!caster.darkDimension) caster.darkDimension = [];
+            caster.darkDimension.push(picked);
+            chosenCount++;
+            setLog(`🌌 [แอสตารอธ - ถูกทำลาย] นำ "${picked.name}" จากนรกเราเข้ามิติมืด!`);
+            pickNextCard();
+          }
+        }
+      });
+    });
+    oppGrave.forEach(c => {
+      choices.push({
+        label: `[นรกอีกฝ่าย] นำ "${c.name}" เข้ามิติมืดอีกฝ่าย`,
+        color: '#dc2626',
+        onSelect: () => {
+          const idx = oppGrave.findIndex(x => x.uid === c.uid);
+          if (idx !== -1) {
+            const picked = oppGrave.splice(idx, 1)[0];
+            resetCardStateForZoneChange(picked);
+            if (!opp.darkDimension) opp.darkDimension = [];
+            opp.darkDimension.push(picked);
+            chosenCount++;
+            setLog(`🌌 [แอสตารอธ - ถูกทำลาย] นำ "${picked.name}" จากนรกอีกฝ่ายเข้ามิติมืดอีกฝ่าย!`);
+            pickNextCard();
+          }
+        }
+      });
+    });
+    choices.push({
+      label: 'หยุดเลือก (เสร็จสิ้น)',
+      color: '#64748b',
+      onSelect: () => renderGame()
+    });
+    showChoiceModal(
+      `🌌 แอสตารอธ (ถูกทำลาย): เลือกการ์ดใบที่ ${chosenCount + 1}/2`,
+      'เลือกการ์ดในนรกของทั้งสองฝั่งรวมกันไม่เกิน 2 ใบ เพื่อนำเข้าสู่มิติมืด:',
+      choices
+    );
+  };
+  pickNextCard();
+}
+
+// ⛓️ โซ่ตรวนมิติมืด (BT03_11): สั่งใช้งานในนรก / 1 เทิร์น : เลือกการ์ดในนรกฝั่งเรา 1 ใบเข้ามิติมืด อีกฝ่ายจั่ว 1 ใบ
+function executeBt03_11GraveSkill(contestant, card) {
+  if (!contestant || contestant.bt03_11GraveUsedThisTurn || !Array.isArray(contestant.graveyard) || contestant.graveyard.length === 0) return;
+  const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
+  const graveChoices = contestant.graveyard.map(c => ({
+    label: `นำ "${c.name}" เข้าสู่มิติมืด`,
+    color: '#8b5cf6',
+    onSelect: () => {
+      const idx = contestant.graveyard.findIndex(x => x.uid === c.uid);
+      if (idx !== -1) {
+        contestant.bt03_11GraveUsedThisTurn = true;
+        const picked = contestant.graveyard.splice(idx, 1)[0];
+        resetCardStateForZoneChange(picked);
+        if (!contestant.darkDimension) contestant.darkDimension = [];
+        contestant.darkDimension.push(picked);
+        setLog(`⛓️ [โซ่ตรวนมิติมืด] สั่งใช้งานจากนรก: นำ "${picked.name}" เข้ามิติมืด -> ฝั่งตรงข้าม (${opp.name}) จั่วการ์ด 1 ใบ!`);
+        drawCards(opp, 1);
+        renderGame();
+      }
+    }
+  }));
+  showChoiceModal(
+    '⛓️ สั่งใช้งานจากนรก: โซ่ตรวนมิติมืด',
+    'เลือกการ์ดในนรกของคุณ 1 ใบ เพื่อนำเข้าสู่มิติมืด (จากนั้นอีกฝ่ายจะได้จั่ว 1 ใบ):',
+    graveChoices,
+    { previewCards: contestant.graveyard }
+  );
 }
 
 // 💀 ระบบสั่งใช้งานในนรกเมื่อลีดเดอร์เสียพลังชีวิต: THE XENOMORPH (KL07), THE EXECUTIONER (KL08), THE SLASHER (KL02)
@@ -6426,6 +6848,18 @@ function activateMonsterOnBoardPlayer(slotIndex) {
     return;
   }
 
+  // 😈 ลิลิธ ผู้พิทักษ์พันธสัญญา (BT03_08): สั่งใช้งาน / 1 เทิร์น : นำการ์ดจากนรกฝั่งเราไม่เกิน 1 ใบเข้ามิติมืด
+  if (monster.id === 'BT03_08') {
+    handleLilithBoardActivation(player, slotIndex);
+    return;
+  }
+
+  // 😈 แอสตารอธ ทูตแห่งขุมนรก (BT03_09): สั่งใช้งาน / 1 เทิร์น : เลือกการ์ดจากกองหรือนรกไม่เกิน 1 ใบเข้ามิติมืด แล้วจั่ว 1 ใบ
+  if (monster.id === 'BT03_09') {
+    handleAstarothBoardActivation(player, slotIndex);
+    return;
+  }
+
   const mainEffects = (monster.effects || []).filter(e => e.trigger === 'ACTIVATE_MAIN');
   if (mainEffects.length === 0) {
     setLog(`ℹ️ "${monster.name}" ไม่มีสกิลกดใช้บนสนาม (คลิกขวาเพื่อดูรายละเอียด หรือเข้าสู่ Battle Phase เพื่อสั่งโจมตี)`);
@@ -6769,6 +7203,48 @@ function initiatePlayerSpell(handIndex) {
         }
       }));
       showChoiceModal(`${tag}: เลือกยูนิทจากกอง`, 'เลือกยูนิท 1 ใบเพื่อส่งลงนรก:', choices);
+    });
+    return;
+  }
+
+  // ⛓️ โซ่ตรวนมิติมืด (BT03_11): นำการ์ดบนมือเราเข้ามิติมืด 1 ใบ จากนั้นจั่วการ์ด 2 ใบ
+  if (spell.id === 'BT03_11') {
+    if (player.hand.length <= 1) {
+      setLog('❌ ต้องมีการ์ดบนมือใบอื่นอย่างน้อย 1 ใบเพื่อส่งเข้าสู่มิติมืด!');
+      return;
+    }
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "โซ่ตรวนมิติมืด"', () => {
+      gameState.selectedHandIndex = null;
+      const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
+      if (curIdx === -1) return;
+      const usedSpell = player.hand.splice(curIdx, 1)[0];
+      player.spellQuota.normalUsed += 1;
+      resetCardStateForZoneChange(usedSpell);
+      player.graveyard.push(usedSpell);
+
+      const otherHand = player.hand.slice();
+      const handChoices = otherHand.map(c => ({
+        label: `นำ "${c.name}" เข้าสู่มิติมืด`,
+        color: '#8b5cf6',
+        onSelect: () => {
+          const actualIdx = player.hand.findIndex(x => x.uid === c.uid);
+          if (actualIdx !== -1) {
+            const picked = player.hand.splice(actualIdx, 1)[0];
+            resetCardStateForZoneChange(picked);
+            if (!player.darkDimension) player.darkDimension = [];
+            player.darkDimension.push(picked);
+            setLog(`⛓️ [โซ่ตรวนมิติมืด] นำ "${picked.name}" เข้าสู่มิติมืด -> จั่วการ์ด 2 ใบ!`);
+            drawCards(player, 2);
+            renderGame();
+          }
+        }
+      }));
+      showChoiceModal(
+        '⛓️ สั่งใช้งาน: โซ่ตรวนมิติมืด',
+        'เลือกการ์ดบนมือ 1 ใบเพื่อนำเข้าสู่มิติมืด จากนั้นจะจั่วการ์ด 2 ใบ:',
+        handChoices,
+        { previewCards: otherHand }
+      );
     });
     return;
   }
@@ -9105,6 +9581,21 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.hibanaMaskAttackUsedThisTurn = false;
   contestant.chaosDuoGraveUsedThisTurn = false;
   contestant.harmonyGraveUsedThisTurn = false;
+  contestant.azazelBattleSaveUsedThisTurn = false;
+  contestant.mephistoReactionUsedThisTurn = false;
+  contestant.bt03_11GraveUsedThisTurn = false;
+  if (typeof gameState !== 'undefined' && gameState) {
+    if (gameState.player) {
+      gameState.player.azazelBattleSaveUsedThisTurn = false;
+      gameState.player.mephistoReactionUsedThisTurn = false;
+      gameState.player.bt03_11GraveUsedThisTurn = false;
+    }
+    if (gameState.ai) {
+      gameState.ai.azazelBattleSaveUsedThisTurn = false;
+      gameState.ai.mephistoReactionUsedThisTurn = false;
+      gameState.ai.bt03_11GraveUsedThisTurn = false;
+    }
+  }
 
   drawCards(contestant, 1);
 
@@ -9806,6 +10297,7 @@ function handlePlayerSlotClick(slotIndex) {
       if (summoned.id === 'KL06' || (summoned.name && summoned.name.includes('THE GHOST FACE'))) checkSparkconCancelBeforeAction(player, summoned, () => triggerGhostFaceSummonSkill(player));
       if (summoned.id === 'KL07' || (summoned.name && summoned.name.includes('THE XENOMORPH'))) checkSparkconCancelBeforeAction(player, summoned, () => triggerXenomorphSummonSkill(player, summoned));
       if (summoned.id === 'KL08' || (summoned.name && summoned.name.includes('THE EXECUTIONER'))) checkSparkconCancelBeforeAction(player, summoned, () => triggerExecutionerSummonSkill(player, summoned));
+      if (summoned.id === 'BT03_07') checkSparkconCancelBeforeAction(player, summoned, () => triggerAzazelSummonSkill(player));
       renderGame();
     });
     return;
@@ -10999,10 +11491,34 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (defender.hand.length >= 2)
     && (defender.spellQuota.reactionUsed < 1);
 
+  const canUseMephisto = defender.board.some(m => m !== null && m.id === 'BT03_10')
+    && !defender.mephistoReactionUsedThisTurn
+    && defender.board.some(m => m !== null && hasCardTribe(m, 'ปีศาจ'));
+
   // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ (ระดับ EASY จะไม่ใช้เวทรีแอคซับซ้อน)
   if (!isLocalDefender) {
     if (aiConfig.difficulty === 'EASY') {
       continueNormalAttackFlow();
+      return;
+    }
+
+    if (canUseMephisto && (targetType === 'leader' || attackingMonster.power >= 2)) {
+      defender.mephistoReactionUsedThisTurn = true;
+      const mephistoCard = defender.board.find(m => m && m.id === 'BT03_10');
+      let millMsg = '';
+      if (Array.isArray(defender.deck) && defender.deck.length > 0) {
+        if (!Array.isArray(defender.darkDimension)) defender.darkDimension = [];
+        const top = defender.deck.pop();
+        if (top) {
+          resetCardStateForZoneChange(top);
+          defender.darkDimension.push(top);
+          millMsg = ` และส่ง "${top.name}" จากบนสุดของกองเข้ามิติมืด 1 ใบ`;
+        }
+      }
+      showCardShowcaseBanner(mephistoCard, 'AI สั่งใช้งาน เมฟิสโต!', '🌌 ยกเลิกการโจมตี และส่งใบบนสุดของกองเข้ามิติมืด!', '#8b5cf6', 1300);
+      setLog(`🌌 [AI - เมฟิสโต] ออโต้ / 1 เทิร์น: ยกเลิกการโจมตีของ "${attackingMonster.name}"${millMsg}!`);
+      renderGame();
+      if (onCompleteCallback) onCompleteCallback();
       return;
     }
 
@@ -11461,8 +11977,36 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   }
 
   // 👤 กรณีเราเป็นฝ่ายถูกโจมตี: เด้งถามเฉพาะการ์ดของเราเอง
-  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUsePomPom || canUseBookOfVile || canUseDivineLight) {
+  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry || canUsePomPom || canUseBookOfVile || canUseDivineLight || canUseMephisto) {
     const options = [];
+
+    if (canUseMephisto) {
+      options.push({
+        cardId: 'BT03_10',
+        label: '🌌 สกิลออโต้ "เมฟิสโต": ยกเลิกการโจมตี และนำใบบนสุดของกองเข้ามิติมืด 1 ใบ!',
+        color: '#8b5cf6',
+        onSelect: () => {
+          defender.mephistoReactionUsedThisTurn = true;
+          const mephistoCard = defender.board.find(m => m && m.id === 'BT03_10');
+          let millMsg = '';
+          if (Array.isArray(defender.deck) && defender.deck.length > 0) {
+            if (!Array.isArray(defender.darkDimension)) defender.darkDimension = [];
+            const top = defender.deck.pop();
+            if (top) {
+              resetCardStateForZoneChange(top);
+              defender.darkDimension.push(top);
+              millMsg = ` และส่ง "${top.name}" จากบนสุดของกองเข้ามิติมืด 1 ใบ`;
+            }
+          }
+          if (typeof showCardShowcaseBanner === 'function') {
+            showCardShowcaseBanner(mephistoCard, 'ออโต้ เมฟิสโต!', '🌌 ยกเลิกการโจมตี และส่งใบบนสุดของกองเข้ามิติมืด!', '#8b5cf6', 1300);
+          }
+          setLog(`🌌 [เมฟิสโต] ออโต้ / 1 เทิร์น: ยกเลิกการโจมตีของ "${attackingMonster.name}"${millMsg}!`);
+          renderGame();
+          if (onCompleteCallback) onCompleteCallback();
+        }
+      });
+    }
 
     if (canUseForbiddenWarning) {
       options.push({
@@ -12831,7 +13375,9 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
 
   if (totalA > totalB) {
     const hadBurn = !!monsterA.burnLeaderOnKill;
+    gameState._battleKillerCard = monsterA;
     const resB = destroyBoardMonster(contestantB, slotB, true, false);
+    gameState._battleKillerCard = null;
 
     let burnMsg = '';
     if (resB.destroyed && hadBurn) {
@@ -12947,7 +13493,9 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
     }
     return msg;
   } else if (totalA < totalB) {
+    gameState._battleKillerCard = monsterB;
     const resA = destroyBoardMonster(contestantA, slotA, true, false);
+    gameState._battleKillerCard = null;
     const msg = resA.destroyed
       ? `"${monsterB.name}" (${totalB}) พลังสูงกว่า! สวนกลับทำลาย "${monsterA.name}" (${totalA})!${luciferNote}`
       : `"${monsterB.name}" (${totalB}) พลังสูงกว่า! แต่ "${monsterA.name}" (${totalA}) ได้รับการปกป้อง ไม่ออกจากสนาม!${luciferNote}`;
@@ -14212,6 +14760,7 @@ function performSingleAIMainAction() {
       if (summoned.id === 'KL06' || (summoned.name && summoned.name.includes('THE GHOST FACE'))) checkSparkconCancelBeforeAction(ai, summoned, () => triggerGhostFaceSummonSkill(ai));
       if (summoned.id === 'KL07' || (summoned.name && summoned.name.includes('THE XENOMORPH'))) checkSparkconCancelBeforeAction(ai, summoned, () => triggerXenomorphSummonSkill(ai, summoned));
       if (summoned.id === 'KL08' || (summoned.name && summoned.name.includes('THE EXECUTIONER'))) checkSparkconCancelBeforeAction(ai, summoned, () => triggerExecutionerSummonSkill(ai, summoned));
+      if (summoned.id === 'BT03_07') checkSparkconCancelBeforeAction(ai, summoned, () => triggerAzazelSummonSkill(ai));
 
       renderGame();
       return true;
@@ -14288,6 +14837,20 @@ function performSingleAIMainAction() {
         });
         return true;
       }
+    }
+
+    // 3.0.6 ลิลิธ (BT03_08): นำการ์ดจากนรกเข้ามิติมืด 1 ใบ
+    if (m.id === 'BT03_08' && (!m.usedSkills || !m.usedSkills.lilithUsedThisTurn) && Array.isArray(ai.graveyard) && ai.graveyard.length > 0) {
+      handleLilithBoardActivation(ai, slotIdx);
+      playSlotAnimation(false, slotIdx, 'fx-skill-glow');
+      return true;
+    }
+
+    // 3.0.7 แอสตารอธ (BT03_09): นำการ์ดจากกอง/นรกเข้ามิติมืด และจั่ว 1 ใบ
+    if (m.id === 'BT03_09' && (!m.usedSkills || !m.usedSkills.astarothUsedThisTurn) && (ai.deck.length > 0 || ai.graveyard.length > 0)) {
+      handleAstarothBoardActivation(ai, slotIdx);
+      playSlotAnimation(false, slotIdx, 'fx-skill-glow');
+      return true;
     }
 
     // 3.1 โทโดโรจิต (M02) เก็บบาคุจิต
@@ -15905,7 +16468,7 @@ function getCardLeaderLock(card) {
     };
   }
   // เด็คจิต (L01): ล็อกใช้ได้เฉพาะลีดเดอร์ มายฮีโร่ เดจิต
-  if (card.leaderLock === 'L01' || /^BT03_/.test(id)) {
+  if (card.leaderLock === 'L01' || /^BT03_0[1-6]$/.test(id)) {
     return {
       leaderId: 'L01',
       leaderName: 'มายฮีโร่ เดจิต',

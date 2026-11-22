@@ -793,6 +793,62 @@
       const bt03Card = CARD_DATABASE.find(c => c.id === 'BT03_01');
       const lockObj = getCardLeaderLock(bt03Card);
       assert(lockObj && lockObj.leaderId === 'L01', 'getCardLeaderLock(BT03_01) returns leaderId L01');
+
+      // BT03 Cards 07-11 (Demon tribe)
+      const expectedBT03Demon = [
+        { id: 'BT03_07', name: 'อซาเซล ผู้ถูกเนรเทศ', type: 'Monster', rarity: 'SR', maxCopies: 2, power: 3 },
+        { id: 'BT03_08', name: 'ลิลิธ ผู้พิทักษ์พันธสัญญา', type: 'Monster', rarity: 'R', maxCopies: 2, power: 0 },
+        { id: 'BT03_09', name: 'แอสตารอธ ทูตแห่งขุมนรก', type: 'Monster', rarity: 'N', maxCopies: 2, power: 1 },
+        { id: 'BT03_10', name: 'เมฟิสโต', type: 'Monster', rarity: 'SR', maxCopies: 2, power: 2 },
+        { id: 'BT03_11', name: 'โซ่ตรวนมิติมืด', type: 'NormalSpell', rarity: 'R', maxCopies: 2 }
+      ];
+
+      expectedBT03Demon.forEach(exp => {
+        const c = CARD_DATABASE.find(card => card.id === exp.id);
+        assert(!!c, `${exp.id} exists in CARD_DATABASE`);
+        if (c) {
+          assert(c.name === exp.name, `${exp.id} name is ${exp.name}`);
+          assert(c.type === exp.type, `${exp.id} type is ${exp.type}`);
+          assert(c.tribe === 'ปีศาจ', `${exp.id} tribe is 'ปีศาจ'`);
+          assert(c.rarity === exp.rarity, `${exp.id} rarity is ${exp.rarity}`);
+          assert(c.maxCopies === exp.maxCopies, `${exp.id} maxCopies is ${exp.maxCopies}`);
+          assert(!c.leaderLock, `${exp.id} has no leaderLock`);
+          if (exp.power !== undefined) {
+            assert(c.power === exp.power, `${exp.id} base power is ${exp.power}`);
+          }
+          if (typeof cardMatchesDeckFilter === 'function') {
+            assert(cardMatchesDeckFilter(c, 'DEMON') === true, `${exp.id} matches DEMON filter`);
+            assert(cardMatchesDeckFilter(c, 'JIT') === false, `${exp.id} does not match JIT filter`);
+            assert(cardMatchesDeckFilter(c, 'KILLER') === false, `${exp.id} does not match KILLER filter`);
+          }
+        }
+      });
+
+      // Ability checks: BT03_08 Power buff from dark dimension
+      const lilithCard = { id: 'BT03_08', name: 'ลิลิธ ผู้พิทักษ์พันธสัญญา', type: 'Monster', power: 0, uid: 't-lilith' };
+      const testOwnerLilith = {
+        board: [lilithCard, null, null],
+        darkDimension: [{ id: 'd1' }, { id: 'd2' }, { id: 'd3' }, { id: 'd4' }],
+        hand: [],
+        graveyard: []
+      };
+      const lilithPower = getEffectivePower(lilithCard, testOwnerLilith);
+      assert(lilithPower === 2, `BT03_08 base 0 gains +2 power from 4 dark dimension cards (effective: ${lilithPower})`);
+
+      // Ability checks: BT03_10 Mephisto in middle slot buffs slots 0 and 2
+      const leftMonster = { id: 'm-left', name: 'Left', type: 'Monster', power: 2, uid: 't-left' };
+      const mephistoCard = { id: 'BT03_10', name: 'เมฟิสโต', type: 'Monster', power: 2, uid: 't-mephisto' };
+      const rightMonster = { id: 'm-right', name: 'Right', type: 'Monster', power: 1, uid: 't-right' };
+      const testOwnerMephisto = {
+        board: [leftMonster, mephistoCard, rightMonster],
+        darkDimension: [],
+        hand: [],
+        graveyard: []
+      };
+      const leftPower = getEffectivePower(leftMonster, testOwnerMephisto);
+      const rightPower = getEffectivePower(rightMonster, testOwnerMephisto);
+      assert(leftPower === 4, `Left monster power buffed +2 by Mephisto (2 -> ${leftPower})`);
+      assert(rightPower === 3, `Right monster power buffed +2 by Mephisto (1 -> ${rightPower})`);
     });
 
     // ==========================================
