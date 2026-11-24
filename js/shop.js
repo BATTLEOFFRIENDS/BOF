@@ -1978,6 +1978,9 @@
     if (key === 'DEMON') {
       return (card.id && /^BT03_(0[7-9]|1[0-1])$/.test(card.id)) || card.tribe === 'ปีศาจ';
     }
+    if (key === 'DINO') {
+      return (card.id && (/^BT01_1[3-5]$/.test(card.id) || /^BT03_1[2-5]$/.test(card.id))) || card.tribe === 'ไดโน';
+    }
     return false;
   };
 

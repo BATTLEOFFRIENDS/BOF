@@ -123,5 +123,73 @@ CARD_DATABASE.push(
     image: 'images/BT/BT01/12.png',
     ability: 'TRUE_LOVE_SPELL',
     desc: 'นำการ์ดใบนี้เข้าสู่มิติมืด\nยูนิทบนสนามเราจะไม่ถูกทำลายจากความสามารถของอีกฝั่งจนจบเกม'
+  },
+  {
+    id: 'BT01_13',
+    name: 'แองคิโลซอรัส — รถถังหุ้มเกราะ',
+    type: 'Monster',
+    tribe: 'ไดโน',
+    rarity: 'N',
+    maxCopies: 2,
+    power: 2,
+    image: 'images/BT/BT01/13.png',
+    ability: 'ANKYLOSAURUS_MILL_DINO',
+    desc: 'ออโต้ : เมื่อลงสนาม เลือกยูนิทเผ่า ไดโน ไม่เกิน 1 ใบจากกอง ลงนรก',
+    effects: [
+      {
+        id: 'bt01_13_summon',
+        trigger: 'ON_SUMMON',
+        steps: [
+          { block: 'SEND_DECK_TO_GRAVE', filterTribe: 'ไดโน', filterType: 'MONSTER', count: 1 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'BT01_14',
+    name: 'แบรกคิโอซอรัส — ยักษ์แห่งหุบเขา',
+    type: 'Monster',
+    tribe: 'ไดโน',
+    rarity: 'SR',
+    maxCopies: 2,
+    power: 2,
+    image: 'images/BT/BT01/14.png',
+    ability: 'BRACHIOSAURUS_DARK_RETURN',
+    desc: 'สั่งใช้งาน / 1 เทิร์น : นำการ์ดเผ่าไดโน จาก มิติมืด 1 ใบกลับลงนรก ถ้าสำเร็จยูนิทนี้ พลังโจมตีเพิ่ม 1 หน่วย จนจบเทิร์น',
+    effects: [
+      {
+        id: 'bt01_14_main',
+        label: 'นำไดโนจากมิติมืด 1 ใบกลับลงนรก -> พลัง +1 จนจบเทิร์น',
+        trigger: 'ACTIVATE_MAIN',
+        oncePerTurn: true,
+        steps: [
+          { block: 'RETURN_DARK_TO_GRAVE_BUFF', filterTribe: 'ไดโน', count: 1, amount: 1 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'BT01_15',
+    name: 'สเตโกซอรัส — จอมหนามหลัง',
+    type: 'Monster',
+    tribe: 'ไดโน',
+    rarity: 'R',
+    maxCopies: 2,
+    power: 2,
+    image: 'images/BT/BT01/15.png',
+    ability: 'STEGOSAURUS_MILL_BUFF',
+    desc: 'สั่งใช้งาน / 1 เทิร์น : ส่งใบบนสุดของกอง 2 ใบลงนรก แล้วเลือกไดโน 1 ใบเพิ่มพลังโจมตี 2 หน่วยจนจบเทิร์น',
+    effects: [
+      {
+        id: 'bt01_15_main',
+        label: 'โม่กอง 2 ใบ -> เลือกไดโน 1 ใบ พลัง +2 จนจบเทิร์น',
+        trigger: 'ACTIVATE_MAIN',
+        oncePerTurn: true,
+        steps: [
+          { block: 'MILL_DECK', side: 'SELF', count: 2 },
+          { block: 'ADD_POWER', target: 'ALLY', filterTribe: 'ไดโน', count: 1, amount: 2, duration: 'TURN' }
+        ]
+      }
+    ]
   }
 );

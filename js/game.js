@@ -346,6 +346,10 @@ function generateStepText(step) {
       return `เลือกยูนิตอีกฝ่าย ${step.count || 1} ใบ กลับขึ้นมือเจ้าของ`;
     case 'SEND_DECK_TO_GRAVE':
       return `นำ${step.filterType === 'MONSTER' ? 'ยูนิท' : 'การ์ด'}จากกองลงนรก ${step.count || 1} ใบ`;
+    case 'RETURN_DARK_TO_GRAVE_BUFF':
+      return `นำการ์ด${step.filterTribe ? `เผ่า ${step.filterTribe} ` : ''}จากมิติมืด ${step.count || 1} ใบกลับลงนรก ถ้าสำเร็จพลัง +${step.amount || 1} จนจบเทิร์น`;
+    case 'SUMMON_FROM_GRAVE_REST':
+      return `อัญเชิญ${step.filterTribe ? `ยูนิทเผ่า ${step.filterTribe} ` : 'ยูนิท'}${step.maxPower !== undefined ? `พลัง ${step.maxPower} หรือต่ำกว่า ` : ''}จากนรก ${step.count || 1} ใบลงสนามในสภาพเรส`;
     default:
       return '';
   }
@@ -918,8 +922,8 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'effect_immune', monster };
   }
 
-  // ออลจิต (M03) & ออลฟอจิต (M04) & อาซุยจิต (BT03_03): ไม่ถูกทำลายจากความสามารถของการ์ด
-  if ((monster.id === 'M03' || monster.id === 'M04' || monster.id === 'BT03_03') && !isFromBattle && !oppHasWelt) {
+  // ออลจิต (M03) & ออลฟอจิต (M04) & อาซุยจิต (BT03_03) & คาร์โนทอรัส (BT03_14): ไม่ถูกทำลายจากความสามารถของการ์ด
+  if ((monster.id === 'M03' || monster.id === 'M04' || monster.id === 'BT03_03' || monster.id === 'BT03_14') && !isFromBattle && !oppHasWelt) {
     setLog(`🛡️ [ต่อเนื่อง - ${monster.name}] ไม่ถูกทำลายจากความสามารถของการ์ด!`);
     return { destroyed: false, reason: 'effect_immune', monster };
   }
@@ -1983,6 +1987,16 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
           executeMomoCallFromGrave(ownerContestant, card);
         };
       }
+      if (card.id === 'BT03_13' && ownerContestant === gameState.player && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player' && ownerContestant.hand.length >= 1) {
+        cardEl.style.cursor = 'pointer';
+        cardEl.style.boxShadow = '0 0 16px #0ea5e9';
+        cardEl.title = '🌊 คลิกเพื่อสั่งใช้งานจากนรก: ทิ้งการ์ด 1 ใบ อัญเชิญการ์ดใบนี้ลงสนาม!';
+        cardEl.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'none';
+          executeMosasaurusCallFromGrave(ownerContestant, card);
+        };
+      }
       if (card.id === 'BT02_06' && ownerContestant === gameState.player && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player' && !ownerContestant.chaosDuoGraveUsedThisTurn && ownerContestant.board.some(m => m === null)) {
         cardEl.style.cursor = 'pointer';
         cardEl.style.boxShadow = '0 0 16px #a855f7';
@@ -2301,6 +2315,86 @@ function executeMomoCallFromGrave(contestant, momoCard) {
     showChoiceModal(
       '⚡ สั่งใช้งานจากนรก: โมโมจิต',
       'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก แล้วคอล "โมโมจิต" ลงสนาม:',
+      handOpts
+    );
+  } else {
+    const bestDiscardIdx = (typeof isHardAI === 'function' && isHardAI()) ? pickBestAIDiscardIndex(contestant) : 0;
+    doCall(bestDiscardIdx !== -1 ? bestDiscardIdx : 0);
+  }
+}
+
+// 🌊 โมซาซอรัส — อสูรแห่งห้วงลึก (BT03_13): สั่งใช้งานจากนรก: ทิ้งการ์ดบนมือ 1 ใบ อัญเชิญการ์ดใบนี้ลงสนาม
+function executeMosasaurusCallFromGrave(contestant, mosaCard) {
+  if (!contestant || !Array.isArray(contestant.hand) || contestant.hand.length === 0) return;
+  const isPlayer = (contestant === gameState.player);
+
+  const doCall = (handIdx) => {
+    if (handIdx < 0 || handIdx >= contestant.hand.length) return;
+    const discarded = contestant.hand.splice(handIdx, 1)[0];
+    resetCardStateForZoneChange(discarded);
+    contestant.graveyard.push(discarded);
+    if (typeof checkDiscardTriggers === 'function') {
+      checkDiscardTriggers(contestant, discarded);
+    }
+
+    const mIdx = contestant.graveyard.findIndex(c => c && (c.uid === mosaCard.uid || c.id === 'BT03_13'));
+    if (mIdx === -1) return;
+    const mosa = contestant.graveyard.splice(mIdx, 1)[0];
+    resetCardStateForZoneChange(mosa);
+    mosa.state = 'Stand';
+
+    const placeMosa = (slotIdx) => {
+      if (contestant.board[slotIdx]) {
+        sendOverwrittenMonsterToGrave(contestant, slotIdx);
+      }
+      contestant.board[slotIdx] = mosa;
+      setLog(`🌊 [สั่งใช้งานจากนรก - ${mosa.name}] ทิ้ง "${discarded.name}" อัญเชิญ "${mosa.name}" ลงสนามช่องที่ ${slotIdx + 1}!`);
+      if (typeof showCardShowcaseBanner === 'function') {
+        showCardShowcaseBanner(mosa, 'สกิลในนรกทำงาน!', `🌊 ทิ้ง "${discarded.name}" อัญเชิญ "${mosa.name}" ลงสนาม!`, '#0ea5e9', 1300);
+      }
+      if (typeof notifyUnitCalledFromGrave === 'function') {
+        notifyUnitCalledFromGrave(mosa, contestant);
+      }
+      if (typeof EffectEngine !== 'undefined') {
+        EffectEngine.triggerCardEffects(mosa, 'ON_SUMMON', {
+          caster: contestant,
+          opponent: (contestant === gameState.player ? gameState.ai : gameState.player),
+          sourceCard: mosa,
+          sourceSlot: slotIdx,
+          isAI: !isPlayer
+        }, () => renderGame());
+      }
+      renderGame();
+    };
+
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    if (emptySlot !== -1) {
+      placeMosa(emptySlot);
+    } else if (isPlayer) {
+      const replaceChoices = contestant.board.map((m, sIdx) => ({
+        label: `💀 วางทับ "${m ? m.name : 'ช่องที่ ' + (sIdx + 1)}" (ช่อง ${sIdx + 1})`,
+        color: '#0ea5e9',
+        onSelect: () => placeMosa(sIdx)
+      }));
+      showChoiceModal(
+        '🌊 สนามเต็ม 3 ช่อง: เลือกช่องวาง "โมซาซอรัส" ทับ',
+        'เลือกยูนิทบนสนาม 1 ใบเพื่อส่งลงนรก แล้วอัญเชิญ "โมซาซอรัส" ลงแทนที่:',
+        replaceChoices
+      );
+    } else {
+      placeMosa(typeof pickBestAIOverwriteSlot === 'function' ? pickBestAIOverwriteSlot(contestant) : 0);
+    }
+  };
+
+  if (isPlayer) {
+    const handOpts = contestant.hand.map((c, idx) => ({
+      label: `🗑️ ทิ้ง "${c.name}"`,
+      color: '#0ea5e9',
+      onSelect: () => doCall(idx)
+    }));
+    showChoiceModal(
+      '🌊 สั่งใช้งานจากนรก: โมซาซอรัส — อสูรแห่งห้วงลึก',
+      'เลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก แล้วอัญเชิญ "โมซาซอรัส" ลงสนาม:',
       handOpts
     );
   } else {
@@ -5996,6 +6090,123 @@ const EffectEngine = {
         return;
       }
 
+      // --- บล็อกที่ 11.7: นำการ์ดจากมิติมืดกลับลงนรก แล้วบัฟพลังตัวเอง (RETURN_DARK_TO_GRAVE_BUFF) ---
+      case 'RETURN_DARK_TO_GRAVE_BUFF': {
+        const darkList = Array.isArray(caster.darkDimension) ? caster.darkDimension : [];
+        const eligible = darkList.filter(c => c && (!step.filterTribe || hasCardTribe(c, step.filterTribe)));
+        if (eligible.length === 0) {
+          setLog(`ℹ️ ${cardTitle} ไม่มีการ์ด${step.filterTribe ? `เผ่า ${step.filterTribe}` : ''} ในมิติมืด`);
+          next();
+          return;
+        }
+        const buffAmt = step.amount || 1;
+        const moveAndBuff = (pickedCard) => {
+          const idx = caster.darkDimension.findIndex(c => c && c.uid === pickedCard.uid);
+          if (idx !== -1) {
+            const moved = caster.darkDimension.splice(idx, 1)[0];
+            resetCardStateForZoneChange(moved);
+            caster.graveyard.push(moved);
+            if (sourceCard) {
+              sourceCard.tempPowerMod = (sourceCard.tempPowerMod || 0) + buffAmt;
+            }
+            setLog(`🌌 ${cardTitle} นำ "${moved.name}" จากมิติมืดกลับลงนรก -> พลังโจมตี +${buffAmt} จนจบเทิร์น!`);
+          }
+          next();
+        };
+
+        if (isAI) {
+          moveAndBuff(eligible[0]);
+          return;
+        }
+
+        const options = eligible.map(c => ({
+          label: `นำ "${c.name}" กลับลงนรก`,
+          color: '#10b981',
+          card: c,
+          cardId: c.id,
+          onSelect: () => moveAndBuff(c)
+        }));
+        showChoiceModal(
+          `🌌 ${cardTitle}: เลือกการ์ดจากมิติมืดกลับลงนรก`,
+          `เลือกการ์ด${step.filterTribe ? `เผ่า ${step.filterTribe} ` : ''}1 ใบกลับลงนรก (ถ้าสำเร็จพลัง +${buffAmt} จนจบเทิร์น):`,
+          options
+        );
+        return;
+      }
+
+      // --- บล็อกที่ 11.8: อัญเชิญยูนิตจากนรกลงสนามในสภาพเรส (SUMMON_FROM_GRAVE_REST) ---
+      case 'SUMMON_FROM_GRAVE_REST': {
+        const emptySlot = caster.board.findIndex(m => m === null);
+        if (emptySlot === -1) {
+          setLog(`ℹ️ ${cardTitle} ไม่มีช่องว่างบนสนามสำหรับอัญเชิญจากนรก`);
+          next();
+          return;
+        }
+        const eligible = (caster.graveyard || []).filter(c => {
+          if (!c || c.type !== 'Monster' || c.cannotNormalSummon) return false;
+          if (step.filterTribe && !hasCardTribe(c, step.filterTribe)) return false;
+          if (step.maxPower !== undefined && (c.power || 0) > step.maxPower) return false;
+          return true;
+        });
+        if (eligible.length === 0) {
+          setLog(`ℹ️ ${cardTitle} ไม่มียูนิทเป้าหมายในนรก`);
+          next();
+          return;
+        }
+
+        const summonRest = (pickedCard) => {
+          const gIdx = caster.graveyard.findIndex(c => c && c.uid === pickedCard.uid);
+          const slot = caster.board.findIndex(m => m === null);
+          if (gIdx !== -1 && slot !== -1) {
+            const summoned = caster.graveyard.splice(gIdx, 1)[0];
+            resetCardStateForZoneChange(summoned);
+            summoned.state = 'Rest';
+            caster.board[slot] = summoned;
+            setLog(`🦖 ${cardTitle} อัญเชิญ "${summoned.name}" จากนรกลงสนามช่องที่ ${slot + 1} ในสภาพเรส!`);
+            if (typeof notifyUnitCalledFromGrave === 'function') {
+              notifyUnitCalledFromGrave(summoned, caster);
+            }
+            EffectEngine.triggerCardEffects(summoned, 'ON_SUMMON', {
+              caster,
+              opponent,
+              sourceCard: summoned,
+              sourceSlot: slot,
+              isAI
+            }, () => {
+              renderGame();
+              next();
+            });
+            return;
+          }
+          next();
+        };
+
+        if (isAI) {
+          eligible.sort((a, b) => (b.power || 0) - (a.power || 0));
+          summonRest(eligible[0]);
+          return;
+        }
+
+        const options = eligible.map(c => ({
+          label: `อัญเชิญ "${c.name}" (Power ${c.power || 0}) ในสภาพเรส`,
+          color: '#f59e0b',
+          card: c,
+          cardId: c.id,
+          onSelect: () => summonRest(c)
+        }));
+        options.push({
+          label: 'ข้าม (ไม่อัญเชิญ)',
+          color: '#6b7280',
+          onSelect: () => next()
+        });
+        showChoiceModal(
+          `🦖 ${cardTitle}: อัญเชิญจากนรก (เรส)`,
+          `เลือกยูนิท${step.filterTribe ? `เผ่า ${step.filterTribe} ` : ''}${step.maxPower !== undefined ? `พลัง ${step.maxPower} หรือต่ำกว่า ` : ''}จากนรก 1 ใบ:`,
+          options
+        );
+        return;
+      }
+
       // --- บล็อกที่ 12: ระเบิดปูพรม (CARPET_BOMB_COMPOSITE) ---
       case 'CARPET_BOMB_COMPOSITE': {
         const conscriptCount = caster.board.filter(m => m !== null && m.id === 'NM04').length;
@@ -8681,8 +8892,8 @@ function checkDiscardTriggers(contestant, card) {
     }
   }
 
-  // 🐸 อาซุยจิต (BT03_03): เมื่อถูกทิ้งสามารถอัญเชิญการ์ดใบนี้ลงสนาม
-  if (card.id === 'BT03_03') {
+  // 🐸 อาซุยจิต (BT03_03) & 🦖 คาร์โนทอรัส (BT03_14): เมื่อถูกทิ้งสามารถอัญเชิญการ์ดใบนี้ลงสนาม
+  if (card.id === 'BT03_03' || card.id === 'BT03_14') {
     const emptySlot = contestant.board.findIndex(m => m === null);
     if (emptySlot !== -1) {
       const graveIdx = contestant.graveyard.findIndex(c => c.uid === card.uid);
@@ -8691,11 +8902,11 @@ function checkDiscardTriggers(contestant, card) {
         resetCardStateForZoneChange(summoned);
         summoned.state = 'Stand';
         contestant.board[emptySlot] = summoned;
-        setLog(`🐸 [ออโต้ - อาซุยจิต] ถูกทิ้ง -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`);
+        setLog(`✨ [ออโต้ - ${summoned.name}] ถูกทิ้ง -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`);
         if (typeof notifyUnitCalledFromGrave === 'function') {
           notifyUnitCalledFromGrave(summoned, contestant);
         }
-        showCardShowcaseBanner(summoned, 'ออโต้: อาซุยจิต!', '🐸 ถูกทิ้ง -> อัญเชิญลงสนามทันที!', '#10b981', 1200);
+        showCardShowcaseBanner(summoned, `ออโต้: ${summoned.name}!`, '✨ ถูกทิ้ง -> อัญเชิญลงสนามทันที!', '#10b981', 1200);
         EffectEngine.triggerCardEffects(summoned, 'ON_SUMMON', {
           caster: contestant, opponent: other, sourceCard: summoned, sourceSlot: emptySlot, isAI: contestant !== gameState.player
         });
@@ -16150,10 +16361,13 @@ function renderGame() {
   const playerGraveBox = document.getElementById('player-grave-box');
   if (playerGraveBox) {
     const canMomo = player.graveyard && player.graveyard.some(c => c && c.id === 'BT01_01') && !player.momoGraveUsedThisTurn && player.hand.length >= 1 && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player';
-    if (canMomo) {
-      playerGraveBox.style.boxShadow = '0 0 16px #3ee08f';
-      playerGraveBox.style.borderColor = '#3ee08f';
-      playerGraveBox.title = '⚡ ดรอปโซน: มี "โมโมจิต" พร้อมสั่งใช้งานจากนรก! คลิกเพื่อเปิด';
+    const canMosa = player.graveyard && player.graveyard.some(c => c && c.id === 'BT03_13') && player.hand.length >= 1 && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player';
+    if (canMomo || canMosa) {
+      playerGraveBox.style.boxShadow = canMomo ? '0 0 16px #3ee08f' : '0 0 16px #0ea5e9';
+      playerGraveBox.style.borderColor = canMomo ? '#3ee08f' : '#0ea5e9';
+      playerGraveBox.title = canMomo
+        ? '⚡ ดรอปโซน: มี "โมโมจิต" พร้อมสั่งใช้งานจากนรก! คลิกเพื่อเปิด'
+        : '🌊 ดรอปโซน: มี "โมซาซอรัส" พร้อมสั่งใช้งานจากนรก! คลิกเพื่อเปิด';
     } else {
       playerGraveBox.style.boxShadow = '';
       playerGraveBox.style.borderColor = '';

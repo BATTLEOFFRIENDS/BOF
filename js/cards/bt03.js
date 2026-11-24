@@ -152,5 +152,99 @@ CARD_DATABASE.push(
     image: 'images/BT/BT03/11.png',
     ability: 'DARK_DIMENSION_CHAINS',
     desc: 'นำการ์ดบนมือเราเข้ามิติ 1 ใบ จากนั้นจั่วการ์ด 2 ใบ\nสั่งใช้งานในนรก / 1 เทิร์น : เลือกการ์ดในนรกฝั่งเรา 1 ใบเข้ามิติมืด จากนั้นฝั่งตรงข้ามจั่วการ์ด 1 ใบ'
+  },
+  {
+    id: 'BT03_12',
+    name: 'ไฮบริด — ไทรันโนสไปนัส',
+    type: 'Monster',
+    tribe: 'ไดโน',
+    rarity: 'SR',
+    maxCopies: 2,
+    power: 2,
+    cannotNormalSummon: true,
+    hybridMaterials: ['ทีเร็กซ์', 'สไปโนซอรัส'],
+    image: 'images/BT/BT03/12.png',
+    ability: 'TYRANNOSPINUS_HYBRID',
+    desc: '[ห้ามอัญเชิญปกติ]\nสั่งใช้งาน : จากบนมือ ส่ง "ทีเร็กซ์" กับ "สไปโนซอรัส" จาก มือ, สนาม, นรก ไปมิติมืด เพื่ออัญเชิญการ์ดใบนี้ลงสนาม\nต่อเนื่อง : ยูนิทนี้พลังโจมตี +1 หน่วย ต่อการ์ดในนรกทุกๆ 2 ใบ\nออโต้ : เมื่อลงสนามทำลายยูนิทฝั่งตรงข้าม 1 ใบ',
+    effects: [
+      {
+        id: 'bt03_12_continuous',
+        trigger: 'CONTINUOUS_POWER',
+        condition: { type: 'PER_GRAVE_COUNT', divisor: 2 },
+        amountPerUnit: 1
+      },
+      {
+        id: 'bt03_12_summon',
+        trigger: 'ON_SUMMON',
+        steps: [
+          { block: 'DESTROY_UNIT', target: 'OPPONENT', count: 1, select: 'CHOOSE' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'BT03_13',
+    name: 'โมซาซอรัส — อสูรแห่งห้วงลึก',
+    type: 'Monster',
+    tribe: 'ไดโน',
+    rarity: 'R',
+    maxCopies: 2,
+    power: 4,
+    cannotNormalSummon: true,
+    image: 'images/BT/BT03/13.png',
+    ability: 'MOSASAURUS_ABYSS',
+    desc: '[ห้ามอัญเชิญปกติ]\nสั่งใช้งานจากนรก : ทิ้งการ์ดบนมือ 1 ใบ อัญเชิญการ์ดใบนี้ลงสนาม\nออโต้ : เมื่อลงสนามทำลายยูนิทฝั่งตรงข้าม 1 ใบ',
+    effects: [
+      {
+        id: 'bt03_13_summon',
+        trigger: 'ON_SUMMON',
+        steps: [
+          { block: 'DESTROY_UNIT', target: 'OPPONENT', count: 1, select: 'CHOOSE' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'BT03_14',
+    name: 'คาร์โนทอรัส — กระทิงนักล่า',
+    type: 'Monster',
+    tribe: 'ไดโน',
+    rarity: 'N',
+    maxCopies: 2,
+    power: 2,
+    image: 'images/BT/BT03/14.png',
+    ability: 'CARNOTAURUS_DISCARD_CALL',
+    desc: 'ออโต้ : ไม่ถูกทำลายจากความสามารถของการ์ด\nออโต้ : เมื่อถูกทิ้งสามารถอัญเชิญการ์ดใบลงสนาม'
+  },
+  {
+    id: 'BT03_15',
+    name: 'ไจแกนโนโตซอรัส — จักรพรรดิเขี้ยวใหญ่',
+    type: 'Monster',
+    tribe: 'ไดโน',
+    rarity: 'R',
+    maxCopies: 2,
+    power: 3,
+    image: 'images/BT/BT03/15.png',
+    ability: 'GIGANOTOSAURUS_EMPEROR',
+    desc: 'ออโต้ : เมื่อลงสนาม เลือกยูนิทเผ่า ไดโน พลังโจมตี 2 หรือต่ำกว่าจากนรก 1 ใบ อัญเชิญลงสนามในสภาพ เรส\nสั่งใช้งาน / 1 เทิร์น : ทำลายยูนิทบนสนามเรา 1 ใบ ยูนิทนี้พลังโจมตีเพิ่ม 3 หน่วย จนจบเทิร์น',
+    effects: [
+      {
+        id: 'bt03_15_summon',
+        trigger: 'ON_SUMMON',
+        steps: [
+          { block: 'SUMMON_FROM_GRAVE_REST', filterTribe: 'ไดโน', maxPower: 2, count: 1 }
+        ]
+      },
+      {
+        id: 'bt03_15_main',
+        label: 'ทำลายยูนิทบนสนามเรา 1 ใบ -> พลัง +3 จนจบเทิร์น',
+        trigger: 'ACTIVATE_MAIN',
+        oncePerTurn: true,
+        steps: [
+          { block: 'DESTROY_UNIT', target: 'SELF', count: 1, select: 'CHOOSE' },
+          { block: 'ADD_POWER', target: 'SELF_UNIT', amount: 3, duration: 'TURN' }
+        ]
+      }
+    ]
   }
 );

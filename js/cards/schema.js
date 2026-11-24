@@ -176,6 +176,16 @@ const CARD_SCHEMA = {
       enums: { filterType: ['SPELL', 'MONSTER'] },
       desc: 'เลือกการ์ดที่ตรงเงื่อนไขจากกองการ์ด count ใบ ส่งลงนรก แล้วสับกอง',
     },
+    RETURN_DARK_TO_GRAVE_BUFF: {
+      required: [], optional: ['filterTribe', 'count', 'amount'],
+      enums: {},
+      desc: 'นำการ์ดที่ตรงเงื่อนไขจากมิติมืดกลับลงนรก count ใบ ถ้าสำเร็จยูนิตนี้พลัง +amount จนจบเทิร์น',
+    },
+    SUMMON_FROM_GRAVE_REST: {
+      required: [], optional: ['filterTribe', 'maxPower', 'count'],
+      enums: {},
+      desc: 'เลือกยูนิตจากนรกที่ตรงเงื่อนไข count ใบ อัญเชิญลงสนามในสภาพ Rest',
+    },
   },
   conditions: {
     MIN_TRIBE_COUNT: { required: ['tribe', 'count'], optional: [] },
