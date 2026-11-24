@@ -487,10 +487,11 @@ function getEffectivePower(card, ownerContestant) {
   ) : null);
 
   if (owner && Array.isArray(owner.board)) {
-    // 0. แลนด์สเปล "สัญญาปีศาจ" (DMS01) ในมิติมืด: ยูนิทเผ่า "ปีศาจ" ทุกใบบนสนามพลังโจมตี +1 ทั้งเกม
+    // 0. แลนด์สเปล "สัญญาปีศาจ" (DMS01) ในมิติมืด: ยูนิทเผ่า "ปีศาจ" ทุกใบบนสนามพลังโจมตี +1 ทั้งเกม (สแตกตามจำนวนใบในมิติมืด)
     if (hasCardTribe(card, 'ปีศาจ') && Array.isArray(owner.darkDimension)) {
-      if (owner.darkDimension.some(d => d && d.id === 'DMS01')) {
-        total += 1;
+      const dms01Count = owner.darkDimension.filter(d => d && d.id === 'DMS01').length;
+      if (dms01Count > 0) {
+        total += dms01Count;
       }
     }
 
@@ -2029,7 +2030,7 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
           });
         };
       }
-      if (card.id === 'BT03_11' && ownerContestant === gameState.player && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player' && !ownerContestant.bt03_11GraveUsedThisTurn && ownerContestant.graveyard.length > 0) {
+      if (card.id === 'BT03_11' && ownerContestant === gameState.player && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player' && !ownerContestant.bt03_11GraveUsedThisTurn && ownerContestant.graveyard.some(c => c && c !== card && (!card.uid || c.uid !== card.uid))) {
         cardEl.style.cursor = 'pointer';
         cardEl.style.boxShadow = '0 0 16px #8b5cf6';
         cardEl.title = '⛓️ คลิกเพื่อสั่งใช้งานจากนรก: เลือกการ์ดในนรก 1 ใบเข้ามิติมืด จากนั้นอีกฝ่ายจั่ว 1 ใบ!';
@@ -4075,6 +4076,7 @@ function triggerAzazelSummonSkill(caster, onDone = null) {
   const cDark = Array.isArray(caster.darkDimension) ? caster.darkDimension.length : 0;
   const oDark = Array.isArray(opp.darkDimension) ? opp.darkDimension.length : 0;
   if (cDark + oDark < 6) {
+    setLog(`ℹ️ [อซาเซล ผู้ถูกเนรเทศ] การ์ดในมิติมืดรวมกันมี ${cDark + oDark} ใบ (ต้อง 6 ใบขึ้นไป)`);
     if (onDone) onDone();
     return;
   }
@@ -4344,9 +4346,13 @@ function triggerAstarothDestroySkill(caster) {
   }
 
   let chosenCount = 0;
+  const finishAstaroth = () => {
+    gameState.isWaitingForChoice = false;
+    renderGame();
+  };
   const pickNextCard = () => {
     if (chosenCount >= 2 || (myGrave.length === 0 && oppGrave.length === 0)) {
-      renderGame();
+      finishAstaroth();
       return;
     }
     const choices = [];
@@ -4355,7 +4361,7 @@ function triggerAstarothDestroySkill(caster) {
         label: `[นรกเรา] นำ "${c.name}" เข้ามิติมืดเรา`,
         color: '#8b5cf6',
         onSelect: () => {
-          const idx = myGrave.findIndex(x => x.uid === c.uid);
+          const idx = myGrave.findIndex(x => (c.uid ? x.uid === c.uid : x === c));
           if (idx !== -1) {
             const picked = myGrave.splice(idx, 1)[0];
             resetCardStateForZoneChange(picked);
@@ -4364,6 +4370,8 @@ function triggerAstarothDestroySkill(caster) {
             chosenCount++;
             setLog(`🌌 [แอสตารอธ - ถูกทำลาย] นำ "${picked.name}" จากนรกเราเข้ามิติมืด!`);
             pickNextCard();
+          } else {
+            finishAstaroth();
           }
         }
       });
@@ -4373,7 +4381,7 @@ function triggerAstarothDestroySkill(caster) {
         label: `[นรกอีกฝ่าย] นำ "${c.name}" เข้ามิติมืดอีกฝ่าย`,
         color: '#dc2626',
         onSelect: () => {
-          const idx = oppGrave.findIndex(x => x.uid === c.uid);
+          const idx = oppGrave.findIndex(x => (c.uid ? x.uid === c.uid : x === c));
           if (idx !== -1) {
             const picked = oppGrave.splice(idx, 1)[0];
             resetCardStateForZoneChange(picked);
@@ -4382,6 +4390,8 @@ function triggerAstarothDestroySkill(caster) {
             chosenCount++;
             setLog(`🌌 [แอสตารอธ - ถูกทำลาย] นำ "${picked.name}" จากนรกอีกฝ่ายเข้ามิติมืดอีกฝ่าย!`);
             pickNextCard();
+          } else {
+            finishAstaroth();
           }
         }
       });
@@ -4389,8 +4399,9 @@ function triggerAstarothDestroySkill(caster) {
     choices.push({
       label: 'หยุดเลือก (เสร็จสิ้น)',
       color: '#64748b',
-      onSelect: () => renderGame()
+      onSelect: () => finishAstaroth()
     });
+    gameState.isWaitingForChoice = true;
     showChoiceModal(
       `🌌 แอสตารอธ (ถูกทำลาย): เลือกการ์ดใบที่ ${chosenCount + 1}/2`,
       'เลือกการ์ดในนรกของทั้งสองฝั่งรวมกันไม่เกิน 2 ใบ เพื่อนำเข้าสู่มิติมืด:',
@@ -4402,13 +4413,15 @@ function triggerAstarothDestroySkill(caster) {
 
 // ⛓️ โซ่ตรวนมิติมืด (BT03_11): สั่งใช้งานในนรก / 1 เทิร์น : เลือกการ์ดในนรกฝั่งเรา 1 ใบเข้ามิติมืด อีกฝ่ายจั่ว 1 ใบ
 function executeBt03_11GraveSkill(contestant, card) {
-  if (!contestant || contestant.bt03_11GraveUsedThisTurn || !Array.isArray(contestant.graveyard) || contestant.graveyard.length === 0) return;
+  if (!contestant || contestant.bt03_11GraveUsedThisTurn || !Array.isArray(contestant.graveyard)) return;
+  const eligibleGrave = contestant.graveyard.filter(c => c && c !== card && (!card.uid || c.uid !== card.uid));
+  if (eligibleGrave.length === 0) return;
   const opp = (contestant === gameState.player) ? gameState.ai : gameState.player;
-  const graveChoices = contestant.graveyard.map(c => ({
+  const graveChoices = eligibleGrave.map(c => ({
     label: `นำ "${c.name}" เข้าสู่มิติมืด`,
     color: '#8b5cf6',
     onSelect: () => {
-      const idx = contestant.graveyard.findIndex(x => x.uid === c.uid);
+      const idx = contestant.graveyard.findIndex(x => (c.uid ? x.uid === c.uid : x === c));
       if (idx !== -1) {
         contestant.bt03_11GraveUsedThisTurn = true;
         const picked = contestant.graveyard.splice(idx, 1)[0];
@@ -4425,7 +4438,7 @@ function executeBt03_11GraveSkill(contestant, card) {
     '⛓️ สั่งใช้งานจากนรก: โซ่ตรวนมิติมืด',
     'เลือกการ์ดในนรกของคุณ 1 ใบ เพื่อนำเข้าสู่มิติมืด (จากนั้นอีกฝ่ายจะได้จั่ว 1 ใบ):',
     graveChoices,
-    { previewCards: contestant.graveyard }
+    { previewCards: eligibleGrave }
   );
 }
 
@@ -4906,6 +4919,12 @@ const EffectEngine = {
       drawCards(context.caster, 1);
       setLog(`🧀 [ออโต้ - เบเบ้] ลงสนามด้วยความสามารถการ์ด -> จั่วการ์ด 1 ใบ!`);
       if (onAllDone) onAllDone();
+      return true;
+    }
+
+    // อซาเซล ผู้ถูกเนรเทศ (BT03_07): กรณีลงสนามด้วยความสามารถการ์ด
+    if (triggerType === 'ON_SUMMON' && isEffectSummon && card.id === 'BT03_07') {
+      checkSparkconCancelBeforeAction(context.caster, card, () => triggerAzazelSummonSkill(context.caster, onAllDone), onAllDone);
       return true;
     }
 
@@ -9875,9 +9894,80 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
 }
 
-function executeEndPhaseCleanup(activeContestant) {
+function executeEndPhaseCleanup(activeContestant, onDone = null) {
   // เคลียร์การ์ดใน castingZone ที่อาจตกค้างให้ลงนรกเสมอ
   flushCastingZone(activeContestant);
+
+  const finishCleanup = () => {
+    // มิกิ ซายากะ (MD02): ถ้ามี ซากุระ เคียวโกะ (MD05) บนสนาม เมื่อจบเทิร์น สแตร์นการ์ดใบนี้
+    if (Array.isArray(activeContestant.board)) {
+      const hasKyoko = activeContestant.board.some(m => m && (m.id === 'MD05' || (m.name && m.name.includes('ซากุระ เคียวโกะ'))));
+      if (hasKyoko) {
+        activeContestant.board.forEach(m => {
+          if (m && (m.id === 'MD02' || (m.name && m.name.includes('มิกิ ซายากะ'))) && m.state === 'Rest') {
+            m.state = 'Stand';
+            setLog(`🗡️ [ออโต้จบเทิร์น - มิกิ ซายากะ] มี "ซากุระ เคียวโกะ" อยู่บนสนาม -> เปลี่ยนเป็นสภาพ Stand!`);
+          }
+        });
+      }
+
+      // 🐉 DAN HENG จ้าวทรนงคงปฐพี (RD04): ออโต้จบเทิร์นเรา สแตร์นยูนิทนี้
+      activeContestant.board.forEach(m => {
+        if (m && m.id === 'RD04' && m.state === 'Rest') {
+          m.state = 'Stand';
+          setLog(`🐉 [ออโต้จบเทิร์น - DAN HENG จ้าวทรนงคงปฐพี] สแตร์นตัวเองบนสนาม!`);
+        }
+      });
+    }
+
+    activeContestant.board.forEach((m, idx) => {
+      if (!m) return;
+      m.beelzebubBuffThisTurn = false;
+
+      if (m.returnFromDarkDimensionId) {
+        const baseId = m.returnFromDarkDimensionId;
+        const futureName = m.name;
+        fxCardDestroyed(activeContestant, idx, m);
+        activeContestant.board[idx] = null;
+        resetCardStateForZoneChange(m);
+        activeContestant.graveyard.push(m);
+
+        const darkIdx = activeContestant.darkDimension.findIndex(d => d.id === baseId);
+        if (darkIdx !== -1) {
+          const returnedUnit = activeContestant.darkDimension.splice(darkIdx, 1)[0];
+          resetCardStateForZoneChange(returnedUnit);
+          returnedUnit.state = 'Stand';
+          activeContestant.board[idx] = returnedUnit;
+          setLog(`🌌 [จบเทิร์นอนาคต] นำ "${futureName}" ลงนรก และคอล "${returnedUnit.name}" จากมิติมืดกลับลงสนาม!`);
+        }
+        return;
+      }
+
+      if (m.destroyAtEndOfTurn) {
+        destroyBoardMonster(activeContestant, idx);
+        setLog(`🔥 "${m.name}" ถูกทำลายเมื่อจบเทิร์นตามเงื่อนไขความสามารถ!`);
+      }
+    });
+
+    [gameState.player, gameState.ai].forEach(side => {
+      side.board.forEach(m => {
+        if (m) {
+          m.tempPowerMod = 0;
+          m.immuneToEnemyEffectsUntilEndOfTurn = false;
+          m.revivedThisTurn = false;
+          m.burnLeaderOnKill = false;
+          m.tokoyaRestUsedThisTurn = false;
+          m.tokoyaStandUsedThisTurn = false;
+          m.taitenBattleUsedThisTurn = false;
+          m.krasueUsedThisTurn = false;
+          m.krasueUsedSideThisTurn = { player: false, ai: false };
+          m.uroborosAttackedTwice = false;
+        }
+      });
+    });
+
+    if (onDone) onDone();
+  };
 
   // แลนด์สเปล "สัญญาปีศาจ" (DMS01) ในมิติมืด: เมื่อจบเทิร์น เลือกการ์ดจากดรอป 1 ใบขึ้นมือ
   if (
@@ -9887,13 +9977,13 @@ function executeEndPhaseCleanup(activeContestant) {
   ) {
     if (activeContestant === gameState.player && activeContestant.graveyard.length > 1) {
       const uniqueMap = new Map();
-      activeContestant.graveyard.forEach(c => { if (!uniqueMap.has(c.id)) uniqueMap.set(c.id, c); });
+      activeContestant.graveyard.forEach(c => { if (c && !uniqueMap.has(c.id)) uniqueMap.set(c.id, c); });
       const options = Array.from(uniqueMap.values()).map(targetCard => ({
         label: `นำ "${targetCard.name}" ขึ้นมือ`,
         color: '#7c3aed',
         onSelect: () => {
           gameState.isWaitingForChoice = false;
-          const gIdx = activeContestant.graveyard.findIndex(c => c.id === targetCard.id);
+          const gIdx = activeContestant.graveyard.findIndex(c => c && c.id === targetCard.id);
           if (gIdx !== -1) {
             const recovered = activeContestant.graveyard.splice(gIdx, 1)[0];
             resetCardStateForZoneChange(recovered);
@@ -9901,10 +9991,12 @@ function executeEndPhaseCleanup(activeContestant) {
             setLog(`📜 [สัญญาปีศาจ - มิติมืด] เมื่อจบเทิร์น นำ "${recovered.name}" จากดรอปขึ้นมือสำเร็จ!`);
             renderGame();
           }
+          finishCleanup();
         }
       }));
       gameState.isWaitingForChoice = true;
       showChoiceModal('📜 สัญญาปีศาจ (มิติมืด)', 'เมื่อจบเทิร์น เลือกการ์ด 1 ใบจากกองดรอป (นรก) เพื่อนำกลับขึ้นมือ:', options);
+      return;
     } else {
       const recovered = activeContestant.graveyard.pop();
       resetCardStateForZoneChange(recovered);
@@ -9914,72 +10006,7 @@ function executeEndPhaseCleanup(activeContestant) {
     }
   }
 
-  // มิกิ ซายากะ (MD02): ถ้ามี ซากุระ เคียวโกะ (MD05) บนสนาม เมื่อจบเทิร์น สแตร์นการ์ดใบนี้
-  if (Array.isArray(activeContestant.board)) {
-    const hasKyoko = activeContestant.board.some(m => m && (m.id === 'MD05' || (m.name && m.name.includes('ซากุระ เคียวโกะ'))));
-    if (hasKyoko) {
-      activeContestant.board.forEach(m => {
-        if (m && (m.id === 'MD02' || (m.name && m.name.includes('มิกิ ซายากะ'))) && m.state === 'Rest') {
-          m.state = 'Stand';
-          setLog(`🗡️ [ออโต้จบเทิร์น - มิกิ ซายากะ] มี "ซากุระ เคียวโกะ" อยู่บนสนาม -> เปลี่ยนเป็นสภาพ Stand!`);
-        }
-      });
-    }
-
-    // 🐉 DAN HENG จ้าวทรนงคงปฐพี (RD04): ออโต้จบเทิร์นเรา สแตร์นยูนิทนี้
-    activeContestant.board.forEach(m => {
-      if (m && m.id === 'RD04' && m.state === 'Rest') {
-        m.state = 'Stand';
-        setLog(`🐉 [ออโต้จบเทิร์น - DAN HENG จ้าวทรนงคงปฐพี] สแตร์นตัวเองบนสนาม!`);
-      }
-    });
-  }
-
-  activeContestant.board.forEach((m, idx) => {
-    if (!m) return;
-    m.beelzebubBuffThisTurn = false;
-
-    if (m.returnFromDarkDimensionId) {
-      const baseId = m.returnFromDarkDimensionId;
-      const futureName = m.name;
-      fxCardDestroyed(activeContestant, idx, m);
-      activeContestant.board[idx] = null;
-      resetCardStateForZoneChange(m);
-      activeContestant.graveyard.push(m);
-
-      const darkIdx = activeContestant.darkDimension.findIndex(d => d.id === baseId);
-      if (darkIdx !== -1) {
-        const returnedUnit = activeContestant.darkDimension.splice(darkIdx, 1)[0];
-        resetCardStateForZoneChange(returnedUnit);
-        returnedUnit.state = 'Stand';
-        activeContestant.board[idx] = returnedUnit;
-        setLog(`🌌 [จบเทิร์นอนาคต] นำ "${futureName}" ลงนรก และคอล "${returnedUnit.name}" จากมิติมืดกลับลงสนาม!`);
-      }
-      return;
-    }
-
-    if (m.destroyAtEndOfTurn) {
-      destroyBoardMonster(activeContestant, idx);
-      setLog(`🔥 "${m.name}" ถูกทำลายเมื่อจบเทิร์นตามเงื่อนไขความสามารถ!`);
-    }
-  });
-
-  [gameState.player, gameState.ai].forEach(side => {
-    side.board.forEach(m => {
-      if (m) {
-        m.tempPowerMod = 0;
-        m.immuneToEnemyEffectsUntilEndOfTurn = false;
-        m.revivedThisTurn = false;
-        m.burnLeaderOnKill = false;
-        m.tokoyaRestUsedThisTurn = false;
-        m.tokoyaStandUsedThisTurn = false;
-        m.taitenBattleUsedThisTurn = false;
-        m.krasueUsedThisTurn = false;
-        m.krasueUsedSideThisTurn = { player: false, ai: false };
-        m.uroborosAttackedTwice = false;
-      }
-    });
-  });
+  finishCleanup();
 }
 
 // 🪄 คิวเบย์ (BT01_11): สั่งใช้งานจากบนมือ : ทิ้งการ์ดใบนี้ ค้นหาการ์ดยูนิทเผ่า “สาวน้อยเวทมนตร์” จากกอง 2 ใบ ขึ้นมือ
@@ -11724,20 +11751,24 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     if (canUseMephisto && (targetType === 'leader' || attackingMonster.power >= 2)) {
       defender.mephistoReactionUsedThisTurn = true;
       const mephistoCard = defender.board.find(m => m && m.id === 'BT03_10');
-      let millMsg = '';
-      if (Array.isArray(defender.deck) && defender.deck.length > 0) {
-        if (!Array.isArray(defender.darkDimension)) defender.darkDimension = [];
-        const top = defender.deck.pop();
-        if (top) {
-          resetCardStateForZoneChange(top);
-          defender.darkDimension.push(top);
-          millMsg = ` และส่ง "${top.name}" จากบนสุดของกองเข้ามิติมืด 1 ใบ`;
+      checkSparkconCancelBeforeAction(defender, mephistoCard, () => {
+        let millMsg = '';
+        if (Array.isArray(defender.deck) && defender.deck.length > 0) {
+          if (!Array.isArray(defender.darkDimension)) defender.darkDimension = [];
+          const top = defender.deck.pop();
+          if (top) {
+            resetCardStateForZoneChange(top);
+            defender.darkDimension.push(top);
+            millMsg = ` และส่ง "${top.name}" จากบนสุดของกองเข้ามิติมืด 1 ใบ`;
+          }
         }
-      }
-      showCardShowcaseBanner(mephistoCard, 'AI สั่งใช้งาน เมฟิสโต!', '🌌 ยกเลิกการโจมตี และส่งใบบนสุดของกองเข้ามิติมืด!', '#8b5cf6', 1300);
-      setLog(`🌌 [AI - เมฟิสโต] ออโต้ / 1 เทิร์น: ยกเลิกการโจมตีของ "${attackingMonster.name}"${millMsg}!`);
-      renderGame();
-      if (onCompleteCallback) onCompleteCallback();
+        showCardShowcaseBanner(mephistoCard, 'AI สั่งใช้งาน เมฟิสโต!', '🌌 ยกเลิกการโจมตี และส่งใบบนสุดของกองเข้ามิติมืด!', '#8b5cf6', 1300);
+        setLog(`🌌 [AI - เมฟิสโต] ออโต้ / 1 เทิร์น: ยกเลิกการโจมตีของ "${attackingMonster.name}"${millMsg}!`);
+        renderGame();
+        if (onCompleteCallback) onCompleteCallback();
+      }, () => {
+        continueNormalAttackFlow();
+      });
       return;
     }
 
@@ -12207,22 +12238,26 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
         onSelect: () => {
           defender.mephistoReactionUsedThisTurn = true;
           const mephistoCard = defender.board.find(m => m && m.id === 'BT03_10');
-          let millMsg = '';
-          if (Array.isArray(defender.deck) && defender.deck.length > 0) {
-            if (!Array.isArray(defender.darkDimension)) defender.darkDimension = [];
-            const top = defender.deck.pop();
-            if (top) {
-              resetCardStateForZoneChange(top);
-              defender.darkDimension.push(top);
-              millMsg = ` และส่ง "${top.name}" จากบนสุดของกองเข้ามิติมืด 1 ใบ`;
+          checkSparkconCancelBeforeAction(defender, mephistoCard, () => {
+            let millMsg = '';
+            if (Array.isArray(defender.deck) && defender.deck.length > 0) {
+              if (!Array.isArray(defender.darkDimension)) defender.darkDimension = [];
+              const top = defender.deck.pop();
+              if (top) {
+                resetCardStateForZoneChange(top);
+                defender.darkDimension.push(top);
+                millMsg = ` และส่ง "${top.name}" จากบนสุดของกองเข้ามิติมืด 1 ใบ`;
+              }
             }
-          }
-          if (typeof showCardShowcaseBanner === 'function') {
-            showCardShowcaseBanner(mephistoCard, 'ออโต้ เมฟิสโต!', '🌌 ยกเลิกการโจมตี และส่งใบบนสุดของกองเข้ามิติมืด!', '#8b5cf6', 1300);
-          }
-          setLog(`🌌 [เมฟิสโต] ออโต้ / 1 เทิร์น: ยกเลิกการโจมตีของ "${attackingMonster.name}"${millMsg}!`);
-          renderGame();
-          if (onCompleteCallback) onCompleteCallback();
+            if (typeof showCardShowcaseBanner === 'function') {
+              showCardShowcaseBanner(mephistoCard, 'ออโต้ เมฟิสโต!', '🌌 ยกเลิกการโจมตี และส่งใบบนสุดของกองเข้ามิติมืด!', '#8b5cf6', 1300);
+            }
+            setLog(`🌌 [เมฟิสโต] ออโต้ / 1 เทิร์น: ยกเลิกการโจมตีของ "${attackingMonster.name}"${millMsg}!`);
+            renderGame();
+            if (onCompleteCallback) onCompleteCallback();
+          }, () => {
+            continueNormalAttackFlow();
+          });
         }
       });
     }
@@ -14508,7 +14543,6 @@ function triggerPlayerPassTurn() {
     return;
   }
 
-  executeEndPhaseCleanup(gameState.player);
   gameState.phase = 'End Phase';
   gameState.isAttacking = false;
   if (gameState._attackingTimeout) {
@@ -14519,22 +14553,24 @@ function triggerPlayerPassTurn() {
   gameState.selectedAttackerSlot = null;
   disableControls();
 
-  if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer) {
-    gameState.activeTurn = 'ai';
-    _originalSetLog('⏭️ จบเทิร์น — ส่งเทิร์นให้เพื่อนของคุณ!');
-    _originalRenderGame();
+  executeEndPhaseCleanup(gameState.player, () => {
+    if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer) {
+      gameState.activeTurn = 'ai';
+      _originalSetLog('⏭️ จบเทิร์น — ส่งเทิร์นให้เพื่อนของคุณ!');
+      _originalRenderGame();
 
-    sendPvpPacket({
-      type: 'PASS_TURN',
-      nextTurnCount: gameState.turnCount + 1,
-      senderData: gameState.player,
-      receiverData: gameState.ai
-    });
-    return;
-  }
+      sendPvpPacket({
+        type: 'PASS_TURN',
+        nextTurnCount: gameState.turnCount + 1,
+        senderData: gameState.player,
+        receiverData: gameState.ai
+      });
+      return;
+    }
 
-  renderGame();
-  setTimeout(startAITurn, 800);
+    renderGame();
+    setTimeout(startAITurn, 800);
+  });
 }
 
 // เทิร์น AI เดินด้วย setTimeout ต่อกันเป็นทอด: ถ้าเริ่มเกม/โหมดฝึกใหม่ระหว่างนั้น (activeTurn กลับเป็น player)
