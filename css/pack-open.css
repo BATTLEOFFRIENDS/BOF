@@ -83,10 +83,22 @@
 .pko .pulse-ring { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(var(--c), .95); box-shadow: 0 0 14px rgba(var(--c), .8); }
 .pko .pulse-ring.big { border-width: 3px; }
 
+/* ป้องกันชั้น .pz-stack / 3D ทับรูปการ์ดบนซองในหน้าสแปลช (โดยเฉพาะ GPU มือถือ) */
+.pko .splash .pz-stack { display: none; }
+.pko .splash .pz-front { transform: none; }
+
 /* ปุ่มข้ามฉาก */
 .pko .pko-skip { position: absolute; right: 16px; top: 16px; z-index: 60; font: 600 13px Kanit, system-ui; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); border-radius: 18px; padding: 6px 14px; cursor: pointer; }
 .pko .pko-skip:focus-visible { outline: 2px solid #f3c969; outline-offset: 2px; }
-@media (max-width: 640px) { .pko .pz-wrap { transform: scale(.82); } .pko .splash .pz-wrap { left: 62%; top: 60%; } }
+@media (max-width: 640px) {
+  .pko .pz-wrap { width: 196px; height: 280px; margin: -140px 0 0 -98px; }
+  .pko .splash .pz-wrap { left: 50%; top: 66%; width: 168px; height: 240px; margin: -120px 0 0 -84px; }
+  .pko .splash .big.l1 { top: 10%; font-size: clamp(24px, 7.6vw, 42px); }
+  .pko .splash .script { top: 19%; left: 6%; }
+  .pko .splash .script b { font-size: clamp(28px, 7.5vw, 44px); }
+  .pko .splash .big.l2 { top: 29%; font-size: clamp(22px, 6.8vw, 38px); -webkit-text-stroke-width: 1.5px; }
+  .pko .splash .cap { bottom: 6%; font-size: 12px; letter-spacing: .2em; }
+}
 
 /* SSR บนหน้าผลการเปิดซอง: ไฟส่อง (ซ้อนบน #bof-reveal-stage ชั่วคราว) */
 .pko-spot { position: fixed; inset: 0; z-index: 10006; pointer-events: none; --rar-rgb: 253, 224, 71; }
