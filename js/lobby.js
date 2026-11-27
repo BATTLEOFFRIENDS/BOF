@@ -244,6 +244,7 @@
       st.slots.forEach((s, idx) => {
         const leader = byId(s.leaderId || 'L01') || byId('L01');
         const on = isUsingMine && idx === activeIdx;
+        const count = Array.isArray(s.mainDeck) ? s.mainDeck.length : 0;
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'lb-slot-chip' + (on ? ' is-selected' : '');
@@ -251,9 +252,31 @@
         b.setAttribute('role', 'option');
         b.setAttribute('aria-selected', String(on));
         b.style.setProperty('--item-accent', DECK_COLOURS[leader.id] || '#f3c969');
-        const num = document.createElement('span'); num.className = 'lb-slot-num'; num.textContent = idx + 1;
-        const name = document.createElement('span'); name.className = 'lb-slot-name'; name.textContent = s.name || `เด็คจัดเอง #${idx + 1}`;
-        b.append(thumbImg(leader), num, name);
+
+        const art = document.createElement('div');
+        art.className = 'lb-slot-art';
+        art.appendChild(thumbImg(leader));
+
+        const meta = document.createElement('div');
+        meta.className = 'lb-slot-meta';
+        const num = document.createElement('span');
+        num.className = 'lb-slot-num';
+        num.textContent = `สล็อต #${idx + 1}`;
+        const name = document.createElement('strong');
+        name.className = 'lb-slot-name';
+        name.textContent = s.name || `เด็คจัดเอง #${idx + 1}`;
+        const sub = document.createElement('span');
+        sub.className = `lb-slot-sub${count === 20 ? ' is-ready' : ''}`;
+        sub.textContent = `${leader.name} · ${count}/20`;
+        meta.append(num, name, sub);
+
+        b.append(art, meta);
+        if (on) {
+          const tag = document.createElement('span');
+          tag.className = 'lb-picker-tag';
+          tag.textContent = 'กำลังใช้';
+          b.appendChild(tag);
+        }
         row.appendChild(b);
       });
       slotsBox.replaceChildren(head, row);

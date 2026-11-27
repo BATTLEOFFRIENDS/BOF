@@ -43,7 +43,7 @@
           <button type="button" class="col-x" aria-label="ปิดคลังการ์ด"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </header>
         <div class="col-filters">
-          <div class="fx-chips" role="radiogroup" aria-label="สายเด็ค" data-g="deck"></div>
+          <div class="cf-filter-row" data-g="deck"></div>
           <div class="fx-chips fx-chips-rarity" role="radiogroup" aria-label="ความแรร์" data-g="rarity"></div>
         </div>
         <div class="col-grid" role="list"></div>
@@ -53,8 +53,6 @@
 
     root.addEventListener('click', e => {
       if (e.target === root || e.target.closest('.col-x')) { close(); return; }
-      const deckChip = e.target.closest('[data-deck]');
-      if (deckChip) { if (state.deck !== deckChip.dataset.deck) { state.deck = deckChip.dataset.deck; render(true); } return; }
       const rarChip = e.target.closest('[data-rar]');
       if (rarChip) { if (state.rarity !== rarChip.dataset.rar) { state.rarity = rarChip.dataset.rar; render(true); } return; }
       const card = e.target.closest('.col-card');
@@ -95,7 +93,15 @@
     D.DECK_FILTERS.forEach(f => {
       deckCounts[f.key] = CARD_DATABASE.filter(c => matchesFilter(c, f.key)).length;
     });
-    root.querySelector('[data-g="deck"]').innerHTML = chips(D.DECK_FILTERS, state.deck, 'data-deck', deckCounts);
+    const deckSlot = root.querySelector('[data-g="deck"]');
+    if (D.deckSelectHTML && D.bindDeckSelect) {
+      deckSlot.innerHTML = D.deckSelectHTML(state.deck, deckCounts, 'data-deck');
+      D.bindDeckSelect(deckSlot.querySelector('.fx-select'), 'data-deck', next => {
+        if (state.deck !== next) { state.deck = next; render(true); }
+      });
+    } else {
+      deckSlot.innerHTML = chips(D.DECK_FILTERS, state.deck, 'data-deck', deckCounts);
+    }
     root.querySelector('[data-g="rarity"]').innerHTML = chips(D.RARITY_FILTERS, state.rarity, 'data-rar');
 
     const list = inDeck.filter(c =>

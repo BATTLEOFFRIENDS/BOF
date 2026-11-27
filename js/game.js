@@ -14264,7 +14264,7 @@ function openAISetupModal() {
               <div class="ai-deck-random-ico">🎲</div>
               <div class="ai-deck-meta">
                 <strong>สุ่มเด็คอัตโนมัติ <span class="m-hide">(Random Deck)</span></strong>
-                <span>สุ่มเจอลีดเดอร์จากทั้ง 6 สายเด็คหลัก (L01–L06)</span>
+                <span>สุ่มเจอลีดเดอร์จากทุกสายเด็คที่มีทั้งหมด (${AI_DECK_CATALOG.length} เด็ค)</span>
               </div>
             </button>
             ${AI_DECK_CATALOG.map(d => `
@@ -17804,7 +17804,8 @@ function renderDeckBuilder() {
 
         const badge = document.createElement('div');
         badge.className = `count-badge ${countInDeck === maxAllowed ? 'maxed' : ''}`;
-        badge.textContent = (window.isMobileUI && window.isMobileUI()) ? `${countInDeck}/${maxAllowed}` : `ใส่ในเด็ค: ${countInDeck} / ${maxAllowed} ใบ`;
+        badge.textContent = (window.isMobileUI && window.isMobileUI()) ? `${countInDeck}/${maxAllowed}` : `${countInDeck} / ${maxAllowed} ใบ`;
+        badge.title = `ใส่ในเด็ค ${countInDeck} / ${maxAllowed} ใบ`;
         item.appendChild(cardEl);
         item.appendChild(badge);
 
@@ -18937,6 +18938,12 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     if (/^(DN\d|DNS)/.test(id)) return 'DINO';
     if (/^(DMM|DMS)/.test(id)) return 'DEMON';
     if (/^(OM|OS)/.test(id)) return 'OAT';
+    if (/^MD/.test(id)) return 'MADOKA';
+    if (/^RD/.test(id)) return 'RANGDAO';
+    if (/^KL/.test(id)) return 'KILLER';
+    if (/^BT01_/.test(id)) return 'BT01';
+    if (/^BT02_/.test(id)) return 'BT02';
+    if (/^BT03_/.test(id)) return 'BT03';
     return 'OTHER';
   }
 
@@ -19827,9 +19834,10 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
   }
 
   function renderSandboxCardDetails() {
-    const selectEl = document.getElementById('bof-sandbox-card-select');
+    const listEl = document.getElementById('bof-sandbox-card-list');
     const previewEl = document.getElementById('bof-sandbox-card-preview');
-    if (!selectEl || !previewEl) return;
+    const countBadge = document.getElementById('bof-sb-match-count');
+    if (!listEl || !previewEl) return;
 
     const filteredCards = CARD_DATABASE.filter(c => {
       if (selectedDeckFilter !== 'ALL' && getCardDeckCategory(c) !== selectedDeckFilter) return false;
@@ -19843,14 +19851,29 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       return true;
     });
 
+    if (countBadge) countBadge.textContent = `${filteredCards.length} ใบ`;
+
     if (filteredCards.length > 0 && !filteredCards.some(c => c.id === selectedCardId)) {
       selectedCardId = filteredCards[0].id;
     }
 
-    selectEl.innerHTML = filteredCards.map(c => {
-      const pwrTxt = c.type === 'Monster' ? `⚔️${c.power}` : (c.type === 'Leader' ? `👑HP ${c.maxHp}` : `✨${c.type}`);
-      return `<option value="${c.id}" ${c.id === selectedCardId ? 'selected' : ''}>[${c.id}] ${c.name} (${pwrTxt})</option>`;
-    }).join('');
+    listEl.innerHTML = filteredCards.map(c => {
+      const pwrTxt = c.type === 'Monster' ? `⚔️${c.power}` : (c.type === 'Leader' ? `👑${c.maxHp}` : '✨เวท');
+      const thumb = (window.BOFDecks && window.BOFDecks.thumbOf) ? window.BOFDecks.thumbOf(c.image) : c.image;
+      return `
+        <button type="button" class="bof-sb-card-item ${c.id === selectedCardId ? 'is-active' : ''}" data-sb-cid="${c.id}" title="${c.name}">
+          <img src="${thumb}" alt="" onerror="this.onerror=null;this.src='${c.image}'" loading="lazy">
+          <span class="bof-sb-ci-name">${c.name}</span>
+          <small class="bof-sb-ci-meta">${c.id} · ${pwrTxt}</small>
+        </button>`;
+    }).join('') || '<div class="bof-sb-empty">ไม่พบการ์ดที่ตรงกับคำค้นหา</div>';
+
+    listEl.querySelectorAll('[data-sb-cid]').forEach(btn => {
+      btn.onclick = () => {
+        selectedCardId = btn.getAttribute('data-sb-cid');
+        renderSandboxCardDetails();
+      };
+    });
 
     const currentCard = CARD_DATABASE.find(c => c.id === selectedCardId) || filteredCards[0];
     if (!currentCard) {
@@ -19893,31 +19916,39 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     modal.style.display = 'none';
     modal.style.zIndex = '320';
 
+    const totalAll = CARD_DATABASE.length;
+    const countCat = key => key === 'ALL' ? totalAll : CARD_DATABASE.filter(c => getCardDeckCategory(c) === key).length;
     const deckTabs = [
-      { key: 'ALL', label: '🃏 ทั้งหมด (72)' },
-      { key: 'LEADER', label: '👑 Leader (6)' },
-      { key: 'JIT', label: '⚡ เด็คจิต' },
-      { key: 'NUEA', label: '🌾 เด็คเหนือ' },
-      { key: 'DOOM', label: '⏳ วันสิ้นโลก' },
-      { key: 'DINO', label: '🦖 เด็คไดโน' },
-      { key: 'DEMON', label: '😈 เด็คปีศาจ' },
-      { key: 'OAT', label: '🤪 เด็คโอ๊ต' }
+      { key: 'ALL', label: `🃏 ทั้งหมด (${countCat('ALL')})` },
+      { key: 'LEADER', label: `👑 Leader (${countCat('LEADER')})` },
+      { key: 'JIT', label: `⚡ เด็คจิต (${countCat('JIT')})` },
+      { key: 'NUEA', label: `🌾 เด็คเหนือ (${countCat('NUEA')})` },
+      { key: 'DOOM', label: `⏳ วันสิ้นโลก (${countCat('DOOM')})` },
+      { key: 'DINO', label: `🦖 เด็คไดโน (${countCat('DINO')})` },
+      { key: 'DEMON', label: `😈 เด็คปีศาจ (${countCat('DEMON')})` },
+      { key: 'OAT', label: `🤪 เด็คโอ๊ต (${countCat('OAT')})` },
+      { key: 'MADOKA', label: `🎀 มาโดกะ (${countCat('MADOKA')})` },
+      { key: 'RANGDAO', label: `🚂 รางดาว (${countCat('RANGDAO')})` },
+      { key: 'KILLER', label: `💀 คิลเลอร์ (${countCat('KILLER')})` },
+      { key: 'BT01', label: `📦 BT01 (${countCat('BT01')})` },
+      { key: 'BT02', label: `📦 BT02 (${countCat('BT02')})` },
+      { key: 'BT03', label: `📦 BT03 (${countCat('BT03')})` }
     ];
 
     modal.innerHTML = `
       <div class="modal-box bof-sandbox-box">
         <div class="ai-setup-header">
           <div>
-            <h2>🧪 ห้องทดลองสกิลการ์ด & ตรวจเช็กบั๊ก 72 ใบ (Skill Lab)</h2>
-            <p>เลือกการ์ดใบไหนก็ได้เพื่อจัดฉากเทสต์สกิลในคลิกเดียวโดยไม่ต้องรอสุ่มจั่วในแมตช์จริง</p>
+            <h2>🧪 ห้องทดลองสกิลการ์ด & ตรวจเช็กบั๊ก ${totalAll} ใบ (Skill Lab)</h2>
+            <p>เลือกการ์ดที่ต้องการด้านล่าง เพื่อจัดฉากเทสต์สกิลในคลิกเดียวโดยไม่ต้องรอสุ่มจั่วในแมตช์จริง</p>
           </div>
           <button type="button" id="btn-close-sandbox-x" class="bof-auth-close-x" aria-label="ปิด">✕</button>
         </div>
 
-        <!-- แถบที่ 1: ปุ่มสแกนตรวจเช็กอัตโนมัติทั้ง 72 ใบ + โหมดหุ่นซ้อม AI -->
+        <!-- แถบที่ 1: ปุ่มสแกนตรวจเช็กอัตโนมัติ + โหมดหุ่นซ้อม AI -->
         <div class="bof-sb-top-bar">
           <button type="button" class="btn bof-sb-diag-btn" id="btn-run-all-diagnostics">
-            🤖 สแกนตรวจเช็กสกิลการ์ดทั้ง 72 ใบอัตโนมัติ (1-Click Audit)
+            🤖 สแกนตรวจเช็กสกิลการ์ดทั้ง ${totalAll} ใบอัตโนมัติ (1-Click Audit)
           </button>
           <button type="button" class="btn bof-sb-dummy-btn ${dummyAIEnabled ? 'is-on' : ''}" id="btn-toggle-dummy-ai">
             🛑 หุ่นซ้อม AI (ไม่เดินเอง): ${dummyAIEnabled ? 'เปิดอยู่ ✅' : 'ปิดอยู่ ❌'}
@@ -19926,17 +19957,23 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
 
         <div id="bof-sandbox-diag-results" class="bof-sandbox-diag-results" style="display:none;"></div>
 
-        <!-- แถบที่ 2: เลือกหมวดหมู่เด็ค + ค้นหา + เลือกการ์ด -->
+        <!-- แถบที่ 2: เลือกหมวดหมู่เด็ค (Dropdown) + ค้นหา + รายการการ์ดแบบรูป -->
         <div class="bof-sb-filter-section">
-          <div class="bof-sb-deck-tabs" id="bof-sb-deck-tabs">
-            ${deckTabs.map(t => `
-              <button type="button" class="bof-sb-tab-btn ${t.key === selectedDeckFilter ? 'is-active' : ''}" data-sb-tab="${t.key}">${t.label}</button>
-            `).join('')}
-          </div>
           <div class="bof-sb-select-row">
-            <input type="text" id="bof-sandbox-search" class="bof-sb-search-input" placeholder="🔍 พิมพ์ค้นหาชื่อการ์ด / รหัส (เช่น ซาตาน, M04, ไฮบริด, อนาคต)...">
-            <select id="bof-sandbox-card-select" class="bof-sb-card-select"></select>
+            <div class="fx-select bof-sb-cat-select" id="bof-sb-cat-select" style="--chip-c:#a855f7">
+              <button type="button" class="fx-select-btn" aria-haspopup="listbox" aria-expanded="false">
+                <span class="fx-select-label">หมวดหมู่:</span>
+                <span class="fx-select-val">${(deckTabs.find(t => t.key === selectedDeckFilter) || deckTabs[0]).label}</span>
+                <svg class="fx-select-chev" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <div class="fx-select-menu" role="listbox" hidden>
+                ${deckTabs.map(t => `<button type="button" class="fx-select-opt bof-sb-tab-btn ${t.key === selectedDeckFilter ? 'is-active' : ''}" data-sb-tab="${t.key}">${t.label}</button>`).join('')}
+              </div>
+            </div>
+            <input type="text" id="bof-sandbox-search" class="bof-sb-search-input" placeholder="🔍 ค้นหาชื่อการ์ด / รหัส / สกิล...">
+            <span class="bof-sb-match-count" id="bof-sb-match-count">${totalAll} ใบ</span>
           </div>
+          <div id="bof-sandbox-card-list" class="bof-sb-card-list"></div>
         </div>
 
         <!-- แถบที่ 3: ข้อมูลการ์ดที่เลือก + ปุ่มจัดฉากพร้อมเทสต์ทันที -->
@@ -19996,10 +20033,35 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       dummyBtn.textContent = `🛑 หุ่นซ้อม AI (ไม่เดินเอง): ${dummyAIEnabled ? 'เปิดอยู่ ✅' : 'ปิดอยู่ ❌'}`;
     };
 
+    const catWrap = modal.querySelector('#bof-sb-cat-select');
+    const catBtn = catWrap?.querySelector('.fx-select-btn');
+    const catVal = catWrap?.querySelector('.fx-select-val');
+    const catMenu = catWrap?.querySelector('.fx-select-menu');
+    const closeCat = () => {
+      if (!catWrap || !catBtn || !catMenu) return;
+      catWrap.classList.remove('is-open');
+      catBtn.setAttribute('aria-expanded', 'false');
+      catMenu.hidden = true;
+    };
+    if (catBtn && catMenu) {
+      catBtn.onclick = e => {
+        e.stopPropagation();
+        const opening = catMenu.hidden;
+        catMenu.hidden = !opening;
+        catWrap.classList.toggle('is-open', opening);
+        catBtn.setAttribute('aria-expanded', String(opening));
+      };
+      modal.addEventListener('click', e => {
+        if (!catWrap.contains(e.target)) closeCat();
+      });
+    }
+
     modal.querySelectorAll('[data-sb-tab]').forEach(tabBtn => {
       tabBtn.onclick = () => {
         selectedDeckFilter = tabBtn.getAttribute('data-sb-tab') || 'ALL';
         modal.querySelectorAll('[data-sb-tab]').forEach(b => b.classList.toggle('is-active', b === tabBtn));
+        if (catVal) catVal.textContent = tabBtn.textContent;
+        closeCat();
         renderSandboxCardDetails();
       };
     });
@@ -20007,12 +20069,6 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     const searchInput = modal.querySelector('#bof-sandbox-search');
     searchInput.oninput = () => {
       searchKeyword = searchInput.value.trim();
-      renderSandboxCardDetails();
-    };
-
-    const selectEl = modal.querySelector('#bof-sandbox-card-select');
-    selectEl.onchange = () => {
-      selectedCardId = selectEl.value;
       renderSandboxCardDetails();
     };
 
@@ -20258,8 +20314,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '💥 คอมโบ 1: คู่หูฮีโร่ (โทโดโรจิตเก็บการ์ด + บาคุจิตระเบิดสนาม)',
           cards: ['M02', 'M01'],
           steps: [
-            '1. คลิกที่ "โทโดโรจิต (M02)" บนสนาม → เลือกหัวข้อที่ 2 เพื่อนำ "บาคุจิต (M01)" จากนรกกลับขึ้นมือฟรี!',
-            '2. อัญเชิญ "บาคุจิต (M01)" จากมือลงสนาม → เลือกทำลายมอนสเตอร์ของอีกฝ่าย 1 ใบทันที และบาคุจิตจะได้พลังโจมตี +1 (กลายเป็น Power 3) เพราะมีโทโดโรจิตอยู่คู่กัน!'
+            '1. คลิกที่ "โทโดโรจิต" บนสนาม → เลือกหัวข้อที่ 2 เพื่อนำ "บาคุจิต" จากนรกกลับขึ้นมือฟรี!',
+            '2. อัญเชิญ "บาคุจิต" จากมือลงสนาม → เลือกทำลายมอนสเตอร์ของอีกฝ่าย 1 ใบทันที และบาคุจิตจะได้พลังโจมตี +1 (กลายเป็น Power 3) เพราะมีโทโดโรจิตอยู่คู่กัน!'
           ]
         },
         {
@@ -20267,9 +20323,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🦅 คอมโบ 2: ฮออ์กส์ฟีมเรียกเอ็นเดจิต + เร่งพลังคู่!',
           cards: ['M06', 'M05', 'L01'],
           steps: [
-            '1. คลิกที่ "ฮออ์กส์ฟีม (M06)" บนสนาม → กดใช้สกิลลดพลังตัวเอง -2 เพื่อค้นหา "เอ็นเดจิต (M05)" จากกองการ์ดหรือนรกขึ้นมือ',
-            '2. อัญเชิญ "เอ็นเดจิต (M05)" ลงสนาม แล้วคลิกที่เอ็นเดจิตเพื่อกดใช้สกิล → เอ็นเดจิตได้พลัง +2 (เป็น Power 4) และฮออ์กส์ฟีมได้พลัง +2 คืนกลับมาทันที!',
-            '3. คลิกที่การ์ด Leader "มายฮีโร่ เดจิต (L01)" ของเราเพื่อบัฟพลังให้ยูนิตบนสนามเพิ่มอีก +1!'
+            '1. คลิกที่ "ฮออ์กส์ฟีม" บนสนาม → กดใช้สกิลลดพลังตัวเอง -2 เพื่อค้นหา "เอ็นเดจิต" จากกองการ์ดหรือนรกขึ้นมือ',
+            '2. อัญเชิญ "เอ็นเดจิต" ลงสนาม แล้วคลิกที่เอ็นเดจิตเพื่อกดใช้สกิล → เอ็นเดจิตได้พลัง +2 (เป็น Power 4) และฮออ์กส์ฟีมได้พลัง +2 คืนกลับมาทันที!',
+            '3. คลิกที่การ์ด Leader "มายฮีโร่ เดจิต" ของเราเพื่อบัฟพลังให้ยูนิตบนสนามเพิ่มอีก +1!'
           ]
         },
         {
@@ -20277,8 +20333,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '👑 คอมโบ 3: ป้อมปราการพลิกนรก (ออลจิต & ออลฟอจิต)',
           cards: ['M03', 'M04'],
           steps: [
-            '1. เมื่อเลือด Leader เราเหลือ ≤ 2 HP โดยมี "ออลจิต (M03)" บนมือ และ "ออลฟอจิต (M04)" อยู่ในนรก ให้กดปุ่มเปลี่ยนเฟสจนจบเทิร์นเพื่อให้ AI โจมตีเข้ามา',
-            '2. ทันทีที่ AI โจมตีใส่ Leader เรา จะมีหน้าต่างให้เลือกปลุก "ออลฟอจิต (M04)" จากนรกลงมาระเบิดล้างมอนสเตอร์ทุกใบบนสนาม หรือส่ง "ออลจิต (M03)" จากมือลงมารับดาเมจแทน!'
+            '1. เมื่อเลือด Leader เราเหลือ ≤ 2 HP โดยมี "ออลจิต" บนมือ และ "ออลฟอจิต" อยู่ในนรก ให้กดปุ่มเปลี่ยนเฟสจนจบเทิร์นเพื่อให้ AI โจมตีเข้ามา',
+            '2. ทันทีที่ AI โจมตีใส่ Leader เรา จะมีหน้าต่างให้เลือกปลุก "ออลฟอจิต" จากนรกลงมาระเบิดล้างมอนสเตอร์ทุกใบบนสนาม หรือส่ง "ออลจิต" จากมือลงมารับดาเมจแทน!'
           ]
         }
       ]
@@ -20293,9 +20349,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🕵️ คอมโบ 1: ส่งสายลับยึดช่องสนาม + หมอไพร่เหนือวนการ์ด',
           cards: ['NM01', 'NM05', 'NS01'],
           steps: [
-            '1. คลิกที่ "ไพร่ชาวนาเหนือ (NM01)" บนมือ → เลือกหัวข้อที่ 1 (ทิ้งตัวเองลงนรก) เพื่อส่ง "สายลับไพร่เหนือ (NM05)" จากกอง/นรกไปยึดช่องว่างบนสนามอีกฝ่าย!',
-            '2. ร่ายเวท "หมอไพร่เหนือ (NS01)" จากบนมือ → เลือกเก็บ "ไพร่ชาวนาเหนือ (NM01)" จากนรกกลับขึ้นมือ',
-            '3. คลิกที่ "ไพร่ชาวนาเหนือ (NM01)" บนมืออีกครั้ง → เลือกหัวข้อที่ 2 เพื่อค้นหาการ์ด "ทหาร" จากกองขึ้นมือฟรี!'
+            '1. คลิกที่ "ไพร่ชาวนาเหนือ" บนมือ → เลือกหัวข้อที่ 1 (ทิ้งตัวเองลงนรก) เพื่อส่ง "สายลับไพร่เหนือ" จากกอง/นรกไปยึดช่องว่างบนสนามอีกฝ่าย!',
+            '2. ร่ายเวท "หมอไพร่เหนือ" จากบนมือ → เลือกเก็บ "ไพร่ชาวนาเหนือ" จากนรกกลับขึ้นมือ',
+            '3. คลิกที่ "ไพร่ชาวนาเหนือ" บนมืออีกครั้ง → เลือกหัวข้อที่ 2 เพื่อค้นหาการ์ด "ทหาร" จากกองขึ้นมือฟรี!'
           ]
         },
         {
@@ -20303,8 +20359,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🔥 คอมโบ 2: อัญเชิญจุติ ทหารหลวงเหนือ เรียกพรรคพวกครบ 3 ช่อง!',
           cards: ['NM04', 'NM01', 'NM02'],
           steps: [
-            '1. อัญเชิญ "ทหารเกณฑ์เหนือ (NM04)" จากมือลงสนาม (ได้รับพลัง +1 เมื่อลงสนาม)',
-            '2. คลิกที่ "ทหารหลวงเหนือ (NM02)" บนมือ → เลือก "สั่งใช้จากบนมือ (อัญเชิญจุติ)" โดยทิ้งไพร่ชาวนาเหนือ 1 ใบ แล้วคลิกวางลงช่องว่างบนสนามเรา',
+            '1. อัญเชิญ "ทหารเกณฑ์เหนือ" จากมือลงสนาม (ได้รับพลัง +1 เมื่อลงสนาม)',
+            '2. คลิกที่ "ทหารหลวงเหนือ" บนมือ → เลือก "สั่งใช้จากบนมือ (อัญเชิญจุติ)" โดยทิ้งไพร่ชาวนาเหนือ 1 ใบ แล้วคลิกวางลงช่องว่างบนสนามเรา',
             '3. เพราะมีทหารเกณฑ์เหนืออยู่บนสนาม สกิลจุติของทหารหลวงจะทำงานต่อทันที → เลือกอัญเชิญการ์ด "ทหาร" จากกอง/นรกลงช่องที่ 3 ฟรี (ครบ 3 ใบรับออร่าขุนเหนือ +1 ยกแผง)!'
           ]
         },
@@ -20313,9 +20369,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '💣 คอมโบ 3: กองทัพ 3 ทหาร + ระเบิดปูพรม ครบ 3 เอฟเฟกต์!',
           cards: ['NM04', 'NM03', 'NM02', 'NS03'],
           steps: [
-            '1. บนสนามมี ทหารเกณฑ์ (NM04) และ ทหารพราน (NM03) อยู่แล้ว ให้อัญเชิญ "ทหารหลวงเหนือ (NM02)" ลงช่องที่ 3 เพื่อรวมครบ 3 ทหาร!',
-            '2. คลิกที่ "ทหารพรานเหนือ (NM03)" บนสนามเพื่อกดใช้สกิล → คลิกเลือกบัฟพลังให้ยูนิตเรา +1 หรือลดพลังยูนิตศัตรู -1',
-            '3. ร่ายเวท "ระเบิดปูพรม (NS03)" บนมือ → แสดงผลครบทั้ง 3 ขั้น: ยูนิตเหนือทุกใบพลัง +1 + ทำลายยูนิตอีกฝ่าย 1 ใบ + ยูนิตเราทุกใบไม่ถูกทำลายจนเริ่มเทิร์นถัดไป!'
+            '1. บนสนามมี "ทหารเกณฑ์เหนือ" และ "ทหารพรานเหนือ" อยู่แล้ว ให้อัญเชิญ "ทหารหลวงเหนือ" ลงช่องที่ 3 เพื่อรวมครบ 3 ทหาร!',
+            '2. คลิกที่ "ทหารพรานเหนือ" บนสนามเพื่อกดใช้สกิล → คลิกเลือกบัฟพลังให้ยูนิตเรา +1 หรือลดพลังยูนิตศัตรู -1',
+            '3. ร่ายเวท "ระเบิดปูพรม" บนมือ → แสดงผลครบทั้ง 3 ขั้น: ยูนิตเหนือทุกใบพลัง +1 + ทำลายยูนิตอีกฝ่าย 1 ใบ + ยูนิตเราทุกใบไม่ถูกทำลายจนเริ่มเทิร์นถัดไป!'
           ]
         }
       ]
@@ -20330,9 +20386,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🔮 คอมโบ 1: คู่หูโอนามิทิ้งซึรุรุ + มายอาเปิดท็อปโซเนบุบังคับจบเทิร์น!',
           cards: ['DM01', 'DM05', 'DM02', 'DM03'],
           steps: [
-            '1. คลิกที่ "โอนามิ ผู้ทำลายโลก (DM01)" บนสนาม → กดใช้สกิลโดยคลิกทิ้ง "ซึรุรุ (DM05)" บนมือ (สกิลซึรุรุจะบังคับอีกฝ่ายทิ้งมือ 1 ใบทันที!) แล้วเลือกอัญเชิญ "โรเซเลีย (DM02)" ลงสนาม',
-            '2. คลิกที่ "โรเซเลีย (DM02)" บนสนาม → กดใช้สกิลคู่หู (Rest โรเซเลียเพื่อจั่วการ์ดฟรี 1 ใบ)!',
-            '3. กดเปลี่ยนเฟสจนจบเทิร์น เมื่อ AI โจมตีมา ให้เลือกเปิดใช้สกิล 1 เกมของ "มายอา (DM03)" เพื่อเปิดท็อปกองเจอ "โซเนบุ (DM06)" และบังคับจบเทิร์นของ AI ทันที!'
+            '1. คลิกที่ "โอนามิ ผู้ทำลายโลก" บนสนาม → กดใช้สกิลโดยคลิกทิ้ง "ซึรุรุ" บนมือ (สกิลซึรุรุจะบังคับอีกฝ่ายทิ้งมือ 1 ใบทันที!) แล้วเลือกอัญเชิญ "โรเซเลีย" ลงสนาม',
+            '2. คลิกที่ "โรเซเลีย" บนสนาม → กดใช้สกิลคู่หู (Rest โรเซเลียเพื่อจั่วการ์ดฟรี 1 ใบ)!',
+            '3. กดเปลี่ยนเฟสจนจบเทิร์น เมื่อ AI โจมตีมา ให้เลือกเปิดใช้สกิล 1 เกมของ "มายอา" เพื่อเปิดท็อปกองเจอ "โซเนบุ" และบังคับจบเทิร์นของ AI ทันที!'
           ]
         },
         {
@@ -20340,8 +20396,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🌌 คอมโบ 2: วิวัฒน์ร่างอนาคต & ดึงร่างต้นกลับเมื่อจบเทิร์น',
           cards: ['DM07', 'DM13', 'DM04', 'DM10'],
           steps: [
-            '1. คลิกที่การ์ดอนาคต "ยอดนักดาบ แอชชี่ล่า (DM13)" บนมือ → เลือกอัญเชิญร่างอนาคต แล้วคลิกที่ร่างต้น "แอชชี่ล่า (DM07)" บนสนามเพื่อส่งไปมิติมืดและลดพลังศัตรูทุกใบ -1!',
-            '2. กดปุ่มเปลี่ยนเฟสไปสู่ Battle Phase แล้วกดจบเทิร์น → ร่างอนาคตจะลงนรกและดึงร่างต้น "แอชชี่ล่า (DM07)" จากมิติมืดกลับลงสนามในสถานะ Stand อัตโนมัติ!'
+            '1. คลิกที่การ์ดอนาคต "ยอดนักดาบ แอชชี่ล่า" บนมือ → เลือกอัญเชิญร่างอนาคต แล้วคลิกที่ร่างต้น "แอชชี่ล่า" บนสนามเพื่อส่งไปมิติมืดและลดพลังศัตรูทุกใบ -1!',
+            '2. กดปุ่มเปลี่ยนเฟสไปสู่ Battle Phase แล้วกดจบเทิร์น → ร่างอนาคตจะลงนรกและดึงร่างต้น "แอชชี่ล่า" จากมิติมืดกลับลงสนามในสถานะ Stand อัตโนมัติ!'
           ]
         },
         {
@@ -20349,9 +20405,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '⚡ คอมโบ 3: เอมิ + เดบิรุน ทิ้งมือ 3 ใบลุกขึ้น Stand ตีเบิ้ล!',
           cards: ['DS01', 'DM04', 'DM08'],
           steps: [
-            '1. ร่ายเวท "เบิกเนตรแห่งแสง (DS01)" จากบนมือ (เมื่อมีนรก ≥ 5 ใบจะได้จั่ว 2 ใบ!) แล้วคลิกเลือกบัฟพลังให้ "เอมิ (DM08)" บนสนาม +1',
-            '2. กดปุ่มเข้าสู่ Battle Phase แล้วสั่ง "เอมิ (DM08)" โจมตีใส่ Leader ของอีกฝ่าย 1 ครั้ง',
-            '3. คลิกที่ "เอมิ (DM08)" ที่กำลังนอน Rest อยู่บนสนาม → กดยืนยันทิ้งการ์ดบนมือ 3 ใบเพื่อลุกขึ้น Stand แล้วสั่งโจมตีซ้ำอีกครั้ง!'
+            '1. ร่ายเวท "เบิกเนตรแห่งแสง" จากบนมือ (เมื่อมีนรก ≥ 5 ใบจะได้จั่ว 2 ใบ!) แล้วคลิกเลือกบัฟพลังให้ "เอมิ" บนสนาม +1',
+            '2. กดปุ่มเข้าสู่ Battle Phase แล้วสั่ง "เอมิ" โจมตีใส่ Leader ของอีกฝ่าย 1 ครั้ง',
+            '3. คลิกที่ "เอมิ" ที่กำลังนอน Rest อยู่บนสนาม → กดยืนยันทิ้งการ์ดบนมือ 3 ใบเพื่อลุกขึ้น Stand แล้วสั่งโจมตีซ้ำอีกครั้ง!'
           ]
         }
       ]
@@ -20366,9 +20422,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🦴 คอมโบ 1: พเทอราโนดอนโม่กองเร่งพลังสไปโนซอรัส + แรปเตอร์บัฟ +2',
           cards: ['DN04', 'L04', 'DN05', 'DN02'],
           steps: [
-            '1. คลิกที่ "พเทอราโนดอน (DN04)" บนสนาม → กดใช้สกิลโม่การ์ด 2 ใบลงนรกแล้วจั่ว 1 ใบ (ทำให้การ์ดในนรกเพิ่มและ "สไปโนซอรัส (DN05)" ได้พลังโจมตีเพิ่มขึ้นทันที!)',
-            '2. คลิกที่การ์ด Leader "ศูนย์วิจัยไดโน (L04)" ของเรา → เลือกเก็บการ์ดไดโนจากนรกกลับขึ้นมือ 1 ใบฟรี!',
-            '3. คลิกที่ "เวโลซิแรปเตอร์ (DN02)" บนสนามเพื่อ Rest ตัวเอง แล้วคลิกเลือกบัฟพลังให้ "สไปโนซอรัส (DN05)" +2 จนจบเทิร์น!'
+            '1. คลิกที่ "พเทอราโนดอน" บนสนาม → กดใช้สกิลโม่การ์ด 2 ใบลงนรกแล้วจั่ว 1 ใบ (ทำให้การ์ดในนรกเพิ่มและ "สไปโนซอรัส" ได้พลังโจมตีเพิ่มขึ้นทันที!)',
+            '2. คลิกที่การ์ด Leader "ศูนย์วิจัยไดโน" ของเรา → เลือกเก็บการ์ดไดโนจากนรกกลับขึ้นมือ 1 ใบฟรี!',
+            '3. คลิกที่ "เวโลซิแรปเตอร์" บนสนามเพื่อ Rest ตัวเอง → แล้วคลิกเลือกบัฟพลังให้ "สไปโนซอรัส" +2 จนจบเทิร์น!'
           ]
         },
         {
@@ -20376,8 +20432,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🦖 คอมโบ 2: ผสานร่างไฮบริด "อินโดมินัสเร็กซ์" ตีตายแล้วลุกขึ้นตีซ้ำ!',
           cards: ['DN01', 'DN02', 'DN06'],
           steps: [
-            '1. คลิกที่ "ไฮบริด — อินโดมินัสเร็กซ์ (DN06)" บนมือ (ขอบเรืองแสงสีเขียว) → กดยืนยันส่งวัตถุดิบ "ทีเร็กซ์ (DN01)" และ "เวโลซิแรปเตอร์ (DN02)" ไปมิติมืดเพื่ออัญเชิญลงสนาม!',
-            '2. กดปุ่มเข้าสู่ Battle Phase แล้วสั่ง "อินโดมินัสเร็กซ์ (DN06)" โจมตีทำลายมอนสเตอร์บนสนามของอีกฝ่าย',
+            '1. คลิกที่ "ไฮบริด — อินโดมินัสเร็กซ์" บนมือ (ขอบเรืองแสงสีเขียว) → กดยืนยันส่งวัตถุดิบ "ทีเร็กซ์" และ "เวโลซิแรปเตอร์" ไปมิติมืดเพื่ออัญเชิญลงสนาม!',
+            '2. กดปุ่มเข้าสู่ Battle Phase แล้วสั่ง "อินโดมินัสเร็กซ์" โจมตีทำลายมอนสเตอร์บนสนามของอีกฝ่าย',
             '3. เมื่อทำลายมอนสเตอร์สำเร็จ อินโดมินัสเร็กซ์จะลุกขึ้น Stand อัตโนมัติ → สั่งโจมตีซ้ำใส่ Leader อีกฝ่ายเพื่อปิดเกมได้เลย!'
           ]
         }
@@ -20393,8 +20449,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🌌 คอมโบ 1: แอสโมดิวส์ส่งสัญญาปีศาจเข้ามิติมืด + เบลเฟกอร์ดูดกองชนะเกม!',
           cards: ['DMM05', 'DMS01', 'DMM07', 'DMS03'],
           steps: [
-            '1. อัญเชิญ "แอสโมดิวส์ บาปราคะ (DMM05)" จากมือลงสนาม → สกิลเปิดท็อป 3 ใบจะทำงาน ให้เลือก "สัญญาปีศาจ (DMS01)" เพื่อส่งเข้ามิติมืดทันที (ปีศาจทุกตัวบนสนามพลัง +1 ถาวร)!',
-            '2. กดปุ่มเข้าสู่ Battle Phase แล้วสั่ง "เบลเฟกอร์ บาปเกียจคร้าน (DMM07)" โจมตีใส่ Leader อีกฝ่าย → สกิลออโต้ของเบลเฟกอร์จะดูดการ์ดใบบนสุดของทั้ง 2 ฝั่งเข้ามิติมืด จนครบ 15 ใบและชนะเกมด้วย "ดินแดนปีศาจ (DMS03)" ทันที!'
+            '1. อัญเชิญ "แอสโมดิวส์ บาปราคะ" จากมือลงสนาม → สกิลเปิดท็อป 3 ใบจะทำงาน ให้เลือก "สัญญาปีศาจ" เพื่อส่งเข้ามิติมืดทันที (ปีศาจทุกตัวบนสนามพลัง +1 ถาวร)!',
+            '2. กดปุ่มเข้าสู่ Battle Phase แล้วสั่ง "เบลเฟกอร์ บาปเกียจคร้าน" โจมตีใส่ Leader อีกฝ่าย → สกิลออโต้ของเบลเฟกอร์จะดูดการ์ดใบบนสุดของทั้ง 2 ฝั่งเข้ามิติมืด จนครบ 15 ใบและชนะเกมด้วย "ดินแดนปีศาจ" ทันที!'
           ]
         },
         {
@@ -20402,8 +20458,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🔥 คอมโบ 2: ซาตาน บาปโทสะ ระเบิดสนามล้างบาง & ทำลายมือคู่แข่ง!',
           cards: ['DMM04', 'DMM06'],
           steps: [
-            '1. เมื่อ Leader เราเหลือ 1 HP และมีการ์ดบนมือครบ 5 ใบ ให้คลิกที่ "ซาตาน บาปโทสะ (DMM04)" บนสนาม → กดใช้สกิล [1 เกม] ทิ้งมือ 5 ใบเพื่อทำลายการ์ดใบอื่นบนสนามทั้งหมด และบังคับอีกฝ่ายทิ้งมือ 3 ใบ!',
-            '2. กดปุ่มเข้าสู่ Battle Phase แล้วสั่ง "ซาตาน บาปโทสะ (DMM04)" โจมตีใส่ Leader อีกฝ่ายเพื่อคว้าชัยชนะ!'
+            '1. เมื่อ Leader เราเหลือ 1 HP และมีการ์ดบนมือครบ 5 ใบ ให้คลิกที่ "ซาตาน บาปโทสะ" บนสนาม → กดใช้สกิล [1 เกม] ทิ้งมือ 5 ใบเพื่อทำลายการ์ดใบอื่นบนสนามทั้งหมด และบังคับอีกฝ่ายทิ้งมือ 3 ใบ!',
+            '2. กดปุ่มเข้าสู่ Battle Phase แล้วสั่ง "ซาตาน บาปโทสะ" โจมตีใส่ Leader อีกฝ่ายเพื่อคว้าชัยชนะ!'
           ]
         }
       ]
@@ -20418,8 +20474,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🎮 คอมโบ 1: เรียงท็อปกอง + ไอแบงค์บ้าเกม เปิดคอลไอโอ๊ตติดเกราะอมตะ!',
           cards: ['L06', 'OM02', 'OM01'],
           steps: [
-            '1. เมื่อเริ่มเทิร์น สกิลออโต้ของ "ไอโอ๊ตบ้าทุกสิ่ง (L06)" จะเปิดการ์ด 2 ใบบนสุดของกอง → กดเลือกหยิบเวทมนตร์ขึ้นมือ แล้วเลือก "วางไว้บนสุดของกองการ์ด" เพื่อให้ "ไอโอ๊ตบ้าการ์ตูน (OM01)" อยู่ใบบนสุด!',
-            '2. อัญเชิญ "ไอแบงค์บ้าเกม (OM02)" จากมือลงสนาม → เลือกคอล "ไอโอ๊ตบ้าการ์ตูน (OM01)" ลงสนามฟรี พร้อมรับพลังโจมตี +2 และเกราะอมตะไม่ถูกทำลายเทิร์นละ 1 ครั้ง!'
+            '1. เมื่อเริ่มเทิร์น สกิลออโต้ของ "ไอโอ๊ตบ้าทุกสิ่ง" จะเปิดการ์ด 2 ใบบนสุดของกอง → กดเลือกหยิบเวทมนตร์ขึ้นมือ แล้วเลือก "วางไว้บนสุดของกองการ์ด" เพื่อให้ "ไอโอ๊ตบ้าการ์ตูน" อยู่ใบบนสุด!',
+            '2. อัญเชิญ "ไอแบงค์บ้าเกม" จากมือลงสนาม → เลือกคอล "ไอโอ๊ตบ้าการ์ตูน" ลงสนามฟรี พร้อมรับพลังโจมตี +2 และเกราะอมตะไม่ถูกทำลายเทิร์นละ 1 ครั้ง!'
           ]
         },
         {
@@ -20427,9 +20483,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🃏 คอมโบ 2: โอ๊ต + จิต ปลดล็อกไออาร์ม แล้วไอจิตลดพลังศัตรูทั้งแผง!',
           cards: ['OM01', 'OM03', 'OM04', 'OM03'],
           steps: [
-            '1. บนสนามมี โอ๊ต (OM01) + จิต (OM03) และเว้นช่องว่างไว้ 1 ช่อง → ลง "ไออาร์มบ้าการ์ดเกม (OM04)" ในช่องว่าง (ถ้าวางทับใบไหน ใบนั้นจะหายก่อนเช็กเงื่อนไข สนาม 3 ช่องจึงปลดได้ 2 ใน 3 ผล)',
+            '1. บนสนามมี "ไอโอ๊ตบ้าการ์ตูน" + "ไอจิตบ้ากาม" และเว้นช่องว่างไว้ 1 ช่อง → ลง "ไออาร์มบ้าการ์ดเกม" ในช่องว่าง (สนาม 3 ช่องจึงปลดได้ 2 ใน 3 ผล)',
             '2. ผล 1 (มีไอโอ๊ต): เลือกเก็บการ์ดจากนรกขึ้นมือ 1 ใบ · ผล 3 (มีไอจิต): ศัตรูทุกใบพลัง -1 และสกิลไอจิตบ้ากามอัปเกรดเป็นลดพลังทุกใบ',
-            '3. ลง "ไอจิตบ้ากาม (OM03)" ใบที่ 2 วางทับใบเดิม → สกิลที่อัปเกรดแล้วลดพลังศัตรูทุกใบอีก -1!'
+            '3. ลง "ไอจิตบ้ากาม" ใบที่ 2 วางทับใบเดิม → สกิลที่อัปเกรดแล้วลดพลังศัตรูทุกใบอีก -1!'
           ]
         },
         {
@@ -20437,9 +20493,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '📹 คอมโบ 3: ไอเหนือผู้มีคลิปแปลก ค้นหาเวท & ร่ายเวทเบิ้ล 2 ใบในเทิร์นเดียว!',
           cards: ['OM05', 'OS02', 'OS01'],
           steps: [
-            '1. อัญเชิญ "ไอเหนือผู้มีคลิปแปลก (OM05)" จากมือลงสนาม → ดูการ์ด 3 ใบบนสุดของกองและเลือกหยิบการ์ดเวทมนตร์ขึ้นมือ 1 ใบฟรี!',
-            '2. คลิกที่ "ไอเหนือผู้มีคลิปแปลก (OM05)" บนสนามเพื่อกดใช้สกิล → คลิกเลือกการ์ดเวท "สงครามความบ้า (OS02)" บนมือเพื่อร่ายฟรีโดยไม่เสียโควต้า Normal Spell (ดึงโอ๊ต+แบงค์ขึ้นมือ)!',
-            '3. เนื่องจากโควต้า Normal Spell ยังเหลือ 0/1 ให้คลิกร่ายเวท "ท่าไม้ตาย(มั้ง) (OS01)" จากบนมือต่อได้อีกใบ (ทิ้งมือ 3 ใบ ทำลายมอนสเตอร์อีกฝ่ายทั้งหมด)!'
+            '1. อัญเชิญ "ไอเหนือผู้มีคลิปแปลก" จากมือลงสนาม → ดูการ์ด 3 ใบบนสุดของกองและเลือกหยิบการ์ดเวทมนตร์ขึ้นมือ 1 ใบฟรี!',
+            '2. คลิกที่ "ไอเหนือผู้มีคลิปแปลก" บนสนามเพื่อกดใช้สกิล → คลิกเลือกการ์ดเวท "สงครามความบ้า" บนมือเพื่อร่ายฟรีโดยไม่เสียโควต้า Normal Spell (ดึงโอ๊ต+แบงค์ขึ้นมือ)!',
+            '3. เนื่องจากโควต้า Normal Spell ยังเหลือ 0/1 ให้คลิกร่ายเวท "ท่าไม้ตาย(มั้ง)" จากบนมือต่อได้อีกใบ (ทิ้งมือ 3 ใบ ทำลายมอนสเตอร์อีกฝ่ายทั้งหมด)!'
           ]
         }
       ]
@@ -20454,9 +20510,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🎀 คอมโบ 1: โทโมเอะ มามิ เสกเบเบ้ + จั่วการ์ด & ซายากะทำลายยูนิตศัตรู!',
           cards: ['MD01', 'MD06', 'MD02'],
           steps: [
-            '1. อัญเชิญ "โทโมเอะ มามิ (MD01)" จากมือลงสนาม -> คลิกที่มามิบนสนามเพื่อใช้สกิล โดยทิ้งการ์ดบนมือ 1 ใบเพื่ออัญเชิญ "เบเบ้ (MD06)" จากกองลงสนามฟรี!',
+            '1. อัญเชิญ "โทโมเอะ มามิ" จากมือลงสนาม -> คลิกที่มามิบนสนามเพื่อใช้สกิล โดยทิ้งการ์ดบนมือ 1 ใบเพื่ออัญเชิญ "เบเบ้" จากกองลงสนามฟรี!',
             '2. เมื่อเบเบ้ลงสนามด้วยสกิล สกิลเบเบ้จะทำงานจั่วการ์ด 1 ใบฟรีทันที และมามิได้รับพลังโจมตี +1 (เป็น Power 3)!',
-            '3. อัญเชิญ "มิกิ ซายากะ (MD02)" ลงสนาม -> สกิลเมื่อลงสนามจะทำลายมอนสเตอร์ของอีกฝ่าย 1 ใบทันที!'
+            '3. อัญเชิญ "มิกิ ซายากะ" ลงสนาม -> สกิลเมื่อลงสนามจะทำลายมอนสเตอร์ของอีกฝ่าย 1 ใบทันที!'
           ]
         },
         {
@@ -20465,8 +20521,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           cards: ['MD05', 'MD03', 'MD08'],
           steps: [
             '1. กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase แล้วสั่งมอนสเตอร์บนสนามเราโจมตีสะสมครบ 2 ครั้งในเทิร์นนี้',
-            '2. เมื่อโจมตีครบ 2 ครั้ง "อาคุมะ โฮมุระ (MD08)" บนมือจะเรืองแสงสีม่วง -> คลิกที่อาคุมะ โฮมุระบนมือ แล้วเลือกส่งมอนสเตอร์เราลงนรก 1 ใบเพื่ออัญเชิญลงสนาม พร้อมเลือกทำลายการ์ดอีกฝ่าย 1 ใบ!',
-            '3. สั่ง "อาคุมะ โฮมุระ (MD08)" พลัง 3 โจมตีใส่ Leader ของอีกฝ่ายเพื่อคว้าชัยชนะ!'
+            '2. เมื่อโจมตีครบ 2 ครั้ง "อาคุมะ โฮมุระ" บนมือจะเรืองแสงสีม่วง -> คลิกที่อาคุมะ โฮมุระบนมือ แล้วเลือกส่งมอนสเตอร์เราลงนรก 1 ใบเพื่ออัญเชิญลงสนาม พร้อมเลือกทำลายการ์ดอีกฝ่าย 1 ใบ!',
+            '3. สั่ง "อาคุมะ โฮมุระ" พลัง 3 โจมตีใส่ Leader ของอีกฝ่ายเพื่อคว้าชัยชนะ!'
           ]
         }
       ]
@@ -20481,8 +20537,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🕊️ คอมโบ 1: ทริกเกอร์ทิ้ง SUNDAY คืนชีพยูนิต & ฮิเมโกะทำลายยูนิตศัตรู!',
           cards: ['RD05', 'RD07', 'RD01'],
           steps: [
-            '1. มี "HIMEKO (RD05)" บนสนาม และมี "SUNDAY (RD07)" บนมือ',
-            '2. คลิกที่ "HIMEKO" บนสนามเพื่อใช้สกิล → เลือกทิ้ง "SUNDAY (RD07)" บนมือ 1 ใบเพื่อทำลายยูนิตฝั่งตรงข้าม 1 ใบ',
+            '1. มี "HIMEKO" บนสนาม และมี "SUNDAY" บนมือ',
+            '2. คลิกที่ "HIMEKO" บนสนามเพื่อใช้สกิล → เลือกทิ้ง "SUNDAY" บนมือ 1 ใบเพื่อทำลายยูนิตฝั่งตรงข้าม 1 ใบ',
             '3. เมื่อ Sunday ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที! → เลือกนำยูนิตจากนรก 1 ใบกลับขึ้นมือ ทำให้ไม่เสียเปรียบจำนวนการ์ด',
             '4. และขณะที่ Sunday อยู่ในนรก สกิลต่อเนื่องจะมอบพลังโจมตี +1 ให้ยูนิตบนสนามฝั่งเราทุกใบตลอดเวลา!'
           ]
@@ -20492,8 +20548,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🛡️ คอมโบ 2: เกราะมาร์ช เซเว่นท์ + DAN HENG จ้าวทรนง ป้องกันสนามยกแผง!',
           cards: ['RD02', 'RD04'],
           steps: [
-            '1. อัญเชิญ "DAN HENG จ้าวทรนงคงปฐพี (RD04)" ลงสนาม → ยูนิตทุกใบฝั่งเราจะไม่ถูกทำลายจากความสามารถการ์ด',
-            '2. คลิกใช้สกิลของ "MARCH 7TH (RD02)" บนสนาม → เลือกมอบเกราะไม่ถูกทำลายจากการต่อสู้ 1 ครั้งให้ DAN HENG',
+            '1. อัญเชิญ "DAN HENG จ้าวทรนงคงปฐพี" ลงสนาม → ยูนิตทุกใบฝั่งเราจะไม่ถูกทำลายจากความสามารถการ์ด',
+            '2. คลิกใช้สกิลของ "MARCH 7TH" บนสนาม → เลือกมอบเกราะไม่ถูกทำลายจากการต่อสู้ 1 ครั้งให้ DAN HENG',
             '3. เข้าสู่ Battle Phase สั่ง DAN HENG โจมตี → ยูนิตจะเข้าสู่สภาพเรสต์ (Rest)',
             '4. เมื่อจบเทิร์นเรา สกิลออโต้จะทำงานอัตโนมัติ สแตร์น (Stand) DAN HENG ขึ้นมาพร้อมตั้งรับในเทิร์นคู่แข่ง!'
           ]
@@ -20503,8 +20559,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '☕ คอมโบ 3: POM POM ป้องกันฉุกเฉิน & ฮิเมโกะเร่งพลังโจมตีร่ายเวท!',
           cards: ['RD10', 'RD05', 'RD09'],
           steps: [
-            '1. เมื่อคู่แข่งประกาศโจมตี ให้กดร่ายเวทรีแอค "POM POM (RD10)" จากบนมือ → ทิ้งการ์ดเผ่ารางดาว 1 ใบเพื่อยกเลิกการโจมตีนั้น และฟื้นฟู HP ลีดเดอร์เรา +1!',
-            '2. เมื่อเข้าเทิร์นเรา ร่ายเวทมนตร์ "ASTRAL EXPRESS (RD09)" → สกิลของ HIMEKO จะเพิ่มพลังโจมตีตัวเอง +2 ทันที และผลของเวทเพิ่มพลังยูนิตรางดาวอีก +1 (รวม Power 5)',
+            '1. เมื่อคู่แข่งประกาศโจมตี ให้กดร่ายเวทรีแอค "POM POM" จากบนมือ → ทิ้งการ์ดเผ่ารางดาว 1 ใบเพื่อยกเลิกการโจมตีนั้น และฟื้นฟู HP ลีดเดอร์เรา +1!',
+            '2. เมื่อเข้าเทิร์นเรา ร่ายเวทมนตร์ "ASTRAL EXPRESS" → สกิลของ HIMEKO จะเพิ่มพลังโจมตีตัวเอง +2 ทันที และผลของเวทเพิ่มพลังยูนิตรางดาวอีก +1 (รวม Power 5)',
             '3. เข้าสู่ Battle Phase สั่ง HIMEKO โจมตีปิดเกมคว้าชัยชนะอย่างเด็ดขาด!'
           ]
         },
@@ -20513,9 +20569,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '⚡ คอมโบ 4: สปาร์กซี่คอน ผสานร่างไร้เทียมทาน ขัดขวางสกิล & ฮิบานะบุกสังหาร!',
           cards: ['BT02_04', 'BT02_08', 'RD05'],
           steps: [
-            '1. ผสานร่างอัญเชิญ "สปาร์กซี่คอน (BT02_04)" ลงสนาม → ได้รับความสามารถต่อเนื่องไม่รับผลของความสามารถการ์ดฝั่งตรงข้าม!',
+            '1. ผสานร่างอัญเชิญ "สปาร์กซี่คอน" ลงสนาม → ได้รับความสามารถต่อเนื่องไม่รับผลของความสามารถการ์ดฝั่งตรงข้าม!',
             '2. เมื่อฝ่ายตรงข้ามสั่งใช้งานการ์ดหรือความสามารถ สกิลออโต้ของสปาร์กซี่คอนจะขัดขวางและทำลายการ์ดนั้นทันที (1 ครั้ง/เทิร์น)!',
-            '3. ร่ายเวท "มีดสั้นฮิบานะ (BT02_08)" แล้วสั่งยูนิตโจมตี → หลังการโจมตีจบ สามารถทิ้งการ์ดบนมือ 1 ใบเพื่อทำลายยูนิตของศัตรู 1 ใบทันที!'
+            '3. ร่ายเวท "มีดสั้นฮิบานะ" แล้วสั่งยูนิตโจมตี → หลังการโจมตีจบ สามารถทิ้งการ์ดบนมือ 1 ใบเพื่อทำลายยูนิตของศัตรู 1 ใบทันที!'
           ]
         }
       ]
@@ -20530,10 +20586,10 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '👽 คอมโบ 1: ฝันร้ายคืนชีพ THE XENOMORPH & THE SLASHER บั่นทอน HP!',
           cards: ['KL07', 'KL02', 'KL12', 'L09'],
           steps: [
-            '1. มี "THE SLASHER (KL02)" บนสนาม และมี "THE XENOMORPH (KL07)" ในนรก',
+            '1. มี "THE SLASHER" บนสนาม และมี "THE XENOMORPH" ในนรก',
             '2. เมื่อจบเทิร์นเราและคู่ต่อสู้สั่งโจมตีลีดเดอร์เราจนเสีย HP (เลือก "ไม่ขัดขวาง" ในหน้าต่างป้องกัน)',
             '3. สกิลสั่งใช้งานจากนรกของ THE XENOMORPH จะทำงานทันที → คลิกอัญเชิญลงสู่สนาม และทิ้งการ์ดบนมือ 1 ใบเพื่อฟื้นฟูเลือดลีดเดอร์เรา +1 HP!',
-            '4. เข้าเทิร์นเรา ร่ายเวท "OMNIPRESENT EVIL (KL12)" สั่งให้อีกฝ่ายจั่ว 2 ใบและเสีย 1 HP → ทริกเกอร์สกิลของ THE SLASHER ยิงซ้ำอีก 1 HP (รวมเป็น 2 HP) พร้อมสั่งโจมตีปิดเกม!'
+            '4. เข้าเทิร์นเรา ร่ายเวท "OMNIPRESENT EVIL" สั่งให้อีกฝ่ายจั่ว 2 ใบและเสีย 1 HP → ทริกเกอร์สกิลของ THE SLASHER ยิงซ้ำอีก 1 HP (รวมเป็น 2 HP) พร้อมสั่งโจมตีปิดเกม!'
           ]
         },
         {
@@ -20541,10 +20597,10 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '☣️ คอมโบ 2: THE BLIGHT สังหารต่อเนื่อง & ชุบ THE TRAPPER ฟรีลงสนาม!',
           cards: ['KL05', 'KL04', 'BT02_15'],
           steps: [
-            '1. สั่ง "THE BLIGHT (KL05)" โจมตีทำลายยูนิตฝ่ายตรงข้ามในการต่อสู้',
-            '2. เมื่อทำลายสำเร็จ สกิลออโต้ของ The Blight จะทำงาน → เลือกทิ้ง "THE TRAPPER (KL04)" บนมือ 1 ใบ เพื่อระเบิดทำลายยูนิตฝ่ายตรงข้ามที่เหลือเพิ่มอีกสูงสุด 2 ใบทันที!',
-            '3. เมื่อ The Trapper ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที → เลือกอัญเชิญ The Trapper ลงสู่สนามฟรีทันที (ได้ทั้งล้างสนามศัตรู 2 ใบ และได้ยูนิตลงสนามฟรี)!',
-            '4. มีเวทมนตร์รีแอค "UNBODIED FLESH (BT02_15)" คอยคุ้มกันบนมือ เมื่อคู่ต่อสู้สั่งร่ายการ์ดเวทมนตร์ ป๊อปอัปจะเด้งขึ้นมาให้กดยกเลิกความสามารถเวทมนตร์นั้นทันที!'
+            '1. สั่ง "THE BLIGHT" โจมตีทำลายยูนิตฝ่ายตรงข้ามในการต่อสู้',
+            '2. เมื่อทำลายสำเร็จ สกิลออโต้ของ The Blight จะทำงาน → เลือกทิ้ง "THE TRAPPER" บนมือ 1 ใบ เพื่อทำลายยูนิตอีกฝ่ายที่พลัง ≤ The Blight เพิ่มอีก 1 ใบทันที!',
+            '3. เมื่อ The Trapper ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที → เลือกอัญเชิญ The Trapper ลงสู่สนามฟรีทันที (ได้ทั้งทำลายศัตรูเพิ่ม และได้ยูนิตลงสนามฟรี)!',
+            '4. มีเวทมนตร์รีแอค "UNBODIED FLESH" คอยคุ้มกันบนมือ เมื่อคู่ต่อสู้สั่งร่ายการ์ดเวทมนตร์ ป๊อปอัปจะเด้งขึ้นมาให้กดยกเลิกความสามารถเวทมนตร์นั้นทันที!'
           ]
         },
         {
@@ -20552,7 +20608,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           title: '🧬 คอมโบ 3: มิติมืดสังหาร ปลุก PROJECT UROBOROS-NE ตีเบิ้ล 2 ครั้ง!',
           cards: ['BT02_11', 'BT02_12', 'BT02_13'],
           steps: [
-            '1. มี "THE MASTERMIND (BT02_12)" และ "THE NEMESIS (BT02_13)" ในนรก และมี "THE PROJECT UROBOROS-NE (BT02_11)" อยู่บนมือ',
+            '1. มี "THE MASTERMIND" และ "THE NEMESIS" ในนรก และมี "THE PROJECT UROBOROS-NE" อยู่บนมือ',
             '2. คลิกที่ UROBOROS-NE บนมือ → สั่งใช้งานนำ Mastermind และ Nemesis จากนรกเข้าสู่มิติมืดเพื่ออัญเชิญ UROBOROS-NE ลงสู่สนาม!',
             '3. สกิลเมื่อลงสนามทำงาน → ทิ้งการ์ดบนมือ 1 ใบเพื่อฟื้นฟูเลือดลีดเดอร์เรา +3 HP!',
             '4. ในมิติมืด Mastermind บัฟพลังให้ UROBOROS-NE +1 (เป็น Power 4) และ Nemesis คุ้มกันไม่รับผลสกิลศัตรู พร้อมสกิลต่อเนื่องสั่งโจมตีได้ถึง 2 ครั้งในเทิร์นเดียว!'
@@ -21029,7 +21085,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
           pendingPointerText: '👆 3. คลิกทำลายยูนิตของ AI ใบนี้!',
           title: 'ขั้นที่ 1: อัญเชิญยูนิตลงสนาม & สกิลเมื่อลงสนาม (ON_SUMMON)',
-          desc: 'คลิกที่การ์ด "บาคุจิต (M01)" บนมือด้านล่าง -> คลิกวางลงบนช่องสนามฝั่งเรา -> แล้วคลิกทำลายมอนสเตอร์ของ AI 1 ใบ!',
+          desc: 'คลิกที่การ์ด "บาคุจิต" บนมือด้านล่าง -> คลิกวางลงบนช่องสนามฝั่งเรา -> แล้วคลิกทำลายมอนสเตอร์ของ AI 1 ใบ!',
           isDone: () => gameState.player.board.some(m => m && m.id === 'M01') && !gameState.pendingAction
         },
         {
@@ -21038,7 +21094,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           pointerText: '👆 1. คลิกเลือก "โทโดโรจิต" บนมือ',
           slotPointerText: '👆 2. คลิกวางลงช่องว่างข้างๆ บาคุจิต!',
           title: 'ขั้นที่ 2: อัญเชิญยูนิตคู่หูเพื่อรับโบนัสพลังต่อเนื่อง!',
-          desc: 'คลิกที่การ์ด "โทโดโรจิต (M02)" บนมือ แล้ววางลงช่องว่างบนสนามเรา — สังเกตว่าพลังของ "บาคุจิต" จะเพิ่มขึ้น +1 (เป็น Power 3) ทันทีเพราะมีโทโดโรจิตอยู่บนสนาม!',
+          desc: 'คลิกที่การ์ด "โทโดโรจิต" บนมือ แล้ววางลงช่องว่างบนสนามเรา — สังเกตว่าพลังของ "บาคุจิต" จะเพิ่มขึ้น +1 (เป็น Power 3) ทันทีเพราะมีโทโดโรจิตอยู่บนสนาม!',
           isDone: () => gameState.player.board.some(m => m && m.id === 'M02')
         },
         {
@@ -21057,7 +21113,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           pendingHandCardId: 'M06',
           pendingPointerText: '👆 คลิกเลือกเป้าหมายตามที่สกิลระบุ!',
           title: 'ขั้นที่ 4: การร่ายการ์ดเวทมนตร์ Normal Spell (เทิร์นละ 1 ใบ)',
-          desc: 'คลิกที่การ์ดเวท "โอ๊ยใครเหยียบตีน!!! (S01)" บนมือ -> คลิกทิ้งการ์ดบนมือ 1 ใบ -> แล้วคลิกทำลายมอนสเตอร์ใบสุดท้ายของ AI บนสนาม!',
+          desc: 'คลิกที่การ์ดเวท "โอ๊ยใครเหยียบตีน!!!" บนมือ -> คลิกทิ้งการ์ดบนมือ 1 ใบ -> แล้วคลิกทำลายมอนสเตอร์ใบสุดท้ายของ AI บนสนาม!',
           isDone: () => gameState.player.spellQuota.normalUsed >= 1 && !gameState.pendingAction
         },
         {
@@ -21124,7 +21180,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "โทโดโรจิต" บนสนาม',
             choicePointerText: '👆 2. คลิกเลือกหัวข้อที่ 2 (นำบาคุจิตจากนรกขึ้นมือ)',
             title: 'สเต็ป 1/2: ใช้สกิลโทโดโรจิต เก็บ "บาคุจิต" จากนรกขึ้นมือ',
-            desc: 'คลิกที่ "โทโดโรจิต (M02)" บนสนามเรา แล้วเลือกหัวข้อที่ 2 เพื่อนำ "บาคุจิต (M01)" จากนรกกลับขึ้นมือฟรี!',
+            desc: 'คลิกที่ "โทโดโรจิต" บนสนามเรา แล้วเลือกหัวข้อที่ 2 เพื่อนำ "บาคุจิต" จากนรกกลับขึ้นมือฟรี!',
             isDone: () => p.hand.some(c => c && c.id === 'M01')
           },
           {
@@ -21134,7 +21190,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
             pendingPointerText: '👆 3. คลิกทำลายมอนสเตอร์ของอีกฝ่าย!',
             title: 'สเต็ป 2/2: อัญเชิญ "บาคุจิต" ทำลายยูนิตอีกฝ่าย & รับพลังคู่หู +1!',
-            desc: 'คลิกเลือก "บาคุจิต (M01)" บนมือ -> วางลงช่องว่างบนสนามเรา -> แล้วคลิกทำลายมอนสเตอร์ของ AI! (สังเกตว่าบาคุจิตได้พลัง +1 เป็น Power 3 เพราะมีโทโดโรจิตอยู่คู่กัน)',
+            desc: 'คลิกเลือก "บาคุจิต" บนมือ -> วางลงช่องว่างบนสนามเรา -> แล้วคลิกทำลายมอนสเตอร์ของ AI! (สังเกตว่าบาคุจิตได้พลัง +1 เป็น Power 3 เพราะมีโทโดโรจิตอยู่คู่กัน)',
             isDone: () => p.board.some(m => m && m.id === 'M01') && !gameState.pendingAction
           }
         ];
@@ -21153,7 +21209,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "ฮออ์กส์ฟีม" บนสนาม',
             choicePointerText: '👆 2. กดใช้สกิลค้นหา "เอ็นเดจิต" ขึ้นมือ!',
             title: 'สเต็ป 1/3: ใช้สกิลฮออ์กส์ฟีม ค้นหา "เอ็นเดจิต" ขึ้นมือ',
-            desc: 'คลิกที่ "ฮออ์กส์ฟีม (M06)" บนสนาม แล้วกดยืนยันใช้สกิล (ลดพลังตัวเอง -2) เพื่อดึง "เอ็นเดจิต (M05)" ขึ้นมือทันที!',
+            desc: 'คลิกที่ "ฮออ์กส์ฟีม" บนสนาม แล้วกดยืนยันใช้สกิล (ลดพลังตัวเอง -2) เพื่อดึง "เอ็นเดจิต" ขึ้นมือทันที!',
             isDone: () => p.hand.some(c => c && c.id === 'M05')
           },
           {
@@ -21162,7 +21218,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "เอ็นเดจิต" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
             title: 'สเต็ป 2/3: อัญเชิญ "เอ็นเดจิต" ลงสนาม',
-            desc: 'คลิกที่ "เอ็นเดจิต (M05)" บนมือ แล้วคลิกวางลงช่องว่างบนสนามเรา',
+            desc: 'คลิกที่ "เอ็นเดจิต" บนมือ แล้วคลิกวางลงช่องว่างบนสนามเรา',
             isDone: () => p.board.some(m => m && m.id === 'M05')
           },
           {
@@ -21172,7 +21228,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "เอ็นเดจิต" บนสนาม',
             choicePointerText: '👆 2. กดใช้สกิลเพิ่มพลัง +2!',
             title: 'สเต็ป 3/3: กดสกิลเอ็นเดจิต พลัง +2 และคืนพลังให้ฮออ์กส์ฟีม +2!',
-            desc: 'คลิกที่ "เอ็นเดจิต (M05)" บนสนามเพื่อกดใช้สกิล -> เอ็นเดจิตจะได้พลัง +2 (เป็น Power 4) และสกิลออโต้ของฮออ์กส์ฟีมจะทำงานได้พลัง +2 คืนกลับมาทันที!',
+            desc: 'คลิกที่ "เอ็นเดจิต" บนสนามเพื่อกดใช้สกิล -> เอ็นเดจิตจะได้พลัง +2 (เป็น Power 4) และสกิลออโต้ของฮออ์กส์ฟีมจะทำงานได้พลัง +2 คืนกลับมาทันที!',
             isDone: () => {
               const ende = p.board.find(m => m && m.id === 'M05');
               return !!(ende && ende.usedSkills && ende.usedSkills.endeBoost);
@@ -21194,7 +21250,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             action: 'NEXT_PHASE',
             pointerText: '👆 กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อให้ AI โจมตีมา!',
             title: 'สเต็ป 1/2: จบเทิร์นเพื่อล่อให้ AI โจมตีใส่ Leader ของเรา (ขณะ HP ≤ 2)',
-            desc: 'ตอนนี้เรามี "ออลจิต (M03)" บนมือ และมี "ออลฟอจิต (M04)" รออยู่ในนรก ขณะที่เลือด Leader เหลือ 2 HP -> กดปุ่มเปลี่ยนเฟส 2 ครั้งเพื่อจบเทิร์นให้ AI โจมตีเข้ามา!',
+            desc: 'ตอนนี้เรามี "ออลจิต" บนมือ และมี "ออลฟอจิต" รออยู่ในนรก ขณะที่เลือด Leader เหลือ 2 HP -> กดปุ่มเปลี่ยนเฟส 2 ครั้งเพื่อจบเทิร์นให้ AI โจมตีเข้ามา!',
             isDone: () => gameState.activeTurn === 'ai'
           },
           {
@@ -21202,7 +21258,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             choicePointerText: '👆 คลิกปลุก "ออลฟอจิต" จากนรกล้างกระดาน!',
             title: 'สเต็ป 2/2: สั่งปลุก "ออลฟอจิต" จากนรกระเบิดสนามทุกใบ!',
-            desc: 'เมื่อ AI โจมตีใส่ Leader ของเรา หน้าต่างตัวเลือกจะเด้งขึ้นมา -> กดเลือกข้อแรกเพื่อปลุก "ออลฟอจิต (M04)" จากนรกลงมาทำลายมอนสเตอร์ทุกใบบนสนามทันที!',
+            desc: 'เมื่อ AI โจมตีใส่ Leader ของเรา หน้าต่างตัวเลือกจะเด้งขึ้นมา -> กดเลือกข้อแรกเพื่อปลุก "ออลฟอจิต" จากนรกลงมาทำลายมอนสเตอร์ทุกใบบนสนามทันที!',
             isDone: () => p.allForJitUsed || p.board.some(m => m && (m.id === 'M04' || m.id === 'M03'))
           }
         ];
@@ -21222,7 +21278,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "ไพร่ชาวนาเหนือ" บนมือ',
             choicePointerText: '👆 2. เลือกข้อ 1: ส่งสายลับไปยึดช่องสนามอีกฝ่าย!',
             title: 'สเต็ป 1/3: ใช้สกิลไพร่ชาวนาเหนือ ส่ง "สายลับไพร่เหนือ" ไปยึดสนาม AI',
-            desc: 'คลิกที่ "ไพร่ชาวนาเหนือ (NM01)" บนมือ -> เลือกหัวข้อที่ 1 (ส่งตัวเองลงนรกและอัญเชิญสายลับไพร่เหนือลงสนามอีกฝ่าย)!',
+            desc: 'คลิกที่ "ไพร่ชาวนาเหนือ" บนมือ -> เลือกหัวข้อที่ 1 (ส่งตัวเองลงนรกและอัญเชิญสายลับไพร่เหนือลงสนามอีกฝ่าย)!',
             isDone: () => ai.board.some(m => m && m.id === 'NM05')
           },
           {
@@ -21232,7 +21288,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกร่ายเวท "หมอไพร่เหนือ" บนมือ',
             choicePointerText: '👆 2. เลือกเก็บ "ไพร่ชาวนาเหนือ" จากนรกขึ้นมือ!',
             title: 'สเต็ป 2/3: ร่ายเวท "หมอไพร่เหนือ" ดึงไพร่ชาวนาเหนือจากนรกกลับมาใช้ซ้ำ!',
-            desc: 'คลิกที่การ์ดเวท "หมอไพร่เหนือ (NS01)" บนมือ แล้วเลือกเก็บ "ไพร่ชาวนาเหนือ (NM01)" จากนรกกลับขึ้นมือ!',
+            desc: 'คลิกที่การ์ดเวท "หมอไพร่เหนือ" บนมือ แล้วเลือกเก็บ "ไพร่ชาวนาเหนือ" จากนรกกลับขึ้นมือ!',
             isDone: () => p.spellQuota.normalUsed >= 1 && p.hand.some(c => c && c.id === 'NM01')
           },
           {
@@ -21242,7 +21298,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "ไพร่ชาวนาเหนือ" บนมืออีกครั้ง',
             choicePointerText: '👆 2. เลือกข้อ 2: ค้นหาการ์ด "ทหาร" จากกองขึ้นมือ!',
             title: 'สเต็ป 3/3: ใช้ไพร่ชาวนาเหนือใบเดิมค้นหา "ทหารหลวงเหนือ" จากกองขึ้นมือ!',
-            desc: 'คลิกที่ "ไพร่ชาวนาเหนือ (NM01)" บนมืออีกครั้ง แล้วเลือกหัวข้อที่ 2 เพื่อดึงการ์ด "ทหาร" จากกองขึ้นมือฟรี!',
+            desc: 'คลิกที่ "ไพร่ชาวนาเหนือ" บนมืออีกครั้ง แล้วเลือกหัวข้อที่ 2 เพื่อดึงการ์ด "ทหาร" จากกองขึ้นมือฟรี!',
             isDone: () => p.hand.some(c => c && (c.id === 'NM02' || c.id === 'NM03' || c.id === 'NM04'))
           }
         ];
@@ -21259,8 +21315,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             cardId: 'NM04',
             pointerText: '👆 1. คลิกเลือก "ทหารเกณฑ์เหนือ" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องที่ 1 บนสนามเรา!',
-            title: 'สเต็ป 1/2: อัญเชิญ "ทหารเกณฑ์เหนือ (NM04)" ลงสนามเตรียมคอมโบจุติ',
-            desc: 'คลิกเลือก "ทหารเกณฑ์เหนือ (NM04)" บนมือ แล้วคลิกวางลงช่องว่างบนสนามเรา (ได้พลัง +1 เมื่อลงสนาม)',
+            title: 'สเต็ป 1/2: อัญเชิญ "ทหารเกณฑ์เหนือ" ลงสนามเตรียมคอมโบจุติ',
+            desc: 'คลิกเลือก "ทหารเกณฑ์เหนือ" บนมือ แล้วคลิกวางลงช่องว่างบนสนามเรา (ได้พลัง +1 เมื่อลงสนาม)',
             isDone: () => p.board.some(m => m && m.id === 'NM04')
           },
           {
@@ -21270,7 +21326,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "ทหารหลวงเหนือ" บนมือ',
             choicePointerText: '👆 2. เลือกอัญเชิญจุติ / เลือกทหารจากนรกลงสนาม!',
             title: 'สเต็ป 2/2: อัญเชิญจุติ "ทหารหลวงเหนือ" เรียกพรรคพวกฟรีครบ 3 ช่อง!',
-            desc: 'คลิกที่ "ทหารหลวงเหนือ (NM02)" บนมือ -> เลือกหัวข้อที่ 1 (อัญเชิญจุติโดยทิ้งไพร่ชาวนาเหนือ) -> คลิกวางลงช่องว่าง -> แล้วเลือกชุบ "ทหารพรานเหนือ" จากนรกลงช่องที่ 3 ฟรี!',
+            desc: 'คลิกที่ "ทหารหลวงเหนือ" บนมือ -> เลือกหัวข้อที่ 1 (อัญเชิญจุติโดยทิ้งไพร่ชาวนาเหนือ) -> คลิกวางลงช่องว่าง -> แล้วเลือกชุบ "ทหารพรานเหนือ" จากนรกลงช่องที่ 3 ฟรี!',
             isDone: () => p.board.some(m => m && m.id === 'NM02') && !gameState.pendingAction && !isChoiceModalOpen()
           }
         ];
@@ -21292,7 +21348,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "ทหารหลวงเหนือ" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องที่ 3 บนสนามเรา!',
             title: 'สเต็ป 1/3: ลง "ทหารหลวงเหนือ" ให้ครบทั้ง 3 ทหารบนสนาม',
-            desc: 'คลิกที่ "ทหารหลวงเหนือ (NM02)" บนมือ แล้วคลิกวางลงช่องที่ 3 เพื่อให้สนามเรามีครบทั้ง ทหารเกณฑ์ + ทหารพราน + ทหารหลวง!',
+            desc: 'คลิกที่ "ทหารหลวงเหนือ" บนมือ แล้วคลิกวางลงช่องที่ 3 เพื่อให้สนามเรามีครบทั้ง ทหารเกณฑ์ + ทหารพราน + ทหารหลวง!',
             isDone: () => {
               if (gameState.selectedHandIndex !== null && p.hand[gameState.selectedHandIndex]?.id === 'NM02') {
                 // ถ้าระบบเลือกการ์ดในมือแล้ว ให้เปลี่ยนเป็นโหมดชี้ช่องสนามทันที
@@ -21308,8 +21364,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "ทหารพรานเหนือ" บนสนาม',
             choicePointerText: '👆 2. กดใช้สกิลของทหารพรานเหนือ!',
             pendingPointerText: '👆 3. คลิกเลือกยูนิตบนสนามเพื่อเพิ่ม/ลดพลัง!',
-            title: 'สเต็ป 2/3: กดใช้สกิลของ "ทหารพรานเหนือ (NM03)"',
-            desc: 'คลิกที่ "ทหารพรานเหนือ (NM03)" บนสนาม -> กดใช้สกิล -> แล้วคลิกเลือกยูนิตฝั่งเราเพื่อเพิ่มพลัง +1 (หรือคลิกยูนิต AI เพื่อลดพลัง -1)!',
+            title: 'สเต็ป 2/3: กดใช้สกิลของ "ทหารพรานเหนือ"',
+            desc: 'คลิกที่ "ทหารพรานเหนือ" บนสนาม -> กดใช้สกิล -> แล้วคลิกเลือกยูนิตฝั่งเราเพื่อเพิ่มพลัง +1 (หรือคลิกยูนิต AI เพื่อลดพลัง -1)!',
             isDone: () => {
               const ranger = p.board.find(m => m && m.id === 'NM03');
               return !!(ranger && ranger.usedSkills && ranger.usedSkills.rangerTarget) && !gameState.pendingAction;
@@ -21320,8 +21376,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             cardId: 'NS03',
             pointerText: '👆 1. คลิกร่ายเวท "ระเบิดปูพรม" บนมือ!',
             pendingPointerText: '👆 2. คลิกเลือกทำลายมอนสเตอร์ของ AI!',
-            title: 'สเต็ป 3/3: ร่ายเวท "ระเบิดปูพรม (NS03)" แสดงผลครบ 3 ทหารพร้อมกัน!',
-            desc: 'คลิกการ์ดเวท "ระเบิดปูพรม (NS03)" บนมือ แล้วคลิกเลือกทำลายมอนสเตอร์ของ AI 1 ใบ (พร้อมรับบัฟพลัง +1 ยกแผง และเกราะอมตะไม่ถูกทำลายจนเริ่มเทิร์นถัดไป)!',
+            title: 'สเต็ป 3/3: ร่ายเวท "ระเบิดปูพรม" แสดงผลครบ 3 ทหารพร้อมกัน!',
+            desc: 'คลิกการ์ดเวท "ระเบิดปูพรม" บนมือ แล้วคลิกเลือกทำลายมอนสเตอร์ของ AI 1 ใบ (พร้อมรับบัฟพลัง +1 ยกแผง และเกราะอมตะไม่ถูกทำลายจนเริ่มเทิร์นถัดไป)!',
             isDone: () => p.spellQuota.normalUsed >= 1 && !gameState.pendingAction
           }
         ];
@@ -21346,7 +21402,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pendingHandCardId: 'DM05',
             pendingPointerText: '👆 3. คลิกทิ้ง "ซึรุรุ" บนมือ (บังคับอีกฝ่ายทิ้งมือ 1 ใบ)!',
             title: 'สเต็ป 1/3: ใช้สกิลโอนามิ ทิ้ง "ซึรุรุ" เพื่อเรียกคู่หู "โรเซเลีย" ลงสนาม!',
-            desc: 'คลิกที่ "โอนามิ ผู้ทำลายโลก (DM01)" บนสนาม -> คลิกทิ้ง "ซึรุรุ (DM05)" บนมือ (สกิลซึรุรุจะบังคับ AI ทิ้งมือ 1 ใบทันที!) -> แล้วเลือกอัญเชิญ "โรเซเลีย (DM02)" ลงสนาม!',
+            desc: 'คลิกที่ "โอนามิ ผู้ทำลายโลก" บนสนาม -> คลิกทิ้ง "ซึรุรุ" บนมือ (สกิลซึรุรุจะบังคับ AI ทิ้งมือ 1 ใบทันที!) -> แล้วเลือกอัญเชิญ "โรเซเลีย" ลงสนาม!',
             isDone: () => p.board.some(m => m && m.id === 'DM02') && !gameState.pendingAction
           },
           {
@@ -21355,8 +21411,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             pointerText: '👆 1. คลิกที่ "โรเซเลีย" บนสนาม',
             choicePointerText: '👆 2. กดใช้สกิลคู่หู Rest เพื่อจั่วการ์ด 1 ใบ!',
-            title: 'สเต็ป 2/3: ใช้สกิลคู่หูของ "โรเซเลีย (DM02)" จั่วการ์ดฟรี 1 ใบ!',
-            desc: 'ตอนนี้โอนามิและโรเซเลียอยู่คู่กันแล้ว (โอนามิได้พลัง +2 เป็น Power 4) -> คลิกที่ "โรเซเลีย (DM02)" บนสนามเพื่อเปลี่ยนเป็น Rest และจั่วการ์ด 1 ใบ (ต้องเรียงโซเนบุกลับไว้ท็อปกองให้อัตโนมัติหลังจั่ว)!',
+            title: 'สเต็ป 2/3: ใช้สกิลคู่หูของ "โรเซเลีย" จั่วการ์ดฟรี 1 ใบ!',
+            desc: 'ตอนนี้โอนามิและโรเซเลียอยู่คู่กันแล้ว (โอนามิได้พลัง +2 เป็น Power 4) -> คลิกที่ "โรเซเลีย" บนสนามเพื่อเปลี่ยนเป็น Rest และจั่วการ์ด 1 ใบ (ต้องเรียงโซเนบุกลับไว้ท็อปกองให้อัตโนมัติหลังจั่ว)!',
             isDone: () => {
               const rose = p.board.find(m => m && m.id === 'DM02');
               return !!(rose && rose.state === 'Rest');
@@ -21396,14 +21452,14 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกการ์ดอนาคต "ยอดนักดาบ แอชชี่ล่า" บนมือ',
             choicePointerText: '👆 2. กดยืนยันอัญเชิญร่างอนาคต!',
             title: 'สเต็ป 1/2: ส่งร่างต้นไปมิติมืดเพื่ออัญเชิญร่างอนาคต "ยอดนักดาบ แอชชี่ล่า"!',
-            desc: 'คลิกที่ "ยอดนักดาบ แอชชี่ล่า (DM13)" บนมือ -> กดยืนยันอัญเชิญร่างอนาคต -> แล้วคลิกที่ร่างต้น "แอชชี่ล่า (DM07)" บนสนามเพื่อส่งไปมิติมืดและลดพลังศัตรูทุกใบ -1!',
+            desc: 'คลิกที่ "ยอดนักดาบ แอชชี่ล่า" บนมือ -> กดยืนยันอัญเชิญร่างอนาคต -> แล้วคลิกที่ร่างต้น "แอชชี่ล่า" บนสนามเพื่อส่งไปมิติมืดและลดพลังศัตรูทุกใบ -1!',
             isDone: () => p.board.some(m => m && m.id === 'DM13') && !gameState.pendingAction
           },
           {
             action: 'NEXT_PHASE',
             pointerText: '👆 กดปุ่มเปลี่ยนเฟส 2 ครั้งเพื่อจบเทิร์นและดูการสลับร่างกลับ!',
             title: 'สเต็ป 2/2: กดเปลี่ยนเฟสจนจบเทิร์น เพื่อดูร่างต้นกลับมาจากมิติมืดแบบ Stand!',
-            desc: 'กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase แล้วกดจบเทิร์น -> สังเกตว่าเมื่อจบเทิร์น ร่างอนาคตจะลงนรกและดึง "แอชชี่ล่า (DM07)" จากมิติมืดกลับลงสนามในสถานะ Stand พร้อมเล่นเทิร์นใหม่ทันที!',
+            desc: 'กดปุ่มเปลี่ยนเฟสเข้าสู่ Battle Phase แล้วกดจบเทิร์น -> สังเกตว่าเมื่อจบเทิร์น ร่างอนาคตจะลงนรกและดึง "แอชชี่ล่า" จากมิติมืดกลับลงสนามในสถานะ Stand พร้อมเล่นเทิร์นใหม่ทันที!',
             isDone: () => p.board.some(m => m && m.id === 'DM07') && p.graveyard.some(c => c && c.id === 'DM13')
           }
         ];
@@ -21423,8 +21479,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกร่ายเวท "เบิกเนตรแห่งแสง" บนมือ',
             pendingBoardCardId: 'DM08',
             pendingPointerText: '👆 2. คลิกเลือกบัฟพลัง +1 ให้ "เอมิ"!',
-            title: 'สเต็ป 1/4: ร่ายเวท "เบิกเนตรแห่งแสง (DS01)" จั่ว 2 ใบ & บัฟพลังให้เอมิ +1!',
-            desc: 'เพราะในนรกเรามีการ์ดครบ 5 ใบ เมื่อคลิกร่าย "เบิกเนตรแห่งแสง (DS01)" จะได้จั่วการ์ดถึง 2 ใบ! จากนั้นคลิกเลือกบัฟพลัง +1 ให้ "เอมิ (DM08)" บนสนาม!',
+            title: 'สเต็ป 1/4: ร่ายเวท "เบิกเนตรแห่งแสง" จั่ว 2 ใบ & บัฟพลังให้เอมิ +1!',
+            desc: 'เพราะในนรกเรามีการ์ดครบ 5 ใบ เมื่อคลิกร่าย "เบิกเนตรแห่งแสง" จะได้จั่วการ์ดถึง 2 ใบ! จากนั้นคลิกเลือกบัฟพลัง +1 ให้ "เอมิ" บนสนาม!',
             isDone: () => p.spellQuota.normalUsed >= 1 && !gameState.pendingAction
           },
           {
@@ -21439,8 +21495,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             cardId: 'DM08',
             pointerText: '👆 1. คลิกเลือก "เอมิ" บนสนาม',
             targetPointerText: '👆 2. คลิกโจมตีที่ Leader ของ AI ครั้งที่ 1!',
-            title: 'สเต็ป 3/4: สั่ง "เอมิ (DM08)" โจมตีใส่ Leader ของอีกฝ่ายครั้งที่ 1',
-            desc: 'คลิกที่ "เอมิ (DM08)" บนสนาม แล้วคลิกโจมตีที่การ์ด Leader ของ AI (ทำให้เลือด AI เหลือ 1 HP และเอมินอน Rest)',
+            title: 'สเต็ป 3/4: สั่ง "เอมิ" โจมตีใส่ Leader ของอีกฝ่ายครั้งที่ 1',
+            desc: 'คลิกที่ "เอมิ" บนสนาม แล้วคลิกโจมตีที่การ์ด Leader ของ AI (ทำให้เลือด AI เหลือ 1 HP และเอมินอน Rest)',
             isDone: () => {
               const emi = p.board.find(m => m && m.id === 'DM08');
               return !!(emi && emi.state === 'Rest');
@@ -21453,7 +21509,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "เอมิ" ที่นอน Rest อยู่บนสนาม!',
             choicePointerText: '👆 2. กดยืนยันทิ้งมือ 3 ใบเพื่อลุกขึ้น Stand!',
             title: 'สเต็ป 4/4: คลิกที่ "เอมิ" ที่นอน Rest อยู่เพื่อทิ้งมือ 3 ใบและลุกขึ้น Stand ตีซ้ำ!',
-            desc: 'เมื่อมี "เดบิรุน (DM04)" อยู่บนสนาม ให้คลิกที่ "เอมิ (DM08)" ที่กำลังนอน Rest อยู่ -> กดยืนยันทิ้งการ์ดบนมือ 3 ใบเพื่อลุกขึ้น Stand พร้อมโจมตีซ้ำปิดเกม!',
+            desc: 'เมื่อมี "เดบิรุน" อยู่บนสนาม ให้คลิกที่ "เอมิ" ที่กำลังนอน Rest อยู่ -> กดยืนยันทิ้งการ์ดบนมือ 3 ใบเพื่อลุกขึ้น Stand พร้อมโจมตีซ้ำปิดเกม!',
             isDone: () => {
               const emi = p.board.find(m => m && m.id === 'DM08');
               return !!(emi && emi.usedSkills && emi.usedSkills.emiReattack);
@@ -21475,8 +21531,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             pointerText: '👆 1. คลิกที่ "พเทอราโนดอน" บนสนาม',
             choicePointerText: '👆 2. กดใช้สกิลโม่กอง 2 ใบแล้วจั่ว 1 ใบ!',
-            title: 'สเต็ป 1/3: ใช้สกิล "พเทอราโนดอน (DN04)" โม่กอง 2 ใบเร่งพลังสไปโนซอรัส!',
-            desc: 'คลิกที่ "พเทอราโนดอน (DN04)" บนสนามเพื่อโม่การ์ด 2 ใบลงนรกและจั่ว 1 ใบ — พอในนรกครบ 6 ใบ สกิลต่อเนื่องของ "สไปโนซอรัส (DN05)" จะเพิ่มพลังโจมตีให้ตัวเองทันที!',
+            title: 'สเต็ป 1/3: ใช้สกิล "พเทอราโนดอน" โม่กอง 2 ใบเร่งพลังสไปโนซอรัส!',
+            desc: 'คลิกที่ "พเทอราโนดอน" บนสนามเพื่อโม่การ์ด 2 ใบลงนรกและจั่ว 1 ใบ — พอในนรกครบ 6 ใบ สกิลต่อเนื่องของ "สไปโนซอรัส" จะเพิ่มพลังโจมตีให้ตัวเองทันที!',
             isDone: () => {
               const ptera = p.board.find(m => m && m.id === 'DN04');
               return !!(ptera && ptera.usedSkills && ptera.usedSkills.pteranodon_mill_draw);
@@ -21487,8 +21543,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             pointerText: '👆 1. คลิกที่การ์ด Leader "ศูนย์วิจัยไดโน" ของเรา!',
             choicePointerText: '👆 2. กดเลือกเก็บการ์ดไดโนจากนรกขึ้นมือ!',
-            title: 'สเต็ป 2/3: กดสกิล Leader "ศูนย์วิจัยไดโน (L04)" เก็บไดโนจากนรกขึ้นมือ!',
-            desc: 'คลิกที่การ์ด "👑 Leader ศูนย์วิจัยไดโน (L04)" มุมซ้ายล่าง แล้วเลือกเก็บยูนิตเผ่าไดโนจากนรกกลับขึ้นมือ 1 ใบฟรี!',
+            title: 'สเต็ป 2/3: กดสกิล Leader "ศูนย์วิจัยไดโน" เก็บไดโนจากนรกขึ้นมือ!',
+            desc: 'คลิกที่การ์ด "👑 Leader ศูนย์วิจัยไดโน" มุมซ้ายล่าง แล้วเลือกเก็บยูนิตเผ่าไดโนจากนรกกลับขึ้นมือ 1 ใบฟรี!',
             isDone: () => !!p.leader.abilityUsedThisTurn && !isChoiceModalOpen()
           },
           {
@@ -21499,8 +21555,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choicePointerText: '👆 2. กดใช้สกิล Rest ตัวเองเพื่อบัฟพลัง +2!',
             pendingBoardCardId: 'DN05',
             pendingPointerText: '👆 3. คลิกเลือกบัฟพลัง +2 ให้ "สไปโนซอรัส"!',
-            title: 'สเต็ป 3/3: ใช้สกิล "เวโลซิแรปเตอร์ (DN02)" บัฟพลังให้สไปโนซอรัส +2!',
-            desc: 'คลิกที่ "เวโลซิแรปเตอร์ (DN02)" บนสนาม -> กดยืนยันใช้สกิล Rest ตัวเอง -> แล้วคลิกเลือก "สไปโนซอรัส (DN05)" เพื่อเพิ่มพลังโจมตีอีก +2 จนจบเทิร์น!',
+            title: 'สเต็ป 3/3: ใช้สกิล "เวโลซิแรปเตอร์" บัฟพลังให้สไปโนซอรัส +2!',
+            desc: 'คลิกที่ "เวโลซิแรปเตอร์" บนสนาม -> กดยืนยันใช้สกิล Rest ตัวเอง -> แล้วคลิกเลือก "สไปโนซอรัส" เพื่อเพิ่มพลังโจมตีอีก +2 จนจบเทิร์น!',
             isDone: () => {
               const raptor = p.board.find(m => m && m.id === 'DN02');
               return !!(raptor && raptor.usedSkills && raptor.usedSkills.raptor_buff) && !gameState.pendingAction;
@@ -21522,8 +21578,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             pointerText: '👆 1. คลิกที่ "ไฮบริด — อินโดมินัสเร็กซ์" (ขอบสีเขียว) บนมือ!',
             choicePointerText: '👆 2. กดยืนยันส่งวัตถุดิบไปมิติมืดเพื่ออัญเชิญไฮบริด!',
-            title: 'สเต็ป 1/4: ผสานร่างอัญเชิญ "ไฮบริด — อินโดมินัสเร็กซ์ (DN06)" ลงสนาม!',
-            desc: 'คลิกที่ "ไฮบริด — อินโดมินัสเร็กซ์ (DN06)" บนมือ (ขอบเรืองแสงสีเขียว) แล้วกดยืนยันส่ง "ทีเร็กซ์" กับ "เวโลซิแรปเตอร์" จากนรกไปมิติมืดเพื่ออัญเชิญลงสนาม!',
+            title: 'สเต็ป 1/4: ผสานร่างอัญเชิญ "ไฮบริด — อินโดมินัสเร็กซ์" ลงสนาม!',
+            desc: 'คลิกที่ "ไฮบริด — อินโดมินัสเร็กซ์" บนมือ (ขอบเรืองแสงสีเขียว) แล้วกดยืนยันส่ง "ทีเร็กซ์" กับ "เวโลซิแรปเตอร์" จากนรกไปมิติมืดเพื่ออัญเชิญลงสนาม!',
             isDone: () => p.board.some(m => m && m.id === 'DN06')
           },
           {
@@ -21539,7 +21595,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "อินโดมินัสเร็กซ์" บนสนาม',
             targetPointerText: '👆 2. คลิกโจมตีทำลายมอนสเตอร์ของ AI!',
             title: 'สเต็ป 3/4: สั่ง "อินโดมินัสเร็กซ์" โจมตีทำลายมอนสเตอร์ของ AI (ลุกขึ้น Stand อัตโนมัติ!)',
-            desc: 'คลิกที่ "ไฮบริด — อินโดมินัสเร็กซ์ (DN06)" บนสนาม แล้วคลิกโจมตีมอนสเตอร์ของ AI -> เมื่อทำลายมอนสเตอร์สำเร็จ สกิลออโต้จะทำงานทำให้ลุกขึ้น Stand ทันที!',
+            desc: 'คลิกที่ "ไฮบริด — อินโดมินัสเร็กซ์" บนสนาม แล้วคลิกโจมตีมอนสเตอร์ของ AI -> เมื่อทำลายมอนสเตอร์สำเร็จ สกิลออโต้จะทำงานทำให้ลุกขึ้น Stand ทันที!',
             isDone: () => p.attacksThisTurn >= 1 && ai.board.every(m => m === null)
           },
           {
@@ -21575,8 +21631,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "แอสโมดิวส์ บาปราคะ" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
             choicePointerText: '👆 3. คลิกเลือก "สัญญาปีศาจ" เพื่อส่งเข้ามิติมืด!',
-            title: 'สเต็ป 1/3: อัญเชิญ "แอสโมดิวส์ (DMM05)" เปิดท็อปส่ง "สัญญาปีศาจ" เข้ามิติมืด!',
-            desc: 'คลิกเลือก "แอสโมดิวส์ บาปราคะ (DMM05)" บนมือแล้ววางลงสนาม -> สกิลเปิดท็อป 3 ใบจะทำงาน ให้กดเลือก "สัญญาปีศาจ (DMS01)" เพื่อส่งเข้ามิติมืดทันที (ปีศาจทุกตัวพลัง +1 ถาวร)!',
+            title: 'สเต็ป 1/3: อัญเชิญ "แอสโมดิวส์" เปิดท็อปส่ง "สัญญาปีศาจ" เข้ามิติมืด!',
+            desc: 'คลิกเลือก "แอสโมดิวส์ บาปราคะ" บนมือแล้ววางลงสนาม -> สกิลเปิดท็อป 3 ใบจะทำงาน ให้กดเลือก "สัญญาปีศาจ" เพื่อส่งเข้ามิติมืดทันที (ปีศาจทุกตัวพลัง +1 ถาวร)!',
             isDone: () => p.darkDimension.some(c => c && c.id === 'DMS01') && !isChoiceModalOpen()
           },
           {
@@ -21591,8 +21647,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             cardId: 'DMM07',
             pointerText: '👆 1. คลิกเลือก "เบลเฟกอร์ บาปเกียจคร้าน" บนสนาม',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader อีกฝ่ายเพื่อดูดการ์ดครบ 15 ใบชนะเกม!',
-            title: 'สเต็ป 3/3: สั่ง "เบลเฟกอร์ (DMM07)" โจมตีดูดการ์ดเข้ามิติมืดครบ 15 ใบ ชนะเกมทันที!',
-            desc: 'คลิกที่ "เบลเฟกอร์ บาปเกียจคร้าน (DMM07)" บนสนาม แล้วคลิกโจมตีที่ Leader ของ AI -> สกิลออโต้ของเบลเฟกอร์จะดูดใบบนสุดของทั้ง 2 ฝั่งเข้ามิติมืดจนครบ 15 ใบ และชนะเกมด้วย "ดินแดนปีศาจ" ทันที!',
+            title: 'สเต็ป 3/3: สั่ง "เบลเฟกอร์" โจมตีดูดการ์ดเข้ามิติมืดครบ 15 ใบ ชนะเกมทันที!',
+            desc: 'คลิกที่ "เบลเฟกอร์ บาปเกียจคร้าน" บนสนาม แล้วคลิกโจมตีที่ Leader ของ AI -> สกิลออโต้ของเบลเฟกอร์จะดูดใบบนสุดของทั้ง 2 ฝั่งเข้ามิติมืดจนครบ 15 ใบ และชนะเกมด้วย "ดินแดนปีศาจ" ทันที!',
             isDone: () => gameState.gameOver
           }
         ];
@@ -21613,8 +21669,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             pointerText: '👆 1. คลิกที่ "ซาตาน บาปโทสะ" บนสนาม',
             choicePointerText: '👆 2. กดใช้สกิล [1 เกม] ล้างสนามและทำลายมือคู่แข่ง!',
-            title: 'สเต็ป 1/3: กดสกิล [1 เกม] ของ "ซาตาน บาปโทสะ (DMM04)" กวาดเรียบทั้งสนามและมือ AI!',
-            desc: 'เมื่อเลือดเราเหลือ 1 HP ให้คลิกที่ "ซาตาน บาปโทสะ (DMM04)" บนสนาม -> กดยืนยันทิ้งมือ 5 ใบเพื่อทำลายมอนสเตอร์ใบอื่นทุกใบบนสนาม และบังคับ AI ทิ้งมือ 3 ใบจนหมดมือ!',
+            title: 'สเต็ป 1/3: กดสกิล [1 เกม] ของ "ซาตาน บาปโทสะ" กวาดเรียบทั้งสนามและมือ AI!',
+            desc: 'เมื่อเลือดเราเหลือ 1 HP ให้คลิกที่ "ซาตาน บาปโทสะ" บนสนาม -> กดยืนยันทิ้งมือ 5 ใบเพื่อทำลายมอนสเตอร์ใบอื่นทุกใบบนสนาม และบังคับ AI ทิ้งมือ 3 ใบจนหมดมือ!',
             isDone: () => !!p.satanOncePerGameUsed && ai.board.every(m => m === null)
           },
           {
@@ -21630,7 +21686,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "ซาตาน บาปโทสะ" บนสนาม',
             targetPointerText: '👆 2. คลิกโจมตีที่ Leader ของ AI เพื่อปิดเกม!',
             title: 'สเต็ป 3/3: สั่ง "ซาตาน บาปโทสะ" โจมตีปิดเกมใส่ Leader ของ AI!',
-            desc: 'คลิกที่ "ซาตาน บาปโทสะ (DMM04)" บนสนาม แล้วคลิกโจมตีที่ Leader ของ AI เพื่อคว้าชัยชนะ!',
+            desc: 'คลิกที่ "ซาตาน บาปโทสะ" บนสนาม แล้วคลิกโจมตีที่ Leader ของ AI เพื่อคว้าชัยชนะ!',
             isDone: () => gameState.gameOver || ai.leader.hp <= 0
           }
         ];
@@ -21647,8 +21703,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             action: 'WAIT_CHOICE',
             choiceOptionIndex: 0,
             choicePointerText: '👆 กดเลือกหยิบเวทขึ้นมือ แล้วเลือก "วางไว้บนสุดของกองการ์ด"!',
-            title: 'สเต็ป 1/2: สกิลเข้าเทิร์นของ "ไอโอ๊ตบ้าทุกสิ่ง (L06)" เรียง "ไอโอ๊ตบ้าการ์ตูน" ไว้บนสุดของกอง!',
-            desc: 'หน้าต่างสกิลออโต้ต้นเทิร์นของ Leader เปิดการ์ด 2 ใบบนสุด -> กดเลือกหยิบการ์ดเวทมนตร์ขึ้นมือ แล้วกดเลือก "⬆️ วางไว้บนสุดของกองการ์ด" เพื่อให้ "ไอโอ๊ตบ้าการ์ตูน (OM01)" รออยู่ใบบนสุด!',
+            title: 'สเต็ป 1/2: สกิลเข้าเทิร์นของ "ไอโอ๊ตบ้าทุกสิ่ง" เรียง "ไอโอ๊ตบ้าการ์ตูน" ไว้บนสุดของกอง!',
+            desc: 'หน้าต่างสกิลออโต้ต้นเทิร์นของ Leader เปิดการ์ด 2 ใบบนสุด -> กดเลือกหยิบการ์ดเวทมนตร์ขึ้นมือ แล้วกดเลือก "⬆️ วางไว้บนสุดของกองการ์ด" เพื่อให้ "ไอโอ๊ตบ้าการ์ตูน" รออยู่ใบบนสุด!',
             isDone: () => !isChoiceModalOpen() && p.hand.some(c => c && c.id === 'OS02')
           },
           {
@@ -21658,8 +21714,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "ไอแบงค์บ้าเกม" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
             choicePointerText: '👆 3. กดเลือกคอล "ไอโอ๊ตบ้าการ์ตูน" ลงสนามฟรี!',
-            title: 'สเต็ป 2/2: อัญเชิญ "ไอแบงค์บ้าเกม (OM02)" เปิดท็อปกองคอล "ไอโอ๊ตบ้าการ์ตูน" ติดเกราะอมตะ!',
-            desc: 'คลิกเลือก "ไอแบงค์บ้าเกม (OM02)" บนมือแล้ววางลงสนาม -> สกิลจะเปิด 2 ใบบนสุด ให้กดเลือกคอล "ไอโอ๊ตบ้าการ์ตูน (OM01)" ลงสนามฟรี (ได้พลัง +2 เป็น Power 3 และเกราะอมตะ 1 ครั้ง/เทิร์น)!',
+            title: 'สเต็ป 2/2: อัญเชิญ "ไอแบงค์บ้าเกม" เปิดท็อปกองคอล "ไอโอ๊ตบ้าการ์ตูน" ติดเกราะอมตะ!',
+            desc: 'คลิกเลือก "ไอแบงค์บ้าเกม" บนมือแล้ววางลงสนาม -> สกิลจะเปิด 2 ใบบนสุด ให้กดเลือกคอล "ไอโอ๊ตบ้าการ์ตูน" ลงสนามฟรี (ได้พลัง +2 เป็น Power 3 และเกราะอมตะ 1 ครั้ง/เทิร์น)!',
             isDone: () => p.board.some(m => m && m.id === 'OM01') && !isChoiceModalOpen() && !gameState.pendingAction
           }
         ];
@@ -21703,8 +21759,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "ไออาร์มบ้าการ์ดเกม" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่าง (ช่องที่ 3)!',
             choicePointerText: '👆 3. กดเลือกเก็บการ์ดจากนรกขึ้นมือ!',
-            title: 'สเต็ป 1/2: อัญเชิญ "ไออาร์มบ้าการ์ดเกม (OM04)" ปลดล็อกผลของโอ๊ต + จิต!',
-            desc: 'บนสนามมี "ไอโอ๊ตบ้าการ์ตูน" + "ไอจิตบ้ากาม" -> ลง "ไออาร์มบ้าการ์ดเกม (OM04)" ในช่องว่าง: ผล 1 เก็บการ์ดจากนรกขึ้นมือ 1 ใบ + ผล 3 ศัตรูทุกใบพลัง -1 และอัปเกรดสกิลไอจิตให้ลดพลังทุกใบ (สนามมี 3 ช่อง จึงปลดได้ 2 ใน 3 ผล)',
+            title: 'สเต็ป 1/2: อัญเชิญ "ไออาร์มบ้าการ์ดเกม" ปลดล็อกผลของโอ๊ต + จิต!',
+            desc: 'บนสนามมี "ไอโอ๊ตบ้าการ์ตูน" + "ไอจิตบ้ากาม" -> ลง "ไออาร์มบ้าการ์ดเกม" ในช่องว่าง: ผล 1 เก็บการ์ดจากนรกขึ้นมือ 1 ใบ + ผล 3 ศัตรูทุกใบพลัง -1 และอัปเกรดสกิลไอจิตให้ลดพลังทุกใบ (สนามมี 3 ช่อง จึงปลดได้ 2 ใน 3 ผล)',
             isDone: () => p.board.some(m => m && m.id === 'OM04') && !!p.jitCrazyUpgraded && !isChoiceModalOpen()
           },
           {
@@ -21713,8 +21769,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             targetSlot: 1,
             pointerText: '👆 1. คลิกเลือก "ไอจิตบ้ากาม" บนมือ',
             slotPointerText: '👆 2. คลิกวางทับไอจิตใบเดิม (ช่องที่ 2)!',
-            title: 'สเต็ป 2/2: ลง "ไอจิตบ้ากาม (OM03)" ใบที่ 2 ใช้สกิลที่อัปเกรดแล้ว ลดพลังศัตรูทุกใบ!',
-            desc: 'คลิกเลือก "ไอจิตบ้ากาม (OM03)" บนมือ แล้ววางทับไอจิตใบเดิมในช่องที่ 2 -> สกิลที่อัปเกรดแล้วจะลดพลังมอนสเตอร์ AI ทุกใบอีก -1 พร้อมกัน!',
+            title: 'สเต็ป 2/2: ลง "ไอจิตบ้ากาม" ใบที่ 2 ใช้สกิลที่อัปเกรดแล้ว ลดพลังศัตรูทุกใบ!',
+            desc: 'คลิกเลือก "ไอจิตบ้ากาม" บนมือ แล้ววางทับไอจิตใบเดิมในช่องที่ 2 -> สกิลที่อัปเกรดแล้วจะลดพลังมอนสเตอร์ AI ทุกใบอีก -1 พร้อมกัน!',
             isDone: () => ai.board.filter(Boolean).every(m => (m.tempPowerMod || 0) <= -2)
           }
         ];
@@ -21735,8 +21791,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "ไอเหนือผู้มีคลิปแปลก" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
             choicePointerText: '👆 3. กดหยิบเวท "สงครามความบ้า" ขึ้นมือ!',
-            title: 'สเต็ป 1/3: อัญเชิญ "ไอเหนือผู้มีคลิปแปลก (OM05)" เปิดท็อป 3 ใบหยิบเวทมนตร์ขึ้นมือ!',
-            desc: 'คลิกเลือก "ไอเหนือผู้มีคลิปแปลก (OM05)" บนมือแล้ววางลงช่องว่างบนสนาม -> กดเลือกหยิบการ์ดเวท "สงครามความบ้า (OS02)" ขึ้นมือฟรี!',
+            title: 'สเต็ป 1/3: อัญเชิญ "ไอเหนือผู้มีคลิปแปลก" เปิดท็อป 3 ใบหยิบเวทมนตร์ขึ้นมือ!',
+            desc: 'คลิกเลือก "ไอเหนือผู้มีคลิปแปลก" บนมือแล้ววางลงช่องว่างบนสนาม -> กดเลือกหยิบการ์ดเวท "สงครามความบ้า" ขึ้นมือฟรี!',
             isDone: () => p.board.some(m => m && m.id === 'OM05') && p.hand.some(c => c && c.id === 'OS02') && !isChoiceModalOpen()
           },
           {
@@ -21748,7 +21804,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pendingHandCardId: 'OS02',
             pendingPointerText: '👆 3. คลิกเลือกเวท "สงครามความบ้า" บนมือเพื่อร่ายฟรี!',
             title: 'สเต็ป 2/3: กดสกิลของ "ไอเหนือผู้มีคลิปแปลก" ร่ายเวท "สงครามความบ้า" ฟรีไม่เสียโควต้า!',
-            desc: 'คลิกที่ "ไอเหนือผู้มีคลิปแปลก (OM05)" บนสนาม -> กดยืนยันใช้สกิล -> แล้วคลิกเลือกการ์ดเวท "สงครามความบ้า (OS02)" บนมือเพื่อดึงโอ๊ตและแบงค์ขึ้นมือโดยที่โควต้า Normal Spell ยังเป็น 0/1!',
+            desc: 'คลิกที่ "ไอเหนือผู้มีคลิปแปลก" บนสนาม -> กดยืนยันใช้สกิล -> แล้วคลิกเลือกการ์ดเวท "สงครามความบ้า" บนมือเพื่อดึงโอ๊ตและแบงค์ขึ้นมือโดยที่โควต้า Normal Spell ยังเป็น 0/1!',
             isDone: () => {
               const nuea = p.board.find(m => m && m.id === 'OM05');
               return !!(nuea && nuea.usedSkills && nuea.usedSkills.nuea_clip_free_spell) && !gameState.pendingAction;
@@ -21759,8 +21815,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             cardId: 'OS01',
             pointerText: '👆 1. คลิกร่ายเวท "ท่าไม้ตาย(มั้ง)" บนมือ (ใบที่ 2 ของเทิร์น)!',
             pendingPointerText: '👆 2. คลิกทิ้งการ์ดบนมือให้ครบ 3 ใบเพื่อระเบิดสนาม AI!',
-            title: 'สเต็ป 3/3: ร่ายเวทใบที่ 2 ในเทิร์นเดียว "ท่าไม้ตาย(มั้ง) (OS01)" ทำลายสนาม AI ยกแผง!',
-            desc: 'เพราะโควต้า Normal Spell ยังเหลือ 0/1 คุณจึงคลิกร่าย "ท่าไม้ตาย(มั้ง) (OS01)" ต่อได้ทันที -> คลิกทิ้งการ์ดบนมือ 3 ใบเพื่อทำลายมอนสเตอร์บนสนามของ AI ทั้งหมด!',
+            title: 'สเต็ป 3/3: ร่ายเวทใบที่ 2 ในเทิร์นเดียว "ท่าไม้ตาย(มั้ง)" ทำลายสนาม AI ยกแผง!',
+            desc: 'เพราะโควต้า Normal Spell ยังเหลือ 0/1 คุณจึงคลิกร่าย "ท่าไม้ตาย(มั้ง)" ต่อได้ทันที -> คลิกทิ้งการ์ดบนมือ 3 ใบเพื่อทำลายมอนสเตอร์บนสนามของ AI ทั้งหมด!',
             isDone: () => p.spellQuota.normalUsed >= 1 && ai.board.every(m => m === null) && !gameState.pendingAction
           }
         ];
@@ -21780,8 +21836,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             targetSlot: 0,
             pointerText: '👆 1. คลิกเลือก "โทโมเอะ มามิ" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องที่ 1 บนสนามเรา!',
-            title: 'สเต็ป 1/3: อัญเชิญ "โทโมเอะ มามิ (MD01)" ลงสนาม',
-            desc: 'คลิกเลือก "โทโมเอะ มามิ (MD01)" บนมือ แล้วคลิกวางลงช่องที่ 1 บนสนามเรา',
+            title: 'สเต็ป 1/3: อัญเชิญ "โทโมเอะ มามิ" ลงสนาม',
+            desc: 'คลิกเลือก "โทโมเอะ มามิ" บนมือ แล้วคลิกวางลงช่องที่ 1 บนสนามเรา',
             isDone: () => p.board.some(m => m && m.id === 'MD01')
           },
           {
@@ -21793,7 +21849,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choicePointerText: '👆 2. กดใช้สกิลทิ้งมือ 1 ใบเพื่อเสกเบเบ้!',
             pendingPointerText: '👆 3. คลิกทิ้ง "อาเคมิ โฮมุระ" บนมือเป็นค่าร่าย!',
             title: 'สเต็ป 2/3: ใช้สกิลมามิ เสก "เบเบ้" ลงสนาม & จั่วการ์ดฟรี!',
-            desc: 'คลิกที่ "โทโมเอะ มามิ (MD01)" บนสนาม -> กดยืนยันใช้สกิล -> คลิกทิ้ง "อาเคมิ โฮมุระ (MD04)" บนมือ -> เลือกอัญเชิญ "เบเบ้ (MD06)" ลงสนาม -> สกิลเบเบ้จะทำงานจั่วการ์ด 1 ใบและมามิพลัง +1!',
+            desc: 'คลิกที่ "โทโมเอะ มามิ" บนสนาม -> กดยืนยันใช้สกิล -> คลิกทิ้ง "อาเคมิ โฮมุระ" บนมือ -> เลือกอัญเชิญ "เบเบ้" ลงสนาม -> สกิลเบเบ้จะทำงานจั่วการ์ด 1 ใบและมามิพลัง +1!',
             isDone: () => p.board.some(m => m && m.id === 'MD06') && !gameState.pendingAction && !isChoiceModalOpen()
           },
           {
@@ -21803,8 +21859,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "มิกิ ซายากะ" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องที่ 3 บนสนามเรา!',
             pendingPointerText: '👆 3. คลิกทำลายมอนสเตอร์ของอีกฝ่าย!',
-            title: 'สเต็ป 3/3: อัญเชิญ "มิกิ ซายากะ (MD02)" ทำลายยูนิตของอีกฝ่าย!',
-            desc: 'คลิกเลือก "มิกิ ซายากะ (MD02)" บนมือ -> คลิกวางลงช่องที่ 3 บนสนามเรา -> แล้วคลิกทำลายมอนสเตอร์ของ AI!',
+            title: 'สเต็ป 3/3: อัญเชิญ "มิกิ ซายากะ" ทำลายยูนิตของอีกฝ่าย!',
+            desc: 'คลิกเลือก "มิกิ ซายากะ" บนมือ -> คลิกวางลงช่องที่ 3 บนสนามเรา -> แล้วคลิกทำลายมอนสเตอร์ของ AI!',
             isDone: () => p.board.some(m => m && m.id === 'MD02') && ai.board.every(m => m === null) && !gameState.pendingAction
           }
         ];
@@ -21830,7 +21886,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "ซากุระ เคียวโกะ" เพื่อสั่งโจมตี',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI!',
             title: 'สเต็ป 2/4: โจมตีครั้งที่ 1 ด้วย "ซากุระ เคียวโกะ"',
-            desc: 'คลิกที่ "ซากุระ เคียวโกะ (MD05)" บนสนาม แล้วคลิกโจมตีใส่ Leader ของ AI!',
+            desc: 'คลิกที่ "ซากุระ เคียวโกะ" บนสนาม แล้วคลิกโจมตีใส่ Leader ของ AI!',
             isDone: () => p.attacksThisTurn >= 1
           },
           {
@@ -21839,7 +21895,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "คานาเมะ มาโดกะ" เพื่อสั่งโจมตี',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI!',
             title: 'สเต็ป 3/4: โจมตีครั้งที่ 2 ด้วย "คานาเมะ มาโดกะ" เพื่อปลดล็อกโฮมุระ!',
-            desc: 'คลิกที่ "คานาเมะ มาโดกะ (MD03)" บนสนาม แล้วคลิกโจมตีใส่ Leader ของ AI! (เมื่อโจมตีครบ 2 ครั้ง สกิลของ อาคุมะ โฮมุระ บนมือจะเรืองแสงสีม่วง)',
+            desc: 'คลิกที่ "คานาเมะ มาโดกะ" บนสนาม แล้วคลิกโจมตีใส่ Leader ของ AI! (เมื่อโจมตีครบ 2 ครั้ง สกิลของ อาคุมะ โฮมุระ บนมือจะเรืองแสงสีม่วง)',
             isDone: () => p.attacksThisTurn >= 2
           },
           {
@@ -21851,7 +21907,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pendingBoardCardId: 'MD05',
             pendingPointerText: '👆 3. คลิกเลือกมอนสเตอร์เรา 1 ใบส่งลงนรก!',
             title: 'สเต็ป 4/4: สั่งใช้ อาคุมะ โฮมุระ จากมือ ทำลายยูนิต AI & โจมตีปิดเกม!',
-            desc: 'คลิกที่ "อาคุมะ โฮมุระ (MD08)" บนมือ -> กดยืนยันใช้สกิล -> คลิกส่ง "ซากุระ เคียวโกะ" ลงนรก 1 ใบ -> วางโฮมุระลงสนาม -> ทำลายมอนสเตอร์ของ AI -> แล้วสั่งโฮมุระโจมตีปิดเกม!',
+            desc: 'คลิกที่ "อาคุมะ โฮมุระ" บนมือ -> กดยืนยันใช้สกิล -> คลิกส่ง "ซากุระ เคียวโกะ" ลงนรก 1 ใบ -> วางโฮมุระลงสนาม -> ทำลายมอนสเตอร์ของ AI -> แล้วสั่งโฮมุระโจมตีปิดเกม!',
             isDone: () => p.board.some(m => m && m.id === 'MD08') && !gameState.pendingAction
           }
         ];
@@ -21874,7 +21930,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choicePointerText: '👆 2. คลิกยืนยันใช้สกิล HIMEKO',
             pendingPointerText: '👆 3. คลิกเลือกทิ้ง "SUNDAY" บนมือ',
             title: 'สเต็ป 1/2: ใช้สกิล HIMEKO ทิ้ง "SUNDAY" ทำลายยูนิตศัตรู & ทริกเกอร์สกิลซันเดย์!',
-            desc: 'คลิกที่ "HIMEKO (RD05)" บนสนาม -> กดยืนยันใช้สกิล -> คลิกทิ้ง "SUNDAY (RD07)" บนมือ -> คลิกทำลายยูนิตของ AI 1 ใบ!',
+            desc: 'คลิกที่ "HIMEKO" บนสนาม -> กดยืนยันใช้สกิล -> คลิกทิ้ง "SUNDAY" บนมือ -> คลิกทำลายยูนิตของ AI 1 ใบ!',
             isDone: () => p.graveyard.some(c => c && c.id === 'RD07') && ai.board.every(m => m === null) && !gameState.pendingAction
           },
           {
@@ -21882,7 +21938,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceKeywords: ['TRAILBLAZER', 'นำ', 'ขึ้นมือ'],
             choicePointerText: '👆 คลิกเลือกนำ "TRAILBLAZER" จากนรกกลับขึ้นมือ!',
             title: 'สเต็ป 2/2: สกิลออโต้ของ SUNDAY ทำงาน! ดึงยูนิตจากนรกกลับขึ้นมือ & พลังทีม +1 ถาวร!',
-            desc: 'เมื่อ Sunday ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที! ให้คลิกเลือกนำ "TRAILBLAZER (RD01)" จากนรกกลับขึ้นมือ (และสังเกตว่า HIMEKO จะได้รับพลังโจมตี +1 จากสกิลต่อเนื่องของ Sunday ในนรกด้วย)!',
+            desc: 'เมื่อ Sunday ถูกทิ้งลงนรก สกิลออโต้จะทำงานทันที! ให้คลิกเลือกนำ "TRAILBLAZER" จากนรกกลับขึ้นมือ (และสังเกตว่า HIMEKO จะได้รับพลังโจมตี +1 จากสกิลต่อเนื่องของ Sunday ในนรกด้วย)!',
             isDone: () => p.hand.some(c => c && c.id === 'RD01')
           }
         ];
@@ -21905,7 +21961,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
             title: 'สเต็ป 1/4: อัญเชิญ DAN HENG จ้าวทรนงคงปฐพี ป้องกันสกิลทำลายยกแผง!',
-            desc: 'คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี (RD04)" บนมือ แล้ววางลงสนาม -> ความสามารถต่อเนื่องจะคุ้มกันยูนิตฝั่งเราทุกใบไม่ให้ถูกทำลายด้วยสกิลการ์ด!',
+            desc: 'คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี" บนมือ แล้ววางลงสนาม -> ความสามารถต่อเนื่องจะคุ้มกันยูนิตฝั่งเราทุกใบไม่ให้ถูกทำลายด้วยสกิลการ์ด!',
             isDone: () => p.board.some(m => m && m.id === 'RD04')
           },
           {
@@ -21917,7 +21973,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choicePointerText: '👆 2. คลิกยืนยันใช้สกิลมอบเกราะ',
             pendingPointerText: '👆 3. คลิกเลือก "DAN HENG จ้าวทรนง" เพื่อรับเกราะ!',
             title: 'สเต็ป 2/4: ใช้สกิล MARCH 7TH มอบเกราะไม่ถูกทำลายจากการต่อสู้!',
-            desc: 'คลิกที่ "MARCH 7TH (RD02)" บนสนาม -> กดยืนยันใช้สกิล -> คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี" เพื่อมอบเกราะป้องกันการถูกทำลายจากการต่อสู้ 1 ครั้ง!',
+            desc: 'คลิกที่ "MARCH 7TH" บนสนาม -> กดยืนยันใช้สกิล -> คลิกเลือก "DAN HENG จ้าวทรนงคงปฐพี" เพื่อมอบเกราะป้องกันการถูกทำลายจากการต่อสู้ 1 ครั้ง!',
             isDone: () => p.board.some(m => m && m.id === 'RD04' && (m.indestructibleUntilNextTurn || m.indestructibleShield))
           },
           {
@@ -21926,7 +21982,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "DAN HENG จ้าวทรนงคงปฐพี"',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI!',
             title: 'สเต็ป 3/4: สั่ง DAN HENG โจมตีเพื่อเปลี่ยนเป็นสภาพเรสต์ (Rest)',
-            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "DAN HENG จ้าวทรนงคงปฐพี (RD04)" สั่งโจมตีใส่ Leader ของ AI -> ยูนิตจะโจมตีและเปลี่ยนสภาพเป็นเรสต์ (Rest)!',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "DAN HENG จ้าวทรนงคงปฐพี" สั่งโจมตีใส่ Leader ของ AI -> ยูนิตจะโจมตีและเปลี่ยนสภาพเป็นเรสต์ (Rest)!',
             isDone: () => p.attacksThisTurn >= 1 && p.board.some(m => m && m.id === 'RD04' && m.state === 'Rest')
           },
           {
@@ -21954,7 +22010,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             action: 'NEXT_PHASE',
             pointerText: '👆 กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อให้ AI โจมตีมา!',
             title: 'สเต็ป 1/4: จบเทิร์นเพื่อล่อให้ AI โจมตีเข้ามา',
-            desc: 'ตอนนี้เรามีเวทรีแอค "POM POM (RD10)" และการ์ดเผ่ารางดาวบนมือ -> กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อรอให้ AI โจมตีเข้ามา!',
+            desc: 'ตอนนี้เรามีเวทรีแอค "POM POM" และการ์ดเผ่ารางดาวบนมือ -> กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อรอให้ AI โจมตีเข้ามา!',
             isDone: () => gameState.activeTurn === 'ai'
           },
           {
@@ -21962,7 +22018,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceKeywords: ['POM POM', 'TRAILBLAZER', 'รางดาว'],
             choicePointerText: '👆 คลิกเลือกร่าย "POM POM" ป้องกันการโจมตี!',
             title: 'สเต็ป 2/4: ร่ายเวทรีแอค "POM POM" ยกเลิกการโจมตีและฟื้นฟู HP ลีดเดอร์ +1!',
-            desc: 'เมื่อ AI ประกาศโจมตี หน้าต่างเวทรีแอคจะเด้งขึ้นมา -> ให้คลิกเลือกใช้ "POM POM (RD10)" แล้วเลือกทิ้งการ์ดรางดาว "TRAILBLAZER (RD01)" ในหน้าต่างถัดไป เพื่อยกเลิกการโจมตีและฟื้นฟูเลือดลีดเดอร์เรา +1!',
+            desc: 'เมื่อ AI ประกาศโจมตี หน้าต่างเวทรีแอคจะเด้งขึ้นมา -> ให้คลิกเลือกใช้ "POM POM" แล้วเลือกทิ้งการ์ดรางดาว "TRAILBLAZER" ในหน้าต่างถัดไป เพื่อยกเลิกการโจมตีและฟื้นฟูเลือดลีดเดอร์เรา +1!',
             isDone: () => p.graveyard.some(c => c && c.id === 'RD10') && (gameState.activeTurn === 'player' || gameState.phase === 'Main Phase')
           },
           {
@@ -21972,7 +22028,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่การ์ดเวท "ASTRAL EXPRESS" บนมือ',
             choicePointerText: '👆 2. กดยืนยันร่ายเวทมนตร์',
             title: 'สเต็ป 3/4: เข้าเทิร์นเรา ร่าย "ASTRAL EXPRESS" บัฟพลัง HIMEKO พุ่งสูง!',
-            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกร่ายเวทมนตร์ "ASTRAL EXPRESS (RD09)" บนมือ -> สกิลของ HIMEKO จะเพิ่มพลังตัวเอง +2 ทันที และผลของเวทเพิ่มพลังยูนิตรางดาวอีก +1 (รวมเป็น Power 5)!',
+            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกร่ายเวทมนตร์ "ASTRAL EXPRESS" บนมือ -> สกิลของ HIMEKO จะเพิ่มพลังตัวเอง +2 ทันที และผลของเวทเพิ่มพลังยูนิตรางดาวอีก +1 (รวมเป็น Power 5)!',
             isDone: () => p.spellQuota.normalUsed >= 1 && gameState.activeTurn === 'player'
           },
           {
@@ -21981,7 +22037,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "HIMEKO" (Power 5)',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI ปิดเกม!',
             title: 'สเต็ป 4/4: สั่ง HIMEKO (Power 5) โจมตีปิดเกม!',
-            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "HIMEKO (RD05)" บนสนามเรา โจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะอย่างเด็ดขาด!',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "HIMEKO" บนสนามเรา โจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะอย่างเด็ดขาด!',
             isDone: () => p.attacksThisTurn >= 1 || gameState.gameOver || gameState.ai.leader.hp <= 0
           }
         ];
@@ -22001,7 +22057,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่การ์ด "มีดสั้นฮิบานะ" บนมือ',
             choicePointerText: '👆 2. กดยืนยันร่ายเวทมนตร์',
             title: 'สเต็ป 1/3: ร่าย "มีดสั้นฮิบานะ" เตรียมคอมโบทิ้งการ์ดทำลายยูนิตศัตรู',
-            desc: 'คลิกที่การ์ด "มีดสั้นฮิบานะ (BT02_08)" บนมือ -> กดยืนยันร่ายเวทมนตร์!',
+            desc: 'คลิกที่การ์ด "มีดสั้นฮิบานะ" บนมือ -> กดยืนยันร่ายเวทมนตร์!',
             isDone: () => p.spellQuota.normalUsed >= 1
           },
           {
@@ -22010,7 +22066,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "สปาร์กซี่คอน" (Power 3 ไม่รับผลสกิล)',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI!',
             title: 'สเต็ป 2/3: สั่งสปาร์กซี่คอนโจมตีใส่ Leader ของ AI!',
-            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "สปาร์กซี่คอน (BT02_04)" สั่งโจมตีใส่ Leader ของ AI!',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "สปาร์กซี่คอน" สั่งโจมตีใส่ Leader ของ AI!',
             isDone: () => p.attacksThisTurn >= 1
           },
           {
@@ -22038,7 +22094,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             action: 'NEXT_PHASE',
             pointerText: '👆 กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อให้ AI โจมตีเข้ามา!',
             title: 'สเต็ป 1/4: จบเทิร์นเพื่อรอให้ AI โจมตีใส่ลีดเดอร์เรา',
-            desc: 'จบเทิร์นเพื่อรอให้ AI สั่ง "บาคุจิต (M01)" โจมตีเข้ามา (เมื่อหน้าต่างป้องกันเด้งขึ้นมา ให้เลือก "ไม่ขัดขวาง" เพื่อให้ลีดเดอร์เสียเลือด)',
+            desc: 'จบเทิร์นเพื่อรอให้ AI สั่ง "บาคุจิต" โจมตีเข้ามา (เมื่อหน้าต่างป้องกันเด้งขึ้นมา ให้เลือก "ไม่ขัดขวาง" เพื่อให้ลีดเดอร์เสียเลือด)',
             isDone: () => gameState.activeTurn === 'ai'
           },
           {
@@ -22056,7 +22112,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่การ์ดเวท "OMNIPRESENT EVIL" บนมือ',
             choicePointerText: '👆 2. กดยืนยันร่ายเวทมนตร์',
             title: 'สเต็ป 3/4: เข้าเทิร์นเรา ร่าย "OMNIPRESENT EVIL" บังคับจั่ว 2 ใบ & ยิงเลือด!',
-            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกร่ายเวท "OMNIPRESENT EVIL (KL12)" บนมือ -> อีกฝ่ายจั่ว 2 ใบและเสีย 1 HP พร้อมทริกเกอร์สกิลของ THE SLASHER ยิงซ้ำอีก 1 HP (รวมเป็น 2 HP)!',
+            desc: 'เมื่อเข้าเทิร์นเรา ให้คลิกร่ายเวท "OMNIPRESENT EVIL" บนมือ -> อีกฝ่ายจั่ว 2 ใบและเสีย 1 HP พร้อมทริกเกอร์สกิลของ THE SLASHER ยิงซ้ำอีก 1 HP (รวมเป็น 2 HP)!',
             isDone: () => p.spellQuota.normalUsed >= 1 && gameState.activeTurn === 'player'
           },
           {
@@ -22065,7 +22121,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "THE XENOMORPH" บนสนาม',
             targetPointerText: '👆 2. คลิกโจมตีใส่ Leader ของ AI ปิดเกม!',
             title: 'สเต็ป 4/4: สั่ง THE XENOMORPH โจมตีปิดเกมคว้าชัยชนะ!',
-            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "THE XENOMORPH (KL07)" บนสนามเรา โจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะ!',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "THE XENOMORPH" บนสนามเรา โจมตีใส่ Leader ของ AI เพื่อปิดเกมและคว้าชัยชนะ!',
             isDone: () => p.attacksThisTurn >= 1 || gameState.gameOver || gameState.ai.leader.hp <= 0
           }
         ];
@@ -22085,7 +22141,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "THE BLIGHT" บนสนาม',
             targetPointerText: '👆 2. คลิกโจมตีทำลายยูนิต AI ตัวแรก!',
             title: 'สเต็ป 1/3: สั่ง THE BLIGHT โจมตีทำลายยูนิตฝ่ายตรงข้าม',
-            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "THE BLIGHT (KL05)" สั่งโจมตีทำลายยูนิตตัวแรกของ AI!',
+            desc: 'เปลี่ยนเฟสเข้าสู่ Battle Phase แล้วคลิกที่ "THE BLIGHT" สั่งโจมตีทำลายยูนิตตัวแรกของ AI!',
             isDone: () => ai.board.filter(Boolean).length <= 1
           },
           {
@@ -22123,7 +22179,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             pointerText: '👆 1. คลิกที่ "THE PROJECT UROBOROS-NE" บนมือ',
             choicePointerText: '👆 2. กดยืนยันสั่งใช้งานจากบนมือ',
             title: 'สเต็ป 1/4: สั่งใช้งาน UROBOROS-NE ส่ง Mastermind & Nemesis เข้ามิติมืด!',
-            desc: 'คลิกที่ "THE PROJECT UROBOROS-NE (BT02_11)" บนมือ -> กดยืนยันสั่งใช้งาน นำ The Mastermind และ The Nemesis จากนรกเข้าสู่มิติมืดเพื่ออัญเชิญลงสู่สนาม!',
+            desc: 'คลิกที่ "THE PROJECT UROBOROS-NE" บนมือ -> กดยืนยันสั่งใช้งาน นำ The Mastermind และ The Nemesis จากนรกเข้าสู่มิติมืดเพื่ออัญเชิญลงสู่สนาม!',
             isDone: () => p.board.some(m => m && m.id === 'BT02_11')
           },
           {
@@ -22214,7 +22270,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
               <img src="${cObj.image}" alt="${cObj.name}">
               <div class="lb-combo-mini-meta">
                 <b>${cObj.name}</b>
-                <small>${cObj.id} · ${subTxt}</small>
+                <small>${subTxt}</small>
               </div>
             </div>
             ${arrow}

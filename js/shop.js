@@ -332,28 +332,47 @@
       <defs>
         <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="${bg1}"/>
-          <stop offset="55%" stop-color="${bg2}"/>
+          <stop offset="50%" stop-color="${bg2}"/>
           <stop offset="100%" stop-color="${bg1}"/>
         </linearGradient>
-        <radialGradient id="core" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="${glow}" stop-opacity="0.55"/>
-          <stop offset="65%" stop-color="${accent}" stop-opacity="0.18"/>
+        <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${border}"/>
+          <stop offset="35%" stop-color="#ffffff" stop-opacity="0.85"/>
+          <stop offset="55%" stop-color="${border}"/>
+          <stop offset="100%" stop-color="${glow}"/>
+        </linearGradient>
+        <radialGradient id="core" cx="50%" cy="50%" r="52%">
+          <stop offset="0%" stop-color="${glow}" stop-opacity="0.65"/>
+          <stop offset="55%" stop-color="${accent}" stop-opacity="0.22"/>
           <stop offset="100%" stop-color="${bg1}" stop-opacity="0"/>
         </radialGradient>
+        <pattern id="mesh" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M10 0 L20 10 L10 20 L0 10 Z" fill="none" stroke="${accent}" stroke-width="0.6" opacity="0.12"/>
+        </pattern>
+        <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
+          <feGaussianBlur stdDeviation="3.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
       </defs>
       <rect width="300" height="420" rx="22" fill="url(#bg)"/>
-      <rect x="12" y="12" width="276" height="396" rx="16" fill="none" stroke="${border}" stroke-width="5"/>
-      <rect x="22" y="22" width="256" height="376" rx="12" fill="none" stroke="${accent}" stroke-width="1.8" opacity="0.7"/>
-      <circle cx="150" cy="210" r="128" fill="url(#core)"/>
-      <circle cx="38" cy="38" r="8" fill="${border}"/>
-      <circle cx="262" cy="38" r="8" fill="${border}"/>
-      <circle cx="38" cy="382" r="8" fill="${border}"/>
-      <circle cx="262" cy="382" r="8" fill="${border}"/>
-      ${patternShapes}
-      <circle cx="150" cy="210" r="46" fill="${bg1}" stroke="${border}" stroke-width="3.5"/>
-      <text x="150" y="224" text-anchor="middle" font-size="40">${symbol}</text>
-      <rect x="78" y="344" width="144" height="28" rx="14" fill="${bg1}" stroke="${border}" stroke-width="2"/>
-      <text x="150" y="363" text-anchor="middle" fill="${border}" font-family="Kanit, sans-serif" font-weight="800" font-size="14" letter-spacing="2">${title}</text>
+      <rect x="8" y="8" width="284" height="404" rx="18" fill="url(#mesh)"/>
+      <rect x="12" y="12" width="276" height="396" rx="16" fill="none" stroke="url(#metal)" stroke-width="4.5"/>
+      <rect x="21" y="21" width="258" height="378" rx="12" fill="none" stroke="${accent}" stroke-width="1.4" stroke-dasharray="6 4" opacity="0.75"/>
+      <circle cx="150" cy="210" r="134" fill="url(#core)"/>
+      <g stroke="url(#metal)" stroke-width="2.6" fill="none" stroke-linecap="round">
+        <path d="M26,56 L26,26 L56,26"/><path d="M244,26 L274,26 L274,56"/>
+        <path d="M26,364 L26,394 L56,394"/><path d="M244,394 L274,394 L274,364"/>
+      </g>
+      <circle cx="34" cy="34" r="4.5" fill="${glow}" filter="url(#glow)"/>
+      <circle cx="266" cy="34" r="4.5" fill="${glow}" filter="url(#glow)"/>
+      <circle cx="34" cy="386" r="4.5" fill="${glow}" filter="url(#glow)"/>
+      <circle cx="266" cy="386" r="4.5" fill="${glow}" filter="url(#glow)"/>
+      <g filter="url(#glow)">${patternShapes}</g>
+      <circle cx="150" cy="210" r="50" fill="none" stroke="${accent}" stroke-width="1.6" stroke-dasharray="4 4" opacity="0.85"/>
+      <circle cx="150" cy="210" r="43" fill="${bg1}" stroke="url(#metal)" stroke-width="3.5" filter="url(#glow)"/>
+      <text x="150" y="224" text-anchor="middle" font-size="38">${symbol}</text>
+      <rect x="74" y="344" width="152" height="28" rx="14" fill="${bg1}" stroke="url(#metal)" stroke-width="2"/>
+      <text x="150" y="363" text-anchor="middle" fill="#fff" font-family="Kanit, sans-serif" font-weight="800" font-size="13.5" letter-spacing="2.2">${title}</text>
     </svg>`;
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
   }
@@ -372,17 +391,6 @@
       styleId: 'default'
     },
     {
-      id: 'cb_gold_edition',
-      category: 'card_back',
-      name: 'ลายตราเกียรติยศ BOF',
-      desc: 'หลังการ์ดลิมิเต็ดอิดิชัน ตรา Battle of Friends ขอบทองคำ',
-      currency: 'coins',
-      price: 800,
-      rarity: 'SR',
-      image: 'images/ด้านหลังการ์ด/การ์ดเกม Battle of Friends.png',
-      styleId: 'gold'
-    },
-    {
       id: 'cb_crimson_hero',
       category: 'card_back',
       name: 'ลายมังกรเพลิงราชันย์',
@@ -390,10 +398,7 @@
       currency: 'coins',
       price: 900,
       rarity: 'R',
-      image: makeCardBackSvgDataUri({
-        bg1: '#2a060b', bg2: '#7f1d1d', border: '#fbbf24', accent: '#f97316', glow: '#ef4444',
-        symbol: '🔥', title: 'CRIMSON HERO', pattern: 'dragon'
-      }),
+      image: 'images/ด้านหลังการ์ด/cb_crimson_hero.jpg',
       styleId: 'crimson'
     },
     {
@@ -404,10 +409,7 @@
       currency: 'coins',
       price: 900,
       rarity: 'R',
-      image: makeCardBackSvgDataUri({
-        bg1: '#0c192c', bg2: '#1e3a5f', border: '#facc15', accent: '#fb923c', glow: '#f59e0b',
-        symbol: '🐘', title: 'SIAM WARLORD', pattern: 'siam'
-      }),
+      image: 'images/ด้านหลังการ์ด/cb_siam_royal.jpg',
       styleId: 'gold'
     },
     {
@@ -432,10 +434,7 @@
       currency: 'coins',
       price: 1200,
       rarity: 'SR',
-      image: makeCardBackSvgDataUri({
-        bg1: '#070b24', bg2: '#1e1b4b', border: '#38bdf8', accent: '#818cf8', glow: '#0ea5e9',
-        symbol: '⏳', title: 'CHRONO DOOM', pattern: 'circle'
-      }),
+      image: 'images/ด้านหลังการ์ด/cb_cosmic_doom.jpg',
       styleId: 'cosmic'
     },
     {
@@ -446,10 +445,7 @@
       currency: 'shards',
       price: 250,
       rarity: 'SR',
-      image: makeCardBackSvgDataUri({
-        bg1: '#090314', bg2: '#3b0764', border: '#c084fc', accent: '#f43f5e', glow: '#9333ea',
-        symbol: '😈', title: 'ABYSS DEMON', pattern: 'abyss'
-      }),
+      image: 'images/ด้านหลังการ์ด/cb_abyss_demon.jpg',
       styleId: 'abyss'
     },
     {
@@ -819,7 +815,7 @@
       price: 900,
       rarity: 'R',
       styleId: 'crimson',
-      previewBg: 'linear-gradient(135deg, #2a0a10, #450a0a, #7f1d1d)'
+      previewBg: "url('images/mats/mt_crimson.jpg') center / cover no-repeat"
     },
     {
       id: 'mt_abyss',
@@ -830,7 +826,7 @@
       price: 1000,
       rarity: 'SR',
       styleId: 'abyss',
-      previewBg: 'linear-gradient(135deg, #13072e, #2e1065, #3b0764)'
+      previewBg: "url('images/mats/mt_abyss.jpg') center / cover no-repeat"
     },
     {
       id: 'mt_jungle',
@@ -841,7 +837,7 @@
       price: 900,
       rarity: 'R',
       styleId: 'jungle',
-      previewBg: 'linear-gradient(135deg, #052e16, #064e3b, #14532d)'
+      previewBg: "url('images/mats/mt_jungle.jpg') center / cover no-repeat"
     },
     {
       id: 'mt_sanctuary',
@@ -852,7 +848,7 @@
       price: 1200,
       rarity: 'SR',
       styleId: 'sanctuary',
-      previewBg: 'linear-gradient(135deg, #1c1917, #422006, #713f12)'
+      previewBg: "url('images/mats/mt_sanctuary.jpg') center / cover no-repeat"
     },
     {
       id: 'mt_cyber',
@@ -863,7 +859,7 @@
       price: 250,
       rarity: 'SSR',
       styleId: 'cyber',
-      previewBg: 'linear-gradient(135deg, #021024, #082f49, #0c4a6e)'
+      previewBg: "url('images/mats/mt_cyber.jpg') center / cover no-repeat"
     },
     {
       id: 'mt_sakura',
@@ -874,7 +870,7 @@
       price: 1100,
       rarity: 'SR',
       styleId: 'sakura',
-      previewBg: 'linear-gradient(135deg, #3b0724, #831843, #be185d)'
+      previewBg: "url('images/mats/mt_sakura.jpg') center / cover no-repeat"
     },
     {
       id: 'mt_inferno',
@@ -896,9 +892,18 @@
       price: 260,
       rarity: 'SSR',
       styleId: 'void',
-      previewBg: 'linear-gradient(135deg, #09091a, #1e1b4b, #312e81)'
+      previewBg: "url('images/mats/mt_void.jpg') center / cover no-repeat"
     }
   ];
+
+  const COSMETIC_FLAT_PRICE = 1000;
+  COSMETIC_ITEMS.forEach(it => {
+    if (it.currency !== 'free') {
+      it.currency = 'coins';
+      it.price = COSMETIC_FLAT_PRICE;
+    }
+    delete it.rarity;
+  });
 
   let shopToastTimer = null;
   function showShopToast(text) {
@@ -1042,7 +1047,18 @@
     if (lobbyShardVal) lobbyShardVal.textContent = shardFmt;
   }
 
-  const PITY_THRESHOLD = 15; // เปิดครบ 15 ซอง การันตี SSR แน่นอน
+  const PITY_THRESHOLD = 15; // เปิดครบ 15 ซอง การันตีระดับสูงสุดในซองแน่นอน
+  const SOFT_PITY_START = 11; // ตั้งแต่ใบที่ 11 เป็นต้นไป เพิ่มโอกาสออกระดับสูงสุด +15% ต่อใบ
+  const SOFT_PITY_STEP = 15;
+
+  function getEffectiveRates(pool, packRates, pityCount, targetRarity) {
+    const base = { ...(packRates || RARITY_RATES) };
+    if (pityCount >= SOFT_PITY_START && targetRarity && base[targetRarity] != null) {
+      const boost = (pityCount - SOFT_PITY_START + 1) * SOFT_PITY_STEP;
+      base[targetRarity] = base[targetRarity] + boost;
+    }
+    return base;
+  }
 
   // สุ่มการ์ด 1 ใบตามเปอร์เซ็นต์ (ตาม pack.rates หรือเรทสากล N 40% | R 30% | SR 20% | SSR 10%)
   function pickCardByRate(pool, forceRarity = null, packRates = null) {
@@ -1050,19 +1066,22 @@
     if (!chosenRarity) {
       const poolRarities = new Set(pool.map(c => c.rarity));
       const rateSource = packRates || RARITY_RATES;
-      const activeRates = Object.entries(rateSource).filter(([r]) => poolRarities.has(r));
+      const activeRates = Object.entries(rateSource).filter(([r, w]) => poolRarities.has(r) && w > 0);
       const totalWeight = activeRates.reduce((sum, [, w]) => sum + w, 0);
-      const r = Math.random() * (totalWeight || 100);
-      let acc = 0;
-      for (const [rarity, weight] of activeRates) {
-        acc += weight;
-        if (r <= acc) {
-          chosenRarity = rarity;
-          break;
+      if (activeRates.length > 0 && totalWeight > 0) {
+        const r = Math.random() * totalWeight;
+        let acc = 0;
+        for (const [rarity, weight] of activeRates) {
+          acc += weight;
+          if (r <= acc) {
+            chosenRarity = rarity;
+            break;
+          }
         }
+        if (!chosenRarity) chosenRarity = activeRates[activeRates.length - 1][0];
       }
     }
-    const candidates = pool.filter(c => c.rarity === chosenRarity);
+    const candidates = chosenRarity ? pool.filter(c => c.rarity === chosenRarity) : [];
     const list = candidates.length > 0 ? candidates : pool;
     return list[Math.floor(Math.random() * list.length)];
   }
@@ -1123,7 +1142,7 @@
   }
 
   /* ---------------- ฉากเปิดซอง: ลากฉีกซองฟอยล์ (js/pack-open.js) ---------------- */
-  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_bt01: ['BT01', 'BOOSTER 01'], pack_bt02: ['BT02', 'BOOSTER 02'], pack_bt03: ['BT03', 'BOOSTER 03'] };
+  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_killer: ['คิลเลอร์', 'KILLER'], pack_bt01: ['BT01', 'BOOSTER 01'], pack_bt02: ['BT02', 'BOOSTER 02'], pack_bt03: ['BT03', 'BOOSTER 03'] };
   function playPackOpeningAnimation(pack, packCount, highestRarity, onComplete) {
     const stage = document.getElementById('bof-pack-anim-stage');
     const done = () => { if (onComplete) onComplete(); };
@@ -1152,10 +1171,9 @@
     economy.packsOpened += packCount;
     bumpProgress('packsOpened', packCount);
 
-    // ติดตามระบบ Pity (การันตี SSR ในทุกๆ 15 ซอง)
+    // ติดตามระบบ Pity แบบนับทีละซอง (ไม่เสียเศษ Pity และรีเซ็ตทันทีเมื่อออกระดับสูงสุด)
     if (!economy.pity) economy.pity = {};
-    economy.pity[packId] = (economy.pity[packId] || 0) + packCount;
-    const isPityTriggered = economy.pity[packId] >= PITY_THRESHOLD;
+    let pity = Number(economy.pity[packId] || 0);
 
     // พูลการ์ดในซองรวมทั้ง Leader (SSR), Monster, และ Spell ของสายเด็คนั้น
     const pool = CARD_DATABASE.filter(c => c.image && c.image.startsWith(pack.prefix));
@@ -1165,11 +1183,12 @@
     const targetPityRarity = hasSsrInPool ? 'SSR' : 'SR';
 
     for (let i = 0; i < totalCards; i++) {
-      // ใบสุดท้าย ถ้าครบการันตี Pity จะบังคับเป็นระดับสูงสุดในซอง
-      const forceRarity = (isPityTriggered && i === totalCards - 1) ? targetPityRarity : null;
-      const card = pickCardByRate(pool, forceRarity, pack.rates);
+      pity += 1;
+      const forceRarity = pity >= PITY_THRESHOLD ? targetPityRarity : null;
+      const effectiveRates = forceRarity ? null : getEffectiveRates(pool, pack.rates, pity, targetPityRarity);
+      const card = pickCardByRate(pool, forceRarity, effectiveRates);
       if (card && card.rarity === targetPityRarity) {
-        economy.pity[packId] = 0; // รีเซ็ตการันตีเมื่อสุ่มได้ระดับสูงสุด
+        pity = 0; // รีเซ็ตการันตีทันทีเมื่อสุ่มได้ระดับสูงสุด
       }
       const granted = grantCardToCollection(card);
       // เกินจำนวนจัดเด็ค (ลีดเดอร์ 1 · การ์ดอื่นตาม maxCopies หรือ 2) → แปลงเป็นชาร์ดทันที
@@ -1181,6 +1200,7 @@
       }
       drawn.push(granted);
     }
+    economy.pity[packId] = pity;
 
     // เรียงลำดับการ์ดจากความแรร์น้อยไปมาก (ซ้ายไปขวา: N -> R -> SR -> SSR)
     drawn.sort((a, b) => {
@@ -1293,9 +1313,18 @@
     tl.duration(Math.max(tl.duration(), 1.3));
   }
 
+  function updateRevealFlipAllBtn() {
+    const btn = document.getElementById('bof-reveal-flip-all');
+    if (!btn) return;
+    const unflipped = document.querySelectorAll('#bof-reveal-cards .bof-flip-card:not(.is-flipped)').length;
+    btn.disabled = unflipped === 0;
+    btn.textContent = unflipped === 0 ? 'เปิดครบแล้ว ✓' : 'พลิกทั้งหมด';
+  }
+
   function flipRevealCard(wrap) {
     if (!wrap || wrap.classList.contains('is-flipped')) return false;
     wrap.classList.add('is-flipped');
+    updateRevealFlipAllBtn();
     const item = wrap._revealItem;
     if (window.BOF_AUDIO) window.BOF_AUDIO.playCardDraw();
     if (item && item.card.rarity === 'SSR' && window.BOFPackOpen) window.BOFPackOpen.ssrSpot(wrap); // ไฟส่องใบ SSR
@@ -1394,6 +1423,7 @@
     stage.classList.add('is-open');
     stage.style.display = 'flex';
     stage.scrollTop = 0;
+    updateRevealFlipAllBtn();
   }
 
   // พลิกทั้งหมด: ไล่พลิกทีละใบ (ใบซ้ำจะแตกเป็นชาร์ดตามจังหวะ)
@@ -1846,7 +1876,7 @@
           <button type="button" role="radio" data-qty="1" aria-checked="${packQty === 1}">1 ซอง</button>
           <button type="button" role="radio" data-qty="10" aria-checked="${packQty === 10}">10 ซอง <span class="sh-save">−10%</span></button>
         </div>
-        <p class="sh-packs-info">ซองละ 1 ใบ · การันตีระดับสูงสุดทุก 15 ซอง · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
+        <p class="sh-packs-info">ซองละ 1 ใบ · Soft Pity ตั้งแต่ซองที่ ${SOFT_PITY_START} · การันตีระดับสูงสุดทุก ${PITY_THRESHOLD} ซอง · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
       </div>
       <p class="sh-dupe-note">${SHARD_SVG}<span>การ์ดที่เกินจำนวนจัดเด็ค (การ์ดตามโควตาจัดเด็ค) จะกลายเป็นชาร์ดให้อัตโนมัติ</span></p>
 
@@ -1857,6 +1887,7 @@
             : [];
           const leader = deckCards.find(c => c.type === 'Leader');
           const hasSsr = deckCards.some(c => c.rarity === 'SSR');
+          const targetRarity = hasSsr ? 'SSR' : 'SR';
           const pityLabelText = hasSsr ? 'การันตี SSR' : 'การันตี SR';
           const subText = leader ? `ลุ้นลีดเดอร์ SSR ${leader.name}` : (p.sub || 'ชุดเสริมการ์ดใหม่');
           const backStyle = p.backImage ? `style="background-image: url('${thumbOf(p.backImage)}'), url('${p.backImage}'); background-size: cover; background-position: center; border-color: rgba(249, 115, 22, 0.6);"` : '';
@@ -1864,6 +1895,16 @@
           const pityCount = (economy.pity && economy.pity[p.id]) || 0;
           const remainingPity = Math.max(0, PITY_THRESHOLD - pityCount);
           const pityPercent = Math.min(100, (pityCount / PITY_THRESHOLD) * 100);
+          const nextPull = pityCount + 1;
+          const isSoftPityHot = nextPull >= SOFT_PITY_START;
+          const effRates = getEffectiveRates(deckCards, p.rates, nextPull, targetRarity);
+          const totalW = Object.entries(effRates).filter(([r, w]) => deckCards.some(c => c.rarity === r) && w > 0).reduce((s, [, w]) => s + w, 0) || 100;
+          const ratesHtml = ['N', 'R', 'SR', 'SSR']
+            .filter(r => effRates[r] > 0 && deckCards.some(c => c.rarity === r))
+            .map(r => {
+              const pct = Math.round((effRates[r] / totalW) * 100);
+              return `<span class="sh-rate-pill is-${r.toLowerCase()}">${r} ${pct}%</span>`;
+            }).join('');
 
           return `
             <article class="sh-pack" style="--c:${p.color}; max-width: 340px; width: 100%;">
@@ -1871,9 +1912,10 @@
               <div class="sh-pack-info">
                 <h3>${p.name}</h3>
                 <p>${subText} · สะสม ${ownedInDeck}/${deckCards.length}</p>
+                <div class="sh-pack-rates" aria-label="เรทสุ่ม">${ratesHtml}</div>
               </div>
-              <div class="sh-pity">
-                <div><span>${pityLabelText}</span><span>อีก <b>${remainingPity}</b> ซอง</span></div>
+              <div class="sh-pity${isSoftPityHot ? ' is-hot' : ''}">
+                <div><span>${pityLabelText}${isSoftPityHot ? ' · <b>Soft Pity!</b>' : ''}</span><span>อีก <b>${remainingPity}</b> ซอง</span></div>
                 <div class="sh-meter" role="progressbar" aria-label="ความคืบหน้า${pityLabelText} ${p.name}" aria-valuemin="0" aria-valuemax="${PITY_THRESHOLD}" aria-valuenow="${pityCount}"><i style="width:${pityPercent}%"></i></div>
               </div>
               <button type="button" class="sh-peek-btn" data-peek-pack="${p.id}">
@@ -1989,8 +2031,64 @@
     <button type="button" class="fx-chip" role="radio" aria-checked="${f.key === active}" ${attr}="${f.key}" style="--chip-c:${f.c}">
       <span>${f.label}</span>${counts ? `<small>${counts[f.key] || 0}</small>` : ''}
     </button>`).join('');
+  function deckSelectHTML(activeKey, counts, attr) {
+    const cur = DECK_FILTERS.find(d => d.key === activeKey) || DECK_FILTERS[0];
+    return `
+      <div class="fx-select" style="--chip-c:${cur.c}">
+        <button type="button" class="fx-select-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="เลือกสายเด็ค">
+          <span class="fx-select-label">สายเด็ค:</span>
+          <span class="fx-select-val">${cur.label}</span>
+          <small>${(counts && counts[cur.key]) || 0}</small>
+          <svg class="fx-select-chev" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="fx-select-menu" role="listbox" aria-label="สายเด็ค" hidden>
+          ${DECK_FILTERS.map(f => `
+            <button type="button" class="fx-select-opt" role="option" aria-selected="${f.key === activeKey}" ${attr}="${f.key}" style="--chip-c:${f.c}">
+              <span class="fx-opt-name">${f.label}</span>
+              <small>${(counts && counts[f.key]) || 0}</small>
+            </button>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  function bindDeckSelect(wrap, attr, onSelect) {
+    const btn = wrap?.querySelector('.fx-select-btn');
+    const menu = wrap?.querySelector('.fx-select-menu');
+    if (!wrap || !btn || !menu) return;
+    const closeMenu = () => {
+      wrap.classList.remove('is-open');
+      btn.setAttribute('aria-expanded', 'false');
+      menu.hidden = true;
+    };
+    btn.onclick = e => {
+      e.stopPropagation();
+      const opening = menu.hidden;
+      menu.hidden = !opening;
+      wrap.classList.toggle('is-open', opening);
+      btn.setAttribute('aria-expanded', String(opening));
+    };
+    menu.querySelectorAll(`.fx-select-opt[${attr}]`).forEach(opt => {
+      opt.onclick = () => {
+        const next = opt.getAttribute(attr);
+        closeMenu();
+        onSelect(next);
+      };
+    });
+    const onDocClick = e => {
+      if (!wrap.isConnected) { document.removeEventListener('click', onDocClick); return; }
+      if (!wrap.contains(e.target)) closeMenu();
+    };
+    const onKeyDown = e => {
+      if (!wrap.isConnected) { document.removeEventListener('keydown', onKeyDown); return; }
+      if (e.key === 'Escape' && !menu.hidden) { e.stopPropagation(); closeMenu(); btn.focus(); }
+    };
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+  }
+
   window.BOFDecks = {
     DECK_FILTERS, RARITY_FILTERS, deckOfCard, cardMatchesDeckFilter, maxKeepOf,
+    deckSelectHTML, bindDeckSelect,
     thumbOf: img => {
       const s = String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
       return s.includes('รางดาว') ? `${s}?v=20261120a` : s;
@@ -2037,8 +2135,10 @@
         </section>
 
         <div class="cf-filters">
-          <div class="fx-chips" role="radiogroup" aria-label="สายเด็ค">${chipsHTML(DECK_FILTERS, craftFilterTribe, 'data-tribe', deckCounts)}</div>
-          <div class="fx-chips fx-chips-rarity" role="radiogroup" aria-label="ความแรร์">${chipsHTML(RARITY_FILTERS.map(r => ({ ...r, label: r.key === 'ALL' ? r.label : `${r.label} · ${CRAFT_COSTS[r.key]}` })), craftFilterRarity, 'data-rarity')}</div>
+          <div class="cf-filter-row">
+            ${deckSelectHTML(craftFilterTribe, deckCounts, 'data-tribe')}
+            <div class="fx-chips fx-chips-rarity" role="radiogroup" aria-label="ความแรร์">${chipsHTML(RARITY_FILTERS.map(r => ({ ...r, label: r.key === 'ALL' ? r.label : `${r.label} · ${CRAFT_COSTS[r.key]}` })), craftFilterRarity, 'data-rarity')}</div>
+          </div>
         </div>
 
         <div class="cf-grid">
@@ -2086,9 +2186,13 @@
       renderCraftingView(container);
       container.dispatchEvent(new CustomEvent('fx:filter', { bubbles: true, detail: { grid: container.querySelector('.cf-grid') } }));
     };
-    container.querySelectorAll('.fx-chip[data-tribe]').forEach(btn => {
-      btn.onclick = () => { if (craftFilterTribe === btn.dataset.tribe) return; craftFilterTribe = btn.dataset.tribe; rerender(); };
+
+    bindDeckSelect(container.querySelector('.fx-select'), 'data-tribe', next => {
+      if (craftFilterTribe === next) return;
+      craftFilterTribe = next;
+      rerender();
     });
+
     container.querySelectorAll('.fx-chip[data-rarity]').forEach(btn => {
       btn.onclick = () => { if (craftFilterRarity === btn.dataset.rarity) return; craftFilterRarity = btn.dataset.rarity; rerender(); };
     });
@@ -2276,7 +2380,7 @@
             const canAfford = item.currency === 'coins'
               ? (economy.coins || 0) >= item.price
               : (item.currency === 'shards' ? (economy.shards || 0) >= item.price : true);
-            const rarity = item.rarity || 'R';
+            const catAccent = (COS_CATS.find(c => c.key === item.category) || COS_CATS[0]).c;
             const cur = item.currency === 'shards' ? SHARD_SVG : COIN_SVG;
             const action = isEquipped
               ? '<span class="cs-state is-eq">สวมใส่อยู่</span>'
@@ -2284,14 +2388,13 @@
                 ? `<button type="button" class="cs-btn cs-btn-equip" data-equip-id="${item.id}">สวมใส่</button>`
                 : `<button type="button" class="cs-btn cs-btn-buy" data-buy-id="${item.id}" ${canAfford ? '' : 'disabled title="ไม่พอ"'}>แลก ${cur}${item.price.toLocaleString('th-TH')}</button>`;
             return `
-              <article class="cs-item r-${rarity} ${isEquipped ? 'is-equipped' : ''} ${isOwned ? 'is-owned' : ''} ${isTrying ? 'is-trying' : ''}" data-cos-item="${item.id}" style="--rc:${RARITY_C[rarity] || '#cbd5e1'}">
-                <span class="cs-glow" aria-hidden="true"></span>
+              <article class="cs-item ${isEquipped ? 'is-equipped' : ''} ${isOwned ? 'is-owned' : ''} ${isTrying ? 'is-trying' : ''}" data-cos-item="${item.id}" style="--rc:${catAccent}">
                 <button type="button" class="cs-preview" data-try-id="${item.id}" aria-label="ลอง ${item.name} บนเวที">
                   ${cosmeticPreviewHTML(item, avatarSrc)}
                   <span class="cs-try-hint">${isTrying ? 'กำลังลอง' : 'แตะเพื่อลอง'}</span>
                 </button>
                 <div class="cs-item-body">
-                  <div class="cs-item-top"><i class="cs-rar">${rarity}</i>${isOwned && !isEquipped ? '<span class="cs-state">มีแล้ว</span>' : ''}</div>
+                  ${isOwned && !isEquipped ? '<div class="cs-item-top"><span class="cs-state">มีแล้ว</span></div>' : ''}
                   <h5>${item.name}</h5>
                   <p>${item.desc}</p>
                   ${action}
@@ -2379,10 +2482,209 @@
   function hookCollectionAndDeckBuilder() {
     // คลังการ์ด (เมนู "คลังการ์ด") ย้ายไปอยู่ js/collection.js — แสดงทุกใบ ใบที่ยังไม่มีเป็นเงาล็อกไว้
 
+    // ย่อรหัสเด็คให้สั้นที่สุด (~17 ตัวอักษร: B<ลีดเดอร์><n2><Base64url>) โดยยังรองรับ BOF2 / BOF1 เดิมทั้งหมด
+    if (typeof window.encodeDeckCode === 'function' && typeof window.decodeDeckCode === 'function' && typeof CARD_DATABASE !== 'undefined') {
+      const B62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+      const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+      const origEncode = window.encodeDeckCode;
+      const origDecode = window.decodeDeckCode;
+
+      const packBytes64 = bytes => {
+        let out = '';
+        for (let i = 0; i < bytes.length; i += 3) {
+          const b0 = bytes[i], b1 = bytes[i + 1] ?? 0, b2 = bytes[i + 2] ?? 0;
+          const n = (b0 << 16) | (b1 << 8) | b2;
+          out += B64[(n >> 18) & 63] + B64[(n >> 12) & 63];
+          if (i + 1 < bytes.length) out += B64[(n >> 6) & 63];
+          if (i + 2 < bytes.length) out += B64[n & 63];
+        }
+        return out;
+      };
+
+      const unpackBytes64 = str => {
+        const bytes = [];
+        for (let i = 0; i < str.length; i += 4) {
+          const c0 = B64.indexOf(str[i]), c1 = B64.indexOf(str[i + 1]);
+          const c2 = i + 2 < str.length ? B64.indexOf(str[i + 2]) : -1;
+          const c3 = i + 3 < str.length ? B64.indexOf(str[i + 3]) : -1;
+          if (c0 < 0 || c1 < 0 || (i + 2 < str.length && c2 < 0) || (i + 3 < str.length && c3 < 0)) return null;
+          const n = (c0 << 18) | (c1 << 12) | ((c2 >= 0 ? c2 : 0) << 6) | (c3 >= 0 ? c3 : 0);
+          bytes.push((n >> 16) & 255);
+          if (c2 >= 0) bytes.push((n >> 8) & 255);
+          if (c3 >= 0) bytes.push(n & 255);
+        }
+        return bytes;
+      };
+
+      window.encodeDeckCode = function (cfg) {
+        if (!cfg || !cfg.leaderId || !Array.isArray(cfg.mainDeck)) return origEncode(cfg);
+        const leaders = CARD_DATABASE.filter(c => c.type === 'Leader');
+        const pool = CARD_DATABASE.filter(c => c.type !== 'Leader');
+        const lIdx = leaders.findIndex(c => c.id === cfg.leaderId);
+        if (lIdx < 0 || lIdx >= 64) return origEncode(cfg);
+
+        const counts = {};
+        cfg.mainDeck.forEach(id => { counts[id] = (counts[id] || 0) + 1; });
+        const twos = [], ones = [];
+        for (const [id, n] of Object.entries(counts)) {
+          const cIdx = pool.findIndex(c => c.id === id);
+          if (cIdx < 0 || cIdx >= 256) return origEncode(cfg);
+          for (let k = 0; k < Math.floor(n / 2); k++) twos.push(cIdx);
+          if (n % 2 === 1) ones.push(cIdx);
+        }
+        if (twos.length >= 64) return origEncode(cfg);
+        return `B${B64[lIdx]}${B64[twos.length]}${packBytes64([...twos, ...ones])}`;
+      };
+
+      window.decodeDeckCode = function (rawCode) {
+        const code = String(rawCode || '').trim();
+        if (!/^BOF[12]-/i.test(code)) {
+          const m3 = /^B([A-Za-z0-9\-_])([A-Za-z0-9\-_])([A-Za-z0-9\-_]+)$/.exec(code);
+          if (m3) {
+            const leaders = CARD_DATABASE.filter(c => c.type === 'Leader');
+            const pool = CARD_DATABASE.filter(c => c.type !== 'Leader');
+            const leader = leaders[B64.indexOf(m3[1])];
+            const n2 = B64.indexOf(m3[2]);
+            const bytes = unpackBytes64(m3[3]);
+            if (!leader || n2 < 0 || !bytes || n2 > bytes.length) {
+              throw new Error('รหัสเด็คไม่ถูกต้อง');
+            }
+            const cardCounts = {};
+            bytes.forEach((cIdx, idx) => {
+              const card = pool[cIdx];
+              if (!card) throw new Error('รหัสเด็คไม่ถูกต้อง (ไม่พบการ์ดในฐานข้อมูล)');
+              cardCounts[card.id] = (cardCounts[card.id] || 0) + (idx < n2 ? 2 : 1);
+            });
+            const pairs = Object.entries(cardCounts).map(([id, cnt]) => `${id}.${cnt}`);
+            return origDecode(`BOF1-${leader.id}-${pairs.join('_')}`);
+          }
+        }
+
+        const m = /^BOF2-([0-9A-Za-z])-([0-9A-Za-z]+)$/i.exec(code);
+        if (!m) return origDecode(rawCode);
+
+        const leaders = CARD_DATABASE.filter(c => c.type === 'Leader');
+        const pool = CARD_DATABASE.filter(c => c.type !== 'Leader');
+        const lIdx = B62.indexOf(m[1]);
+        const leader = lIdx >= 0 ? leaders[lIdx] : null;
+        if (!leader) throw new Error('รหัสเด็คไม่ถูกต้อง (ไม่พบลีดเดอร์)');
+
+        const body = m[2];
+        if (body.length % 2 !== 0) throw new Error('รหัสเด็ค BOF2 ไม่สมบูรณ์');
+        const pairs = [];
+        for (let i = 0; i < body.length; i += 2) {
+          const hi = B62.indexOf(body[i]);
+          const lo = B62.indexOf(body[i + 1]);
+          if (hi < 0 || lo < 0) throw new Error('รหัสเด็ค BOF2 มีอักขระไม่ถูกต้อง');
+          const val = hi * 62 + lo;
+          const cIdx = Math.floor(val / 4);
+          const cnt = (val % 4) + 1;
+          const card = pool[cIdx];
+          if (!card) throw new Error('รหัสเด็คไม่ถูกต้อง (ไม่พบการ์ดในฐานข้อมูล)');
+          pairs.push(`${card.id}.${cnt}`);
+        }
+        return origDecode(`BOF1-${leader.id}-${pairs.join('_')}`);
+      };
+    }
+
     if (typeof window.renderDeckBuilder === 'function') {
       const origRenderDeckBuilder = window.renderDeckBuilder;
       window.renderDeckBuilder = function () {
         const res = origRenderDeckBuilder.apply(this, arguments);
+
+        // แปลง <select id="select-builder-deck-slot"> เป็น Dropdown สวยๆ แบบเดียวกับตัวกรอง
+        const slotSelect = document.getElementById('select-builder-deck-slot');
+        if (slotSelect && slotSelect.parentElement && !slotSelect.parentElement.querySelector('.deck-slot-fx-select')) {
+          slotSelect.hidden = true;
+          const opts = [...slotSelect.options];
+          const curOpt = opts.find(o => o.selected) || opts[0];
+          const wrap = document.createElement('div');
+          wrap.className = 'fx-select deck-slot-fx-select';
+          wrap.style.setProperty('--chip-c', '#38bdf8');
+          wrap.innerHTML = `
+            <button type="button" class="fx-select-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="เลือกสล็อตเด็ค">
+              <span class="fx-select-val">${curOpt ? curOpt.textContent : ''}</span>
+              <svg class="fx-select-chev" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="fx-select-menu fx-select-menu-sm" role="listbox" aria-label="สล็อตเด็ค" hidden>
+              ${opts.map(o => `<button type="button" class="fx-select-opt${o.selected ? ' active' : ''}" role="option" aria-selected="${o.selected}" data-slot-idx="${o.value}">${o.textContent}</button>`).join('')}
+            </div>`;
+          slotSelect.insertAdjacentElement('afterend', wrap);
+          const sBtn = wrap.querySelector('.fx-select-btn');
+          const sMenu = wrap.querySelector('.fx-select-menu');
+          const closeSlot = () => { wrap.classList.remove('is-open'); sBtn.setAttribute('aria-expanded', 'false'); sMenu.hidden = true; };
+          sBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            const opening = sMenu.hidden;
+            sMenu.hidden = !opening;
+            wrap.classList.toggle('is-open', opening);
+            sBtn.setAttribute('aria-expanded', String(opening));
+          });
+          sMenu.addEventListener('click', e => {
+            const opt = e.target.closest('[data-slot-idx]');
+            if (!opt) return;
+            closeSlot();
+            if (slotSelect.value !== opt.dataset.slotIdx) {
+              slotSelect.value = opt.dataset.slotIdx;
+              if (typeof slotSelect.onchange === 'function') slotSelect.onchange();
+            }
+          });
+          const onDoc = e => { if (!wrap.isConnected) { document.removeEventListener('click', onDoc); return; } if (!wrap.contains(e.target)) closeSlot(); };
+          const onKey = e => { if (!wrap.isConnected) { document.removeEventListener('keydown', onKey); return; } if (e.key === 'Escape' && !sMenu.hidden) { e.stopPropagation(); closeSlot(); sBtn.focus(); } };
+          document.addEventListener('click', onDoc);
+          document.addEventListener('keydown', onKey);
+        }
+
+        // ซิงค์ปุ่ม Dropdown ตัวกรองจัดเด็ค (หมวดหมู่, ประเภท, สถานะ — ทำงานทั้งโหมด Guest และล็อกอิน)
+        const dbDropdowns = [
+          { rowId: 'deck-filter-themes-row', optSel: '.deck-theme-btn', colorOf: el => (el.dataset.theme === 'MATCH_LEADER' ? '#eab308' : '#38bdf8') },
+          { rowId: 'deck-filter-type-group', optSel: '.deck-sub-pill', colorOf: () => '#38bdf8' },
+          { rowId: 'deck-filter-status-group', optSel: '.deck-sub-pill', colorOf: el => (el.dataset.status === 'IN_DECK' ? '#10b981' : '#38bdf8') }
+        ];
+        dbDropdowns.forEach(({ rowId, optSel, colorOf }) => {
+          const row = document.getElementById(rowId);
+          const btn = row?.querySelector('.fx-select-btn');
+          const val = row?.querySelector('.fx-select-val');
+          const menu = row?.querySelector('.fx-select-menu');
+          if (!row || !btn || !val || !menu) return;
+          const activeOpt = menu.querySelector(`${optSel}.active`);
+          if (activeOpt) {
+            val.textContent = activeOpt.textContent.replace(/\s+/g, ' ').trim();
+            row.style.setProperty('--chip-c', colorOf(activeOpt));
+          }
+          if (!row.dataset.dropdownBound) {
+            row.dataset.dropdownBound = '1';
+            const closeMenu = () => {
+              row.classList.remove('is-open');
+              btn.setAttribute('aria-expanded', 'false');
+              menu.hidden = true;
+            };
+            btn.addEventListener('click', e => {
+              e.stopPropagation();
+              const opening = menu.hidden;
+              dbDropdowns.forEach(d => {
+                if (d.rowId === rowId) return;
+                const other = document.getElementById(d.rowId);
+                const ob = other?.querySelector('.fx-select-btn');
+                const om = other?.querySelector('.fx-select-menu');
+                if (other && ob && om) { other.classList.remove('is-open'); ob.setAttribute('aria-expanded', 'false'); om.hidden = true; }
+              });
+              menu.hidden = !opening;
+              row.classList.toggle('is-open', opening);
+              btn.setAttribute('aria-expanded', String(opening));
+            });
+            menu.addEventListener('click', e => {
+              if (e.target.closest(optSel)) closeMenu();
+            });
+            document.addEventListener('click', e => {
+              if (!row.contains(e.target)) closeMenu();
+            });
+            document.addEventListener('keydown', e => {
+              if (e.key === 'Escape' && !menu.hidden) { e.stopPropagation(); closeMenu(); btn.focus(); }
+            });
+          }
+        });
+
         if (!isLoggedInUser()) return res;
 
         economy = loadEconomy();
@@ -2411,11 +2713,8 @@
           const badge = item.querySelector('.count-badge');
           if (badge) {
             badge.className = `count-badge ${countInDeck >= ruleMax ? 'maxed' : ''}`;
-            if (window.isMobileUI && window.isMobileUI()) {
-              badge.textContent = `${countInDeck}/${ruleMax} · มี ${ownedCount}`;
-            } else {
-              badge.textContent = `ใส่ในเด็ค: ${countInDeck}/${ruleMax} (มีในคลัง ${ownedCount} ใบ)`;
-            }
+            badge.textContent = `${countInDeck}/${ruleMax} · มี ${ownedCount}`;
+            badge.title = `ใส่ในเด็ค ${countInDeck}/${ruleMax} ใบ (มีในคลัง ${ownedCount} ใบ)`;
           }
 
           const cardEl = item.querySelector('.card');

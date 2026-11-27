@@ -468,9 +468,9 @@
 }
 .lb-picker-section::after { content: ''; flex: 1; height: 1px; background: rgba(160, 175, 255, .18); }
 
-.lb-deck-picker-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 14px; }
+.lb-deck-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
 .lb-picker-item {
-  position: relative; display: grid; grid-template-columns: 60px minmax(0, 1fr); align-items: center; gap: 14px;
+  position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 14px;
   padding: 12px 14px; border-radius: 16px; border: 1.5px solid rgba(160, 175, 255, .16);
   background: linear-gradient(135deg, color-mix(in srgb, var(--item-accent) 14%, #121532) 0%, #0e1126 100%);
   color: var(--lb-ink); text-align: left; cursor: pointer; overflow: hidden; touch-action: manipulation;
@@ -483,7 +483,7 @@
 .lb-picker-item.is-selected::before { opacity: 1; }
 .lb-picker-item:last-child:nth-child(odd) { grid-column: auto; }
 .lb-picker-art {
-  width: 60px; aspect-ratio: 750 / 1050; border-radius: 8px; overflow: hidden;
+  width: 64px; aspect-ratio: 750 / 1050; border-radius: 8px; overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 6px 16px rgba(0, 0, 0, .55); transform: none; transition: transform .2s ease, box-shadow .2s ease;
 }
@@ -504,18 +504,24 @@
 
 /* เด็คที่จัดเอง: 5 สล็อต กดแล้วใช้ทันที */
 .lb-deck-picker-slots { margin-top: 14px; }
-.lb-slot-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.lb-slot-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .lb-slot-chip {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0;
-  padding: 10px 6px 8px; border-radius: 12px; border: 1px dashed rgba(160, 175, 255, .3);
-  background: rgba(255, 255, 255, .03); color: var(--lb-ink); cursor: pointer; touch-action: manipulation;
-  transition: border-color .2s, background-color .2s;
+  position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0;
+  padding: 10px 10px; border-radius: 14px; border: 1.5px solid rgba(160, 175, 255, .18);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--item-accent) 10%, #121532) 0%, #0e1126 100%);
+  color: var(--lb-ink); text-align: left; cursor: pointer; touch-action: manipulation; overflow: hidden;
+  transition: border-color .2s ease, transform .16s ease, box-shadow .2s ease;
 }
-.lb-slot-chip img { width: 40px; aspect-ratio: 750 / 1050; object-fit: cover; border-radius: 4px; box-shadow: 0 4px 10px rgba(0, 0, 0, .5); }
-.lb-slot-num { position: absolute; top: 6px; left: 8px; font: 700 13px/1 var(--font-display); color: var(--item-accent); }
-.lb-slot-name { max-width: 100%; font-size: 11.5px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lb-slot-chip:hover { border-style: solid; border-color: var(--item-accent); }
-.lb-slot-chip.is-selected { border: 1px solid var(--item-accent); background: rgba(255, 255, 255, .08); box-shadow: 0 0 0 1px var(--item-accent); }
+.lb-slot-art { width: 44px; aspect-ratio: 750 / 1050; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,.15); box-shadow: 0 4px 10px rgba(0,0,0,.5); }
+.lb-slot-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.lb-slot-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lb-slot-num { font: 700 10.5px/1.2 var(--font-display); color: var(--item-accent); opacity: .9; }
+.lb-slot-name { max-width: 100%; font: 700 13px/1.25 var(--font-display); color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-slot-sub { font-size: 11px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-slot-sub.is-ready { color: #86efac; }
+.lb-slot-chip:hover { border-color: var(--item-accent); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+.lb-slot-chip.is-selected { border-color: var(--item-accent); box-shadow: 0 0 0 1.5px var(--item-accent), 0 10px 24px rgba(0,0,0,.5); }
+.lb-slot-chip .lb-picker-tag { top: 6px; right: 6px; font-size: 10px; padding: 1px 6px; }
 
 .lb-deck-picker-footer {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

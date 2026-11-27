@@ -139,15 +139,17 @@
     async function tear(wrap) {
       const pouch = wrap.querySelector('.pouch'), topEl = pouch.querySelector('.pz-top'), seam = pouch.querySelector('.pz-seam'), body = pouch.querySelector('.pz-body');
       on(root, 'pointermove', e => {
-        const r = pouch.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / r.width, dy = (e.clientY - (r.top + r.height / 2)) / r.height;
-        gsap.to(pouch, { rotateY: dx * 28, rotateX: -dy * 18, duration: .4 });
+        const r = pouch.getBoundingClientRect();
+        const dx = Math.max(-0.8, Math.min(0.8, (e.clientX - (r.left + r.width / 2)) / (r.width || 1)));
+        const dy = Math.max(-0.8, Math.min(0.8, (e.clientY - (r.top + r.height / 2)) / (r.height || 1)));
+        gsap.to(pouch, { rotateY: dx * 24, rotateX: -dy * 16, duration: .35, overwrite: 'auto' });
         pouch.querySelectorAll('.pz-sheen').forEach(s => s.style.setProperty('--sx', (.5 + dx * .9).toFixed(3)));
       });
       tweens.push(gsap.to(pouch, { y: -8, duration: 1.4, yoyo: true, repeat: -1, ease: 'sine.inOut' }));
-      hint.textContent = 'ลากตามรอยปรุด้านบนเพื่อฉีกซอง ›'; hint.classList.add('on');
+      hint.textContent = 'ลากหรือแตะแถบด้านบนเพื่อฉีกซอง ›'; hint.classList.add('on');
       await step(wait(500));
       const lp = LIGHT[top], L = Light.start({ mouth: body, p: 0, power: 0, rgb: RAR.N.rgb, L: lp.L, n: lp.n });
-      let p = 0, lastSpark = 0, stageIdx = 0, drag = false, r = null;
+      let p = 0, lastSpark = 0, stageIdx = 0, drag = false, startX = 0, moved = false, autoTearing = false, r = null;
       const setP = v => {
         p = Math.max(p, Math.min(1, v)); L.p = p; L.power = .3 + .4 * p; L.rgb = tearColor(p);
         seam.style.width = (p * 100) + '%'; seam.style.boxShadow = `0 0 6px 1px rgba(${L.rgb},.9)`;
@@ -157,18 +159,35 @@
         const now = performance.now();
         if (now - lastSpark > 60) { lastSpark = now; burst(r.left + r.width * p, y0, { count: 4, rings: 0, speed: 130, size: 7, life: .4, gravity: 260, color: L.rgb, color2: '255, 255, 255' }); }
       };
-      // ลากได้ทั้งเมาส์และนิ้ว: กดใกล้แถบบน แล้วเลื่อนไปทางขวา (จับ pointer ไว้ ไม่ให้เบราว์เซอร์เลือกข้อความ/เลื่อนจอ)
+      // ลากหรือแตะแถบด้านบนเพื่อฉีกซอง (รองรับทั้งเมาส์ นิ้ว และคีย์บอร์ด)
       await step(new Promise(done => {
+        const autoFinish = () => {
+          if (autoTearing) return;
+          autoTearing = true;
+          r = r || topEl.getBoundingClientRect();
+          gsap.to({ v: p }, { v: 1, duration: .38, ease: 'power2.out', onUpdate() { setP(this.targets()[0].v); }, onComplete: done });
+        };
         on(root, 'pointerdown', e => {
-          if (e.target === skipBtn) return;
+          if (e.target === skipBtn || autoTearing) return;
           const b = topEl.getBoundingClientRect();
-          if (e.clientY > b.top - 60 && e.clientY < b.bottom + 60) { drag = true; r = b; e.preventDefault(); try { root.setPointerCapture(e.pointerId); } catch (_) { } }
+          if (e.clientY > b.top - 60 && e.clientY < b.bottom + 60) {
+            drag = true; moved = false; startX = e.clientX; r = b; e.preventDefault();
+            try { root.setPointerCapture(e.pointerId); } catch (_) { }
+          }
         });
-        on(root, 'pointermove', e => { if (!drag) return; setP((e.clientX - r.left) / r.width); if (p >= 1) done(); });
-        on(root, 'pointerup', () => { drag = false; });
+        on(root, 'pointermove', e => {
+          if (!drag || autoTearing) return;
+          if (Math.abs(e.clientX - startX) > 8) moved = true;
+          setP((e.clientX - r.left) / r.width);
+          if (p >= 1) done();
+        });
+        on(root, 'pointerup', () => {
+          if (!drag) return;
+          drag = false;
+          if (!moved && p < 1) autoFinish();
+        });
         on(root, 'dragstart', e => e.preventDefault());
-        // แป้นพิมพ์: Enter/Space ฉีกให้ทันที
-        on(root, 'keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); r = topEl.getBoundingClientRect(); gsap.to({ v: p }, { v: 1, duration: .5, onUpdate() { setP(this.targets()[0].v); }, onComplete: done }); } });
+        on(root, 'keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); autoFinish(); } });
       }));
       hint.classList.remove('on'); tweens.forEach(t => t.kill());
       bump(30); shake(5, .22);
@@ -237,7 +256,7 @@
     }
     // ---------- สแปลช ----------
     async function splash() {
-      const sp = el('splash', scene, `<div class="stripes"></div><div class="big l1">${esc(o.en)} PACK${x10 ? ' ×10' : ''}</div><div class="big l2">BATTLE OF</div>
+      const sp = el('splash', scene, `<div class="stripes"></div><div class="big l1">${esc(o.en)} PACK${x10 ? ' ×10' : ''}</div><div class="big l2">BATTLE OF FRIENDS</div>
         <div class="script"><svg viewBox="0 0 300 40" preserveAspectRatio="none"><path d="M6 30 C 70 14, 150 34, 296 12" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg><b>Open now!</b></div>
         <div class="cap">${esc(o.name)} · ${o.cards} ใบ · BOF</div><div class="pz-wrap">${POUCH(x10)}</div><div class="sweep"></div>`);
       const spWrap = sp.querySelector('.pz-wrap'); sp.querySelector('.pz-top').style.display = 'none'; sp.querySelector('.pz-seam').remove();

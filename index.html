@@ -191,13 +191,43 @@
 
       <!-- มุมมองที่ 1: วิธีเล่นเข้าใจง่าย -->
       <div class="lb-howto-pane is-active" id="howto-pane-rules">
-        <ol class="lb-steps">
-          <li>🎯 <b>เป้าหมายชนะ:</b> โจมตี <b>Leader</b> อีกฝ่ายจน <b>HP เหลือ 0</b> (เริ่มต้น 6 HP)</li>
-          <li>🃏 <b>เริ่มเกม (เด็ค 21 ใบ):</b> จั่วการ์ดเริ่มต้น 5 ใบ เลือกเปลี่ยนใบที่ไม่ต้องการได้สูงสุด 2 ใบ และจั่วเพิ่มเทิร์นละ 1 ใบ</li>
-          <li>⚡ <b>Main Phase:</b> ลง <b>ยูนิต</b> ได้สูงสุด 3 ช่องสนาม, กดใช้สกิล Leader/ยูนิต และใช้ <b>Normal Spell</b> ได้เทิร์นละ 1 ใบ</li>
-          <li>⚔️ <b>Battle Phase:</b> สั่งยูนิตที่ตั้งอยู่ (Stand) โจมตียูนิตหรือ Leader อีกฝ่าย (พลังโจมตี ≥ เป้าหมาย = ทำลายยูนิตนั้น)</li>
-          <li>🛡️ <b>ป้องกัน & เวทสวนกลับ:</b> เมื่อถูกโจมตี เลือกยูนิตที่ Stand มารับดาเมจแทน (Intercept) หรือใช้ <b>Reaction Spell</b> (เทิร์นละ 1 ใบ)</li>
-        </ol>
+        <div class="hw-rules-grid">
+          <div class="hw-rule-card is-goal">
+            <span class="hw-step-num">1</span>
+            <div class="hw-rule-body">
+              <strong>🎯 เป้าหมายชนะ</strong>
+              <p>โจมตี <b>Leader</b> อีกฝ่ายให้ <b>HP เหลือ 0</b> (เริ่มต้น 6 HP) หรือทำตามเงื่อนไขชนะพิเศษของการ์ด</p>
+            </div>
+          </div>
+          <div class="hw-rule-card">
+            <span class="hw-step-num">2</span>
+            <div class="hw-rule-body">
+              <strong>🃏 เริ่มเกม &amp; การจั่ว</strong>
+              <p>เด็คมี 21 ใบ (Leader 1 + การ์ด 20) · จั่วเริ่มต้น <b>5 ใบ</b> เปลี่ยนมือได้สูงสุด <b>2 ใบ</b> · เข้าเทิร์นจั่วเพิ่ม <b>1 ใบ</b></p>
+            </div>
+          </div>
+          <div class="hw-rule-card">
+            <span class="hw-step-num">3</span>
+            <div class="hw-rule-body">
+              <strong>⚡ Main Phase (ช่วงเตรียมตัว)</strong>
+              <p>ลงยูนิตได้ไม่จำกัด (สูงสุด 3 ช่อง) · กดใช้สกิลยูนิต/Leader · ร่าย <b>Normal Spell</b> ได้เทิร์นละ <b>1 ใบ</b></p>
+            </div>
+          </div>
+          <div class="hw-rule-card">
+            <span class="hw-step-num">4</span>
+            <div class="hw-rule-body">
+              <strong>⚔️ Battle Phase (ช่วงโจมตี)</strong>
+              <p>สั่งยูนิตที่ตั้งอยู่ (<b>Stand</b>) โจมตี · พลังโจมตี <b>≥</b> พลังเป้าหมาย = ทำลายยูนิตนั้น (ตี Leader ลด 1 HP)</p>
+            </div>
+          </div>
+          <div class="hw-rule-card">
+            <span class="hw-step-num">5</span>
+            <div class="hw-rule-body">
+              <strong>🛡️ ป้องกัน &amp; เวทสวนกลับ</strong>
+              <p>เมื่อถูกโจมตี เลือกยูนิตที่ <b>Stand</b> มารับดาเมจแทน (<b>Intercept</b>) หรือร่าย <b>Reaction Spell</b> (เทิร์นละ 1 ใบ)</p>
+            </div>
+          </div>
+        </div>
 
         <div class="lb-howto-tutorial-banner">
           <div>
@@ -214,20 +244,32 @@
       <div class="lb-howto-pane" id="howto-pane-zones" style="display: none;">
         <div class="lb-zones-guide-grid">
           <div class="lb-zone-guide-card">
-            <strong>👑 ช่อง Leader & ช่องยูนิต 3 ช่อง</strong>
-            <p>ลงยูนิตได้ไม่จำกัดจำนวนครั้งใน Main Phase (หากเต็ม 3 ช่อง สามารถลงยูนิตใหม่วางทับใบเก่าเพื่อส่งใบเก่าลงนรกได้)</p>
+            <strong>👑 สนาม 3 ช่อง &amp; การวางทับ</strong>
+            <ul class="hw-zone-list">
+              <li>ลงยูนิตได้ไม่จำกัดครั้งใน Main Phase</li>
+              <li>หากเต็ม <b>3 ช่อง</b> ลงใบใหม่ทับใบเก่าได้ (ใบเก่าลงนรก)</li>
+            </ul>
           </div>
           <div class="lb-zone-guide-card">
-            <strong>🔄 สถานะ Stand (ตั้ง) vs Rest (นอน)</strong>
-            <p>ยูนิตที่ <b>Stand</b> เท่านั้นจึงจะสั่งโจมตีหรือโดดบัง (Intercept) ได้ เมื่อโจมตีหรือบังเสร็จจะเปลี่ยนเป็น <b>Rest</b> และลุกขึ้นใหม่เมื่อเข้าเทิร์นหน้า</p>
+            <strong>🔄 สถานะ <span class="hw-pill is-stand">Stand</span> vs <span class="hw-pill is-rest">Rest</span></strong>
+            <ul class="hw-zone-list">
+              <li><b>Stand (ตั้ง):</b> สั่งโจมตี หรือโดดรับดาเมจ (Intercept) ได้</li>
+              <li><b>Rest (นอน):</b> โจมตี/บังเสร็จจะนอนลง และลุกขึ้นใหม่เทิร์นหน้า</li>
+            </ul>
           </div>
           <div class="lb-zone-guide-card">
             <strong>🪙 กฎผู้เริ่มก่อน vs ผู้เริ่มหลัง</strong>
-            <p><b>ผู้เล่นคนแรก (Turn 1):</b> ห้ามโจมตีในเทิร์นแรกของตัวเอง<br><b>ผู้เล่นคนที่สอง:</b> ในเทิร์นแรกของตัวเอง โจมตีได้สูงสุดเพียง 1 ครั้ง</p>
+            <ul class="hw-zone-list">
+              <li><b>คนเริ่มก่อน (Turn 1):</b> ห้ามโจมตีในเทิร์นแรก</li>
+              <li><b>คนเริ่มหลัง:</b> เทิร์นแรกโจมตีได้สูงสุด <b>1 ครั้ง</b></li>
+            </ul>
           </div>
           <div class="lb-zone-guide-card">
-            <strong>💀 กองนรก (Drop) vs 🌌 มิติมืด</strong>
-            <p>การ์ดที่ถูกทำลายหรือใช้เสร็จจะลง <b>นรก</b> ส่วนการ์ดที่ถูกส่งไป <b>มิติมืด</b> จะออกจากเกม (ใช้ทำเงื่อนไขของเด็คไดโน, วันสิ้นโลก และปีศาจ)</p>
+            <strong>💀 <span class="hw-pill is-drop">นรก (Drop)</span> vs 🌌 <span class="hw-pill is-void">มิติมืด</span></strong>
+            <ul class="hw-zone-list">
+              <li><b>นรก:</b> การ์ดที่ถูกทำลาย/ใช้เสร็จ (ขุดคืนสนามได้)</li>
+              <li><b>มิติมืด:</b> ออกจากเกม (ใช้ทำเงื่อนไขเด็คไดโน, สิ้นโลก, ปีศาจ)</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -917,62 +959,81 @@
 
           <!-- แผงหมวดหมู่และตัวกรองการ์ด -->
           <div class="deck-filter-panel" id="deck-filter-panel">
-            <!-- แถวที่ 1: หมวดหมู่ตามสังกัด / เด็ค (Deck Themes) -->
-            <div class="deck-filter-themes-row" id="deck-filter-themes-row">
-              <button type="button" class="deck-theme-btn active" data-theme="ALL">
-                <span class="dtb-icon">🌟</span> ทั้งหมด
+            <!-- แถวที่ 1: หมวดหมู่ตามสังกัด / เด็ค (Deck Themes Dropdown) -->
+            <div class="deck-filter-themes-row fx-select" id="deck-filter-themes-row">
+              <button type="button" class="fx-select-btn" id="db-theme-select-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="เลือกหมวดหมู่เด็ค">
+                <span class="fx-select-label">หมวดหมู่:</span>
+                <span class="fx-select-val" id="db-theme-select-val">🌟 ทั้งหมด</span>
+                <svg class="fx-select-chev" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
               </button>
-              <button type="button" class="deck-theme-btn dtb-leader" data-theme="MATCH_LEADER" id="btn-filter-match-leader">
-                <span class="dtb-icon">👑</span> ตรงกับลีดเดอร์
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="killer">
-                <span class="dtb-icon">🔪</span> คิลเลอร์
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="rangdao">
-                <span class="dtb-icon">🚂</span> รางดาว
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="madoka">
-                <span class="dtb-icon">🌸</span> สาวน้อยเวทมนตร์
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="dino">
-                <span class="dtb-icon">🦖</span> ไดโน
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="doom">
-                <span class="dtb-icon">💀</span> วันสิ้นโลก
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="demon">
-                <span class="dtb-icon">😈</span> ปีศาจ
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="nuea">
-                <span class="dtb-icon">🌾</span> ขุนเหนือ
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="jit">
-                <span class="dtb-icon">⚡</span> ฮีโร่ เดจิต
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="oat">
-                <span class="dtb-icon">🤪</span> ไอโอ๊ต
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="bt01">
-                <span class="dtb-icon">📦</span> บูสเตอร์ BT01
-              </button>
-              <button type="button" class="deck-theme-btn" data-theme="bt02">
-                <span class="dtb-icon">📦</span> บูสเตอร์ BT02
-              </button>
+              <div class="fx-select-menu" id="db-theme-select-menu" role="listbox" aria-label="หมวดหมู่เด็ค" hidden>
+                <button type="button" class="deck-theme-btn fx-select-opt active" data-theme="ALL">
+                  <span class="dtb-icon">🌟</span> ทั้งหมด
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt dtb-leader" data-theme="MATCH_LEADER" id="btn-filter-match-leader">
+                  <span class="dtb-icon">👑</span> ตรงกับลีดเดอร์
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="killer">
+                  <span class="dtb-icon">🔪</span> คิลเลอร์
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="rangdao">
+                  <span class="dtb-icon">🚂</span> รางดาว
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="madoka">
+                  <span class="dtb-icon">🌸</span> สาวน้อยเวทมนตร์
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="dino">
+                  <span class="dtb-icon">🦖</span> ไดโน
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="doom">
+                  <span class="dtb-icon">💀</span> วันสิ้นโลก
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="demon">
+                  <span class="dtb-icon">😈</span> ปีศาจ
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="nuea">
+                  <span class="dtb-icon">🌾</span> ขุนเหนือ
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="jit">
+                  <span class="dtb-icon">⚡</span> ฮีโร่ เดจิต
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="oat">
+                  <span class="dtb-icon">🤪</span> ไอโอ๊ต
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="bt01">
+                  <span class="dtb-icon">📦</span> บูสเตอร์ BT01
+                </button>
+                <button type="button" class="deck-theme-btn fx-select-opt" data-theme="bt02">
+                  <span class="dtb-icon">📦</span> บูสเตอร์ BT02
+                </button>
+              </div>
             </div>
 
             <!-- แถวที่ 2: ประเภทการ์ด, ในเด็ค, และช่องค้นหา -->
             <div class="deck-filter-sub-row">
-              <div class="filter-pill-group" id="deck-filter-type-group">
-                <span class="filter-group-label">ประเภท:</span>
-                <button type="button" class="deck-sub-pill active" data-type="ALL">ทั้งหมด</button>
-                <button type="button" class="deck-sub-pill" data-type="Monster">⚔️ มอนสเตอร์</button>
-                <button type="button" class="deck-sub-pill" data-type="Spell">📜 เวทมนตร์</button>
+              <div class="fx-select deck-filter-dropdown" id="deck-filter-type-group">
+                <button type="button" class="fx-select-btn" id="db-type-select-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="เลือกประเภทการ์ด">
+                  <span class="fx-select-label">ประเภท:</span>
+                  <span class="fx-select-val" id="db-type-select-val">ทั้งหมด</span>
+                  <svg class="fx-select-chev" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="fx-select-menu fx-select-menu-sm" id="db-type-select-menu" role="listbox" aria-label="ประเภทการ์ด" hidden>
+                  <button type="button" class="deck-sub-pill fx-select-opt active" data-type="ALL">ทั้งหมด</button>
+                  <button type="button" class="deck-sub-pill fx-select-opt" data-type="Monster">⚔️ มอนสเตอร์</button>
+                  <button type="button" class="deck-sub-pill fx-select-opt" data-type="Spell">📜 เวทมนตร์</button>
+                </div>
               </div>
 
-              <div class="filter-pill-group" id="deck-filter-status-group">
-                <span class="filter-group-label">สถานะ:</span>
-                <button type="button" class="deck-sub-pill active" data-status="ALL">ทั้งหมด</button>
-                <button type="button" class="deck-sub-pill" data-status="IN_DECK">🃏 อยู่ในเด็ค (<span id="badge-in-deck-count">0</span>)</button>
+              <div class="fx-select deck-filter-dropdown" id="deck-filter-status-group">
+                <button type="button" class="fx-select-btn" id="db-status-select-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="เลือกสถานะการ์ด">
+                  <span class="fx-select-label">สถานะ:</span>
+                  <span class="fx-select-val" id="db-status-select-val">ทั้งหมด</span>
+                  <svg class="fx-select-chev" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="fx-select-menu fx-select-menu-sm" id="db-status-select-menu" role="listbox" aria-label="สถานะการ์ด" hidden>
+                  <button type="button" class="deck-sub-pill fx-select-opt active" data-status="ALL">ทั้งหมด</button>
+                  <button type="button" class="deck-sub-pill fx-select-opt" data-status="IN_DECK">🃏 อยู่ในเด็ค (<span id="badge-in-deck-count">0</span>)</button>
+                </div>
               </div>
 
               <div class="deck-search-wrap">

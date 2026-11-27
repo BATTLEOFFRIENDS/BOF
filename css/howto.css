@@ -48,13 +48,39 @@
 }
 
 /* หน้า: กติกา + โซน */
+.hw-rules-grid { display: grid; gap: 10px; }
+.hw-rule-card {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: start; gap: 12px;
+  padding: 12px 14px; border-radius: 14px;
+  background: var(--fx-panel); border: 1px solid var(--fx-line);
+}
+.hw-rule-card.is-goal {
+  background: linear-gradient(90deg, rgba(243, 201, 105, .14), transparent 70%), var(--fx-panel);
+  border-color: rgba(243, 201, 105, .45);
+}
+.hw-step-num {
+  width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+  font: 700 16px var(--font-display, 'Kanit'); color: #1a1405; background: var(--fx-gold-grad);
+  box-shadow: 0 4px 12px rgba(243, 201, 105, .25);
+}
+.hw-rule-body strong { display: block; font: 700 15px/1.3 var(--font-display, 'Kanit'); color: var(--fx-gold-hi); margin-bottom: 3px; }
+.hw-rule-body p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--fx-text-soft); }
+.hw-rule-body b { color: #f8fafc; }
+
 #lb-howto-dialog .lb-steps li { color: var(--fx-text); }
 #lb-howto-dialog .lb-steps b, #lb-howto-dialog .lb-zone-guide-card b { color: var(--fx-gold-hi); }
 #lb-howto-dialog .lb-zone-guide-card {
-  background: var(--fx-panel); border: 1px solid var(--fx-line); border-radius: 14px;
+  background: var(--fx-panel); border: 1px solid var(--fx-line); border-radius: 14px; padding: 14px;
 }
-#lb-howto-dialog .lb-zone-guide-card strong { color: var(--fx-gold-hi); }
+#lb-howto-dialog .lb-zone-guide-card strong { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--fx-gold-hi); font-size: 15px; margin-bottom: 8px; }
 #lb-howto-dialog .lb-zone-guide-card p { color: var(--fx-text-soft); }
+.hw-zone-list { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 13.5px; line-height: 1.5; color: var(--fx-text-soft); }
+.hw-zone-list b { color: #f8fafc; }
+.hw-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font: 700 12px/1.4 var(--font-display, 'Kanit'); }
+.hw-pill.is-stand { background: rgba(74, 222, 128, .18); color: #86efac; border: 1px solid rgba(74, 222, 128, .4); }
+.hw-pill.is-rest { background: rgba(251, 191, 36, .18); color: #fde68a; border: 1px solid rgba(251, 191, 36, .4); }
+.hw-pill.is-drop { background: rgba(248, 113, 113, .18); color: #fca5a5; border: 1px solid rgba(248, 113, 113, .4); }
+.hw-pill.is-void { background: rgba(192, 132, 252, .18); color: #e9d5ff; border: 1px solid rgba(192, 132, 252, .4); }
 #lb-howto-dialog .lb-howto-tutorial-banner { border: 1px solid rgba(243, 201, 105, .45); background: linear-gradient(135deg, var(--fx-panel-hi), var(--fx-panel)); }
 #lb-howto-dialog .lb-dialog-ok { margin: 18px 0 0; width: 100%; min-height: 52px; }
 
