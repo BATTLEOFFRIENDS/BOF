@@ -393,6 +393,7 @@ html.is-mobile #bof-deck-slots-toolbar .deck-code-actions-row { display: grid !i
 html.is-mobile #bof-deck-slots-toolbar .deck-slot-choice-group { display: contents !important; }
 html.is-mobile #bof-deck-slots-toolbar .deck-slot-choice-group label,
 html.is-mobile #bof-deck-slots-toolbar #select-builder-deck-slot,
+html.is-mobile #bof-deck-slots-toolbar .deck-slot-fx-select,
 html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group label { display: none !important; }
 html.is-mobile #bof-deck-slots-toolbar #btn-reopen-slot-picker { grid-column: 2; grid-row: 1; height: 40px; margin: 0 !important; padding: 0 10px; font-size: 12px; white-space: nowrap; border-radius: 8px; }
 html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group { grid-column: 1; grid-row: 1; margin: 0 !important; padding: 0 !important; min-width: 0; }
@@ -673,10 +674,12 @@ html.is-mobile #deck-builder-modal .restricted-badge {
 /* แถบลอยล่างจอสำหรับมือถือ (Mobile Floating Bottom Bar) */
 html.is-mobile .deck-mobile-bottom-bar {
   display: flex !important;
-  position: sticky;
-  bottom: -12px;
-  z-index: 50;
-  margin: 8px -10px -12px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  margin: 0;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
   background: rgba(11, 13, 24, 0.96);
   backdrop-filter: blur(10px);
@@ -970,9 +973,11 @@ html.is-mobile #combat-log-list { padding-bottom: calc(16px + env(safe-area-inse
    11. มือถือ: Dropdown ตัวกรอง / เลือกเด็ค / วิธีเล่น / ห้องทดลองสกิล
    ============================================================================ */
 html.is-mobile #deck-builder-modal .deck-builder-box {
+  display: block !important;
   height: 100dvh !important;
   max-height: 100dvh !important;
   overflow-y: auto !important;
+  padding-bottom: 76px !important;
 }
 html.is-mobile #deck-builder-modal .deck-slot-fx-select .fx-select-menu-sm {
   width: min(320px, calc(100vw - 32px));
