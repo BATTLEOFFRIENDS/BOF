@@ -84,13 +84,18 @@
 .pko .pulse-ring.big { border-width: 3px; }
 
 /* ป้องกันชั้น .pz-stack / 3D ทับรูปการ์ดบนซองในหน้าสแปลช (โดยเฉพาะ GPU มือถือ) */
-.pko .splash .pz-stack { display: none; }
-.pko .splash .pz-front { transform: none; }
+.pko .splash .pouch { transform-style: flat !important; }
+.pko .splash .pz-stack { display: none !important; }
+.pko .splash .pz-front { transform: none !important; }
+.pko .pz-clip { z-index: 2; }
 
 /* ปุ่มข้ามฉาก */
 .pko .pko-skip { position: absolute; right: 16px; top: 16px; z-index: 60; font: 600 13px Kanit, system-ui; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); border-radius: 18px; padding: 6px 14px; cursor: pointer; }
 .pko .pko-skip:focus-visible { outline: 2px solid #f3c969; outline-offset: 2px; }
 @media (max-width: 640px) {
+  .pko .pouch { transform-style: flat !important; }
+  .pko .pz-stack { display: none !important; }
+  .pko .pz-front { transform: none !important; }
   .pko .pz-wrap { width: 196px; height: 280px; margin: -140px 0 0 -98px; }
   .pko .splash .pz-wrap { left: 50%; top: 66%; width: 168px; height: 240px; margin: -120px 0 0 -84px; }
   .pko .splash .big.l1 { top: 10%; font-size: clamp(24px, 7.6vw, 42px); }
