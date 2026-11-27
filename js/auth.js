@@ -1381,7 +1381,53 @@
     } catch (e) {}
   }
 
+  function tryImportMigrationFromHash() {
+    try {
+      const m = /^#migrate=([A-Za-z0-9\-_]+)$/.exec(window.location.hash || '');
+      if (!m) return;
+      const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+
+      let importedCount = 0;
+      if (payload.accounts && typeof payload.accounts === 'object' && !Array.isArray(payload.accounts)) {
+        const db = loadLocalAccounts();
+        Object.entries(payload.accounts).forEach(([k, prof]) => {
+          if (k === '__proto__' || k === 'constructor' || k === 'prototype') return;
+          if (!prof || typeof prof !== 'object' || !prof.username) return;
+          if (!db[k] || Number(prof.packsOpened || 0) > Number(db[k].packsOpened || 0)) {
+            db[k] = prof;
+            importedCount++;
+          }
+        });
+        saveLocalAccounts(db);
+      }
+      if (payload.activeUser && typeof payload.activeUser === 'string' && !localStorage.getItem(STORAGE_SESSION_KEY)) {
+        localStorage.setItem(STORAGE_SESSION_KEY, payload.activeUser);
+      }
+      if (payload.guestEco && typeof payload.guestEco === 'string' && !localStorage.getItem('bof_guest_economy_v2')) {
+        localStorage.setItem('bof_guest_economy_v2', payload.guestEco);
+      }
+      if (payload.deckSlots && typeof payload.deckSlots === 'string' && !localStorage.getItem('bof_deck_slots_v1')) {
+        localStorage.setItem('bof_deck_slots_v1', payload.deckSlots);
+      }
+      if (payload.mainDeck && typeof payload.mainDeck === 'string' && !localStorage.getItem(DECK_STORAGE_KEY)) {
+        localStorage.setItem(DECK_STORAGE_KEY, payload.mainDeck);
+      }
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      if (importedCount > 0) {
+        setTimeout(() => alert(`🎉 ย้ายข้อมูลบัญชีเก่าสำเร็จ! (นำเข้า ${importedCount} บัญชีเรียบร้อยแล้ว)`), 250);
+      }
+    } catch (e) {
+      console.warn('[BOF Migrate]', e);
+    }
+  }
+
   async function restoreSession() {
+    tryImportMigrationFromHash();
     await initFirebaseIfConfigured();
     try {
       const savedKey = localStorage.getItem(STORAGE_SESSION_KEY);
