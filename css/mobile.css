@@ -284,26 +284,16 @@ html.is-mobile #deck-builder-modal .deck-builder-header h2 {
 html.is-mobile #deck-builder-modal .deck-builder-header p { display: none; }
 html.is-mobile #deck-builder-modal .dbt-hint { display: none; }
 
-/* แถวปุ่มใน Header: สถานะ 20/20 + จัดอัตโนมัติ + บันทึก + ปิด */
+/* แถวปุ่มใน Header: จัดอัตโนมัติ + บันทึก + ปิด (1 แถวพอดี) */
 html.is-mobile #deck-builder-modal .deck-builder-header > div:last-child {
   display: grid !important;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto !important;
   gap: 6px !important;
   width: 100%;
 }
 
 html.is-mobile #deck-builder-modal #deck-status-text {
-  font-size: 13px !important;
-  font-weight: 800;
-  margin: 0 !important;
-  padding: 0 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  white-space: nowrap;
+  display: none !important;
 }
 
 html.is-mobile #deck-builder-modal #btn-reset-deck { display: none; } /* ซ่อนปุ่มล้างในหัวเพื่อประหยัดที่ */
