@@ -1202,6 +1202,23 @@
     }
     economy.pity[packId] = pity;
 
+    // บันทึกประวัติการสุ่มล่าสุด (เก็บสูงสุด 40 รายการ)
+    try {
+      const prevHist = JSON.parse(localStorage.getItem('bof_pull_history_v1') || '[]');
+      const now = Date.now();
+      const entries = drawn.map(it => ({
+        id: it.card.id,
+        name: it.card.name,
+        rarity: it.card.rarity || 'N',
+        packName: pack.name,
+        shards: it.shards || 0,
+        isNew: !!it.isNew,
+        ts: now
+      }));
+      const nextHist = [...entries.reverse(), ...(Array.isArray(prevHist) ? prevHist : [])].slice(0, 40);
+      localStorage.setItem('bof_pull_history_v1', JSON.stringify(nextHist));
+    } catch (e) {}
+
     // เรียงลำดับการ์ดจากความแรร์น้อยไปมาก (ซ้ายไปขวา: N -> R -> SR -> SSR)
     drawn.sort((a, b) => {
       const ra = RARITY_ORDER[a.card.rarity] || 0;
@@ -1877,6 +1894,7 @@
           <button type="button" role="radio" data-qty="10" aria-checked="${packQty === 10}">10 ซอง <span class="sh-save">−10%</span></button>
         </div>
         <p class="sh-packs-info">ซองละ 1 ใบ · Soft Pity ตั้งแต่ซองที่ ${SOFT_PITY_START} · การันตีระดับสูงสุดทุก ${PITY_THRESHOLD} ซอง · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
+        <button type="button" class="sh-history-btn" id="btn-open-pull-history">📜 ประวัติการสุ่ม</button>
       </div>
       <p class="sh-dupe-note">${SHARD_SVG}<span>การ์ดที่เกินจำนวนจัดเด็ค (การ์ดตามโควตาจัดเด็ค) จะกลายเป็นชาร์ดให้อัตโนมัติ</span></p>
 
@@ -1933,6 +1951,56 @@
       btn.addEventListener('click', () => {
         peekPackCards(btn.dataset.peekPack);
       });
+    });
+
+    container.querySelector('#btn-open-pull-history')?.addEventListener('click', () => {
+      let hist = [];
+      try { hist = JSON.parse(localStorage.getItem('bof_pull_history_v1') || '[]'); } catch (e) {}
+      if (!Array.isArray(hist)) hist = [];
+      const host = document.getElementById('bof-shop-dialog') || document.body;
+      host.querySelector('.sh-card-peek-overlay')?.remove();
+      const overlay = document.createElement('div');
+      overlay.className = 'sh-card-peek-overlay';
+      const counts = { SSR: 0, SR: 0, R: 0, N: 0 };
+      hist.forEach(h => { if (counts[h.rarity] !== undefined) counts[h.rarity] += 1; });
+      const rarBadges = ['SSR', 'SR', 'R', 'N']
+        .filter(r => counts[r] > 0)
+        .map(r => `<span class="sh-peek-badge r-${r}">${r}: ${counts[r]}</span>`)
+        .join('');
+      const rowsHtml = hist.length
+        ? hist.map(h => {
+            const cObj = typeof CARD_DATABASE !== 'undefined' ? CARD_DATABASE.find(c => c.id === h.id) : null;
+            const img = cObj ? thumbOf(cObj.image) : '';
+            const tStr = h.ts ? new Date(h.ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '';
+            const tag = h.shards ? `<span class="sh-hist-tag is-shard">+${h.shards} ชาร์ด</span>` : (h.isNew ? '<span class="sh-hist-tag is-new">ใหม่</span>' : '');
+            return `
+              <div class="sh-hist-row">
+                ${img ? `<img src="${img}" alt="" loading="lazy">` : ''}
+                <span class="sh-hist-rar is-${String(h.rarity).toLowerCase()}">${h.rarity}</span>
+                <div class="sh-hist-meta"><b>${h.name}</b><small>${h.packName} · ${tStr}</small></div>
+                ${tag}
+              </div>`;
+          }).join('')
+        : '<p class="fx-empty" style="margin:24px 0;">ยังไม่มีประวัติการสุ่มในเครื่องนี้</p>';
+      overlay.innerHTML = `
+        <div class="sh-card-peek-box" role="dialog" aria-modal="true" style="--accent:#f3c969; max-width:600px;">
+          <div class="sh-card-peek-head">
+            <div class="sh-card-peek-title-group">
+              <h3 class="sh-card-peek-title">📜 ประวัติการสุ่มล่าสุด</h3>
+              <p class="sh-card-peek-sub">แสดง ${hist.length} ใบล่าสุด (เรียงจากใหม่ไปเก่า)</p>
+            </div>
+            <button type="button" class="sh-card-peek-close" aria-label="ปิดหน้าต่าง">✕</button>
+          </div>
+          <div class="sh-card-peek-summary-bar">
+            <span class="sh-peek-badge" style="color:#fff; background:rgba(255,255,255,0.1);">ทั้งหมด: ${hist.length} ใบ</span>
+            ${rarBadges}
+          </div>
+          <div class="sh-hist-list">${rowsHtml}</div>
+        </div>`;
+      const closeOv = () => overlay.remove();
+      overlay.querySelector('.sh-card-peek-close').onclick = closeOv;
+      overlay.onclick = e => { if (e.target === overlay) closeOv(); };
+      host.appendChild(overlay);
     });
 
     const qtyEl = container.querySelector('.sh-qty');

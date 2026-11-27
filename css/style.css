@@ -3472,7 +3472,12 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
 }
 
-/* Arena Mat Themes (เฉพาะฝั่งผู้เล่น .player-mat-half ไม่ทับทั้งสนาม/ฝั่งตรงข้าม) */
+#pvp-room-modal .modal-box {
+  background: linear-gradient(180deg, #151a3c, #0b0e24);
+  border: 1.5px solid rgba(160, 175, 255, 0.32);
+  border-radius: 20px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.78);
+}
 #bof-game-arena[data-arena-theme]:not([data-arena-theme="default"]) .player-mat-half .deck-mat-fx {
   display: none;
 }
